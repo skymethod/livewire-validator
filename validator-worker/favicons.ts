@@ -1,0 +1,14 @@
+export const FAVICON_SVG = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1400 1400" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1.19061,0,0,1.19061,-133.426,-133.426)">
+        <g id="Layer1">
+            <path d="M700,169.442C992.823,169.442 1230.56,407.177 1230.56,700C1230.56,992.823 992.823,1230.56 700,1230.56C407.177,1230.56 169.442,992.823 169.442,700C169.442,407.177 407.177,169.442 700,169.442ZM409.36,845.109C409.36,876.095 418.181,898.147 435.822,911.265C452.559,924.157 473.82,930.603 499.604,930.603L531.155,930.603L531.155,863.769L506.728,863.769C489.086,863.769 480.266,855.74 480.266,839.681L480.266,435.961L409.36,435.961L409.36,845.109ZM867.702,930.603L930.465,930.603L1042.76,578.45L967.784,578.45L900.61,825.093L899.253,825.093L819.188,578.45L767.959,578.45L687.893,825.093L686.536,825.093L619.023,578.45L544.047,578.45L656.681,930.603L719.105,930.603L792.725,683.96L794.082,683.96L867.702,930.603Z" style="fill:rgb(0,136,255);"/>
+        </g>
+    </g>
+</svg>`;
+
+export const FAVICON_VERSION = '1';
+
+export const FAVICON_ICO_B64 = `AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A//LkGf/FhHn/pkK9/5Yg3v+WIN7/pkK9/8WEef/y5Bn///8A////AP///wD///8A////AP///wD//vwA/8aGeP6LCPb/iAD//4gA//+IAP//iAD//4gA//+IAP//iwj2/saGeP/+/AD///8A////AP///wD//vwA/7Ncof+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//s1yh/v78AP///wD///8A/saGeP+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA///Ghnj///8A/vLkGf+LCPb/iAD//4gA/f+uUqv/oTbJ/4gA//+sTq//mSbX/4gA//+lPsD+oTbI/4gA//+IAP//iwj2//LkGf/FhHn/iAD//4gA//+nRLv/8+YX/6hGuP+JBPr/9uwS/8qOb/+IAP//5MY3/964Rf+IAP//iAD//4gA///FhHn+pkK9/4gA//+IAP//rlKs/9+6RP+IAP/+pkK8/+TGOP/s1ib+khbo/+zWKP/x4hr/jxDu/4gA//+IAP/+pkK9/pYg3v+IAP//iAD//65SrP/fukT/iAD//82Uav+6bJL/4LxC/8eIdf/FhHn/1KRa/7Ncof+IAP//iAD//5Yg3v+WIN7/iAD//4gA//+uUqz/37pE/ogC/f/y5Bn/mSbX/rlqlP/8+AX/nzLL/7ReoP/ZrlD/iAD//4gA//6WIN7+pkK9/4gA//+IAP//rlKs/9+6RP+ZKNf/37pE/4gA/f6TGOX/37pF/ogA/f+UGuX/48Q6/4kE+v+IAP//pkK9/8WEef+IAP//iAD//65SrP/fukT/iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//8WEef7y5Bn/iwj2/4gA//+rTLL/2KxQ/4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4sI9v/y5Bn///8A/saGeP+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//7Ghnj///8A////AP/+/AD/s1yh/4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//+IAP//iAD//4gA//6zXKH//vwA////AP///wD///8A//78AP/Ghnj/iwj2/4gA//+IAP//iAD//4gA//+IAP//iAD//osI9v7Ghnj//vwA////AP///wD///8A////AP///wD///8A//LkGf7FhHn/pkK9/5Yg3v6WIN7/pkK9/8WEef/y5Bn///8A////AP///wD///8A/D8AAPAPAADAAwAAwAMAAIABAACJsQAACbAAAArwAAAKSAAACkgAAIgBAACIAQAAwAMAAMADAADwDwAA/D8AAA==
+`;
