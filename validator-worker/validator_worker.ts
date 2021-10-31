@@ -13,8 +13,6 @@ export default {
         const url = new URL(request.url);
         const { pathname } = url;
 
-        await Promise.resolve();
-
         if (pathname === '/') {
             const { version, flags, twitter, pushId } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
@@ -36,6 +34,8 @@ export default {
         } else if (pathname === '/robots.txt') {
             const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
+        } else if (pathname === '/fetch') {
+            return await computeFetch(request);
         }
         
         const headers = computeHeaders('text/html; charset=utf-8');
@@ -52,6 +52,16 @@ const FAVICON_ICO_PATHNAME = `/favicon.${FAVICON_VERSION}.ico`;
 const MANIFEST_PATHNAME = `/app.${MANIFEST_VERSION}.webmanifest`;
 const TWITTER_IMAGE_PNG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.png`;
 const SVG_MIME_TYPE = 'image/svg+xml';
+
+async function computeFetch(request: Request): Promise<Response> {
+    try {
+        if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
+        const { url, headers } = await request.json();
+        return await fetch(new URL(url).toString(), { headers });
+    } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 400 });
+    }
+}
 
 function computeManifest(): AppManifest {
     const name = 'Livewire Validator';
