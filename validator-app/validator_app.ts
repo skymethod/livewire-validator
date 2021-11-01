@@ -6,6 +6,7 @@ import { StaticData } from './static_data.ts';
 import { ValidatorAppVM } from './validator_app_vm.ts';
 import { FORM_CSS, FORM_HTML, initForm } from './views/form_view.ts';
 import { initMessages, MESSAGES_HTML, MESSAGES_CSS } from './views/messages_view.ts';
+import { initXml, XML_CSS, XML_HTML } from './views/xml_view.ts.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
 
@@ -26,6 +27,7 @@ const appHtml = html`
 <main>
 ${FORM_HTML}
 ${MESSAGES_HTML}
+${XML_HTML}
 </main>
 `;
 
@@ -40,6 +42,7 @@ appendStylesheets([
     appCss.cssText, 
     FORM_CSS.cssText,
     MESSAGES_CSS.cssText,
+    XML_CSS.cssText,
 ]);
 
 LitElement.render(appHtml, document.body);
@@ -58,10 +61,12 @@ const _data = parseStaticData();
 const vm = new ValidatorAppVM();
 const updateForm = initForm(document, vm);
 const updateMessages = initMessages(document, vm);
+const updateXml = initXml(document, vm);
 
 vm.onChange = () => {
     updateForm();
     updateMessages();
+    updateXml();
 };
 
 vm.start();
