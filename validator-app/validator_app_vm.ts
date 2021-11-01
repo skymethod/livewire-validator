@@ -91,6 +91,10 @@ export class ValidatorAppVM {
                         console.warn(message);
                         this._messages.push({ type: 'warning', text: message });
                     },
+                    onInfo: (_, message) =>  {
+                        console.info(message);
+                        this._messages.push({ type: 'info', text: message });
+                    },
                 };
                 validateFeedXml(xml, callbacks);
                 validateTime = Date.now() - start;
