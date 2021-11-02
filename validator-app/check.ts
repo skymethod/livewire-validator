@@ -4,5 +4,9 @@ export function checkMatches(name: string, value: string, pattern: RegExp): stri
 }
 
 export function checkEqual<T>(name: string, value: T, expected: T) {
-    if (value !== expected) throw new Error(`Bad ${name}: expected ${expected}, found ${value}`);
+    if (value !== expected) throw new Error(`Bad ${name}: ${value}, expected ${expected}`);
+}
+
+export function checkTrue<T>(name: string, value: T, test: boolean) {
+    if (!test) throw new Error(`Bad ${name}: ${value}`);
 }

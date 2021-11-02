@@ -34,7 +34,7 @@ export default {
         } else if (pathname === '/robots.txt') {
             const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
-        } else if (pathname === '/fetch') {
+        } else if (/^\/f(\/.*)?$/.test(pathname)) {
             return await computeFetch(request);
         }
         
