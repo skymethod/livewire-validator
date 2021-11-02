@@ -4,6 +4,7 @@
 import { css, html, LitElement } from './deps_app.ts';
 import { StaticData } from './static_data.ts';
 import { ValidatorAppVM } from './validator_app_vm.ts';
+import { COMMENTS_CSS, COMMENTS_HTML, initComments } from './views/comments_view.ts';
 import { FORM_CSS, FORM_HTML, initForm } from './views/form_view.ts';
 import { initMessages, MESSAGES_HTML, MESSAGES_CSS } from './views/messages_view.ts';
 import { initXml, XML_CSS, XML_HTML } from './views/xml_view.ts.ts';
@@ -27,6 +28,7 @@ const appHtml = html`
 <main>
 ${FORM_HTML}
 ${MESSAGES_HTML}
+${COMMENTS_HTML}
 ${XML_HTML}
 </main>
 `;
@@ -42,6 +44,7 @@ appendStylesheets([
     appCss.cssText, 
     FORM_CSS.cssText,
     MESSAGES_CSS.cssText,
+    COMMENTS_CSS.cssText,
     XML_CSS.cssText,
 ]);
 
@@ -61,11 +64,13 @@ const _data = parseStaticData();
 const vm = new ValidatorAppVM();
 const updateForm = initForm(document, vm);
 const updateMessages = initMessages(document, vm);
+const updateComments = initComments(document, vm);
 const updateXml = initXml(document, vm);
 
 vm.onChange = () => {
     updateForm();
     updateMessages();
+    updateComments();
     updateXml();
 };
 

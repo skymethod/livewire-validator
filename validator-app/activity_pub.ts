@@ -56,6 +56,46 @@ export interface Object_ {
      */
     readonly replies?: Collection;
 
+    /**
+     * A simple, human-readable, plain-text name for the object.
+     * 
+     * HTML markup MUST NOT be included. The name MAY be expressed using multiple language-tagged values.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-name
+     */
+    readonly name?: string;
+
+    /**
+     * A simple, human-readable, plain-text name for the object.
+     * 
+     * HTML markup MUST NOT be included. The name MAY be expressed using multiple language-tagged values.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-name
+     */
+    readonly nameMap?: Record<string, string>;
+
+    /**
+     * Identifies one or more links to representations of the object.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-url
+     */
+    readonly url?: string | Link | readonly (string | Link)[];
+
+    /**
+     * Indicates an entity that describes an icon for this object.
+     * 
+     * The image should have an aspect ratio of one (horizontal) to one (vertical) and should be suitable for presentation at a small size.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-icon
+     */
+    readonly icon?: Image | string | Link | readonly (Image | string | Link)[];
+
+    /**
+     * The date and time at which the object was published.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-published
+     */
+    readonly published?: string;
 }
 
 /**
@@ -234,4 +274,22 @@ export interface CollectionPage extends CollectionBase {
      */
     readonly prev?: string | Link | CollectionPage;
 
+}
+
+/**
+ * Represents an individual person.
+ *
+ * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-person
+ */
+export interface Person extends Object_ {
+    readonly type: 'Person';
+}
+
+/**
+ * An image document of any kind 
+ * 
+ * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-image
+ */
+export interface Image extends Object_ {
+    readonly type: 'Image';
 }

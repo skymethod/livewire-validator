@@ -1,5 +1,5 @@
 import { checkEqual, checkMatches, checkTrue } from './check.ts';
-import { fetchCommentsForUrl } from './comments.ts';
+import { fetchCommentsForUrl, FetchCommentsResult } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 
 export class ValidatorAppVM {
@@ -15,6 +15,9 @@ export class ValidatorAppVM {
 
     private _xml: XmlNode | undefined;
     get xml(): XmlNode | undefined { return this._xml; }
+
+    private _fetchCommentsResult: FetchCommentsResult | undefined;
+    get fetchCommentsResult(): FetchCommentsResult | undefined { return this._fetchCommentsResult; }
 
     onChange: () => void = () => {};
 
@@ -110,20 +113,21 @@ export class ValidatorAppVM {
             this._messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
 
             if (activityPubRootCommentNodeUrls.length > 0) {
+                const sleepMillisBetweenCalls = 0;
                 for (const activityPubRootCommentNodeUrl of activityPubRootCommentNodeUrls) {
                     this._status = `Validating activityPubRootCommentNodeUrl: ${activityPubRootCommentNodeUrl}`; this.onChange();
                     const keepGoing = () => this._validating;
                     const remoteOnlyOrigins = new Set<string>();
                     const computeUseSide = (url: string) => remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
                     const fetchActivityPub = async (url: string) => {
-                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url)); if (!keepGoing()) return undefined;
+                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                         console.log(JSON.stringify(obj, undefined, 2));
                         if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
                             // https://docs.joinmastodon.org/methods/statuses/
                             // https://docs.joinmastodon.org/entities/status/
                             // uri = URI of the status used for federation (i.e. the AP url)
                             url = obj.uri;
-                            const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url)); if (!keepGoing()) return undefined;
+                            const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                             obj = res.obj;
                             side = res.side;
                             console.log(JSON.stringify(obj, undefined, 2));
@@ -137,8 +141,9 @@ export class ValidatorAppVM {
                         }
                         return obj;
                     };
-                    const rootComment = await fetchCommentsForUrl(activityPubRootCommentNodeUrl, { keepGoing, fetchActivityPub })
-                    console.log('comments', JSON.stringify(rootComment, undefined, 2));
+                    const fetchCommentsResult = await fetchCommentsForUrl(activityPubRootCommentNodeUrl, { keepGoing, fetchActivityPub })
+                    this._fetchCommentsResult = fetchCommentsResult;
+                    this.onChange();
                 }
             }
 
@@ -173,8 +178,8 @@ function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function localOrRemoteFetchFetchActivityPub(url: string, useSide: FetchSide | undefined): Promise<{ obj: Record<string, unknown>, side: FetchSide }> {
-    await sleep(500);
+async function localOrRemoteFetchFetchActivityPub(url: string, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ obj: Record<string, unknown>, side: FetchSide }> {
+    if (sleepMillisBetweenCalls > 0) await sleep(sleepMillisBetweenCalls);
     const { response, side } = await localOrRemoteFetch(url, { headers: { 'Accept': 'application/activity+json' }, useSide });
     checkEqual('res.status', response.status, 200);
     console.log([...response.headers].map(v => v.join(': ')));
