@@ -2,22 +2,27 @@ import { checkEqual, checkMatches, checkTrue } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 
+
+interface ValidationJob {
+    readonly id: number;
+    readonly messages: Message[]; // first message is status
+    done: boolean;
+    xml?: XmlNode;
+    fetchCommentsResult?: FetchCommentsResult;
+}
+
 export class ValidatorAppVM {
 
-    private _validating = false;
-    get validating(): boolean { return this._validating; }
+    private nextJobId = 1;
+    private currentJob: ValidationJob | undefined;
 
-    private _status = '';
-    get status(): string { return this._status; }
+    get validating(): boolean { return this.currentJob !== undefined && !this.currentJob.done; }
 
-    private _messages: Message[] = [];
-    get messages(): readonly Message[] { return this._messages; }
+    get messages(): readonly Message[] { return this.currentJob ? this.currentJob.messages : [] }
 
-    private _xml: XmlNode | undefined;
-    get xml(): XmlNode | undefined { return this._xml; }
+    get xml(): XmlNode | undefined { return this.currentJob?.xml; }
 
-    private _fetchCommentsResult: FetchCommentsResult | undefined;
-    get fetchCommentsResult(): FetchCommentsResult | undefined { return this._fetchCommentsResult; }
+    get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
 
     onChange: () => void = () => {};
 
@@ -27,30 +32,34 @@ export class ValidatorAppVM {
 
     validateFeed(feedUrlStr: string) {
         feedUrlStr = feedUrlStr.trim();
-        this._status = 'Validating ' + feedUrlStr;
-        this._messages.splice(0);
-        this._fetchCommentsResult = undefined;
-        this._xml = undefined;
-        this._validating = true;
+        const job: ValidationJob = {
+            id: this.nextJobId++,
+            messages: [],
+            done: false,
+        }
+        this.currentJob = job;
+        job.messages.push({ type: 'running', text: 'Validating', url: feedUrlStr });
         this.onChange();
 
-        this.validateFeedAsync(feedUrlStr).catch(e => {
-            this._messages.push({ type: 'error', text: e.message });
-            this._validating = false;
-            this.onChange();
-        })
+        this.validateFeedAsync(feedUrlStr, job);
     }
 
     cancelValidation() {
-        if (!this._validating) return;
-        this._validating = false;
-        this.onChange();
+        if (this.currentJob && !this.currentJob.done) {
+            this.currentJob.done = true;
+            this.onChange();
+        }
     }
 
     //
 
-    private async validateFeedAsync(feedUrlStr: string): Promise<void> {
-        const activityPubRootCommentNodeUrls: string[] = [];
+    private async validateFeedAsync(feedUrlStr: string, job: ValidationJob): Promise<void> {
+        const { messages } = job;
+        const setStatus = (text: string, opts: { url?: string, type?: MessageType } = {}) => {
+            const { url, type } = opts;
+            messages[0] = { type: type || messages[0].type, text, url };
+        };
+        let activityPub: { url: string, subject: string } | undefined;
         try {
             if (feedUrlStr === '') throw new Error(`Bad url: <blank>`);
             const feedUrl = tryParseUrl(feedUrlStr);
@@ -60,24 +69,24 @@ export class ValidatorAppVM {
             feedUrl.searchParams.set('_t', Date.now().toString()); // cache bust
 
             const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
-            const { response, side, fetchTime } = await localOrRemoteFetch(feedUrl.toString(), { headers }); if (!this._validating) return;
+            const { response, side, fetchTime } = await localOrRemoteFetch(feedUrl.toString(), { headers }); if (job.done) return;
 
             if (side === 'remote') {
-                this._messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?): ${feedUrl.toString()}` });
+                messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: feedUrlStr });
             }
             checkEqual('response.status', response.status, 200);
             const contentType = response.headers.get('Content-Type');
-            this._messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
+            messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
 
             let start = Date.now();
-            const text = await response.text(); if (!this._validating) return;
+            const text = await response.text(); if (job.done) return;
             const readTime = Date.now() - start;
 
             let validateFeed = true;
             if (contentType && contentType.includes('/html')) {
-                this._messages.push({ type: 'info', text: 'Found html, trying again as ActivityPub' });
+                messages.push({ type: 'info', text: 'Found html, trying again as ActivityPub' });
                 validateFeed = false;
-                activityPubRootCommentNodeUrls.push(feedUrl.toString());
+                activityPub = { url: feedUrlStr, subject: 'input url' };
             }
 
             let parseTime: number | undefined;
@@ -89,11 +98,11 @@ export class ValidatorAppVM {
                 try {
                     xml = parseFeedXml(text);
                 } catch (e) {
-                    this._messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
+                    messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
                 } finally {
                     parseTime = Date.now() - start;
                 }
-                this._xml = xml;
+                job.xml = xml;
             
                 console.log(xml);
 
@@ -102,18 +111,19 @@ export class ValidatorAppVM {
                     const callbacks: ValidationCallbacks = {
                         onError: (_, message) => {
                             console.error(message);
-                            this._messages.push({ type: 'error', text: message });
+                            messages.push({ type: 'error', text: message });
                         },
                         onWarning: (_, message) =>  {
                             console.warn(message);
-                            this._messages.push({ type: 'warning', text: message });
+                            messages.push({ type: 'warning', text: message });
                         },
                         onInfo: (node, message) =>  {
                             console.info(message);
-                            this._messages.push({ type: 'info', text: message });
+                            messages.push({ type: 'info', text: message });
                             if (message.includes('socialInteract')) {
                                 if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
-                                    activityPubRootCommentNodeUrls.push(node.val);
+                                    const episodeTitle = findEpisodeTitle(node)
+                                    activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                 }
                             }
                         },
@@ -122,60 +132,59 @@ export class ValidatorAppVM {
                     validateTime = Date.now() - start;
                 }
             }
-            this._messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
+            messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
 
-            if (activityPubRootCommentNodeUrls.length > 0) {
+            if (activityPub) {
                 const sleepMillisBetweenCalls = 0;
-                for (const activityPubRootCommentNodeUrl of activityPubRootCommentNodeUrls) {
-                    this._status = `Validating activityPubRootCommentNodeUrl: ${activityPubRootCommentNodeUrl}`; this.onChange();
-                    const keepGoing = () => this._validating;
-                    const remoteOnlyOrigins = new Set<string>();
-                    const computeUseSide = (url: string) => {
-                        return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
-                    };
-                    const fetchActivityPub = async (url: string) => {
-                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url }); this.onChange();
+                const keepGoing = () => !job.done;
+                const remoteOnlyOrigins = new Set<string>();
+                const computeUseSide = (url: string) => {
+                    return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
+                };
+                const fetchActivityPub = async (url: string) => {
+                    let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                    console.log(JSON.stringify(obj, undefined, 2));
+                    if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
+                        // https://docs.joinmastodon.org/methods/statuses/
+                        // https://docs.joinmastodon.org/entities/status/
+                        // uri = URI of the status used for federation (i.e. the AP url)
+                        url = obj.uri;
+                        const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                        obj = res.obj;
+                        side = res.side;
                         console.log(JSON.stringify(obj, undefined, 2));
-                        if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
-                            // https://docs.joinmastodon.org/methods/statuses/
-                            // https://docs.joinmastodon.org/entities/status/
-                            // uri = URI of the status used for federation (i.e. the AP url)
-                            url = obj.uri;
-                            const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
-                            obj = res.obj;
-                            side = res.side;
-                            console.log(JSON.stringify(obj, undefined, 2));
+                    }
+                    if (side === 'remote') {
+                        const origin = new URL(url).origin;
+                        if (!remoteOnlyOrigins.has(origin)) {
+                            messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?)`, url }); this.onChange();
+                            remoteOnlyOrigins.add(origin);
                         }
-                        if (side === 'remote') {
-                            const origin = new URL(url).origin;
-                            if (!remoteOnlyOrigins.has(origin)) {
-                                this._messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?): ${url}` }); this.onChange();
-                                remoteOnlyOrigins.add(origin);
-                            }
-                        }
-                        return obj;
-                    };
-                    const warn = (comment: Comment, url: string, message: string) => {
-                        this._messages.push({ type: 'warning', text: message, comment, url }); this.onChange();
-                    };
-                    const fetchCommentsResult = await fetchCommentsForUrl(activityPubRootCommentNodeUrl, { keepGoing, fetchActivityPub, warn })
-                    this._fetchCommentsResult = fetchCommentsResult;
-                    this.onChange();
-                }
+                    }
+                    return obj;
+                };
+                const warn = (comment: Comment, url: string, message: string) => {
+                    messages.push({ type: 'warning', text: message, comment, url }); this.onChange();
+                };
+                const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn })
+                job.fetchCommentsResult = fetchCommentsResult;
+                this.onChange();
             }
 
         } catch (e) {
             console.error(e);
-            this._messages.push({ type: 'error', text: e.message });
+            messages.push({ type: 'error', text: e.message });
         } finally {
-            this._status = '';
+            job.done = true;
+            setStatus('done!', { type: 'done' });
             this.onChange();
         }
     }
 
 }
 
-export type MessageType = 'error' | 'warning' | 'info';
+export type MessageType = 'error' | 'warning' | 'info' | 'done' | 'running';
 
 export interface Message {
     readonly type: MessageType;
@@ -225,6 +234,20 @@ async function localOrRemoteFetch(url: string, opts: { headers?: Record<string, 
     const start = Date.now();
     const response = await fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers }) });
     return { fetchTime: Date.now() - start, side: 'remote', response };
+}
+
+function findEpisodeTitle(socialInteract: XmlNode): string | undefined {
+    const item = socialInteract.parent;
+    if (item) {
+        const title = item.child['title'];
+        if (title.length > 0 && title[0].val) {
+            const val = title[0].val.trim();
+            if (val.length > 0) {
+                return val;
+            }
+        } 
+    }
+    return undefined;
 }
 
 //

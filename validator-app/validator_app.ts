@@ -1,9 +1,11 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { css, html, LitElement } from './deps_app.ts';
+import { css, html, LitElement, unsafeCSS } from './deps_app.ts';
 import { StaticData } from './static_data.ts';
+import { Theme } from './theme.ts';
 import { ValidatorAppVM } from './validator_app_vm.ts';
+import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { COMMENTS_CSS, COMMENTS_HTML, initComments } from './views/comments_view.ts';
 import { FORM_CSS, FORM_HTML, initForm } from './views/form_view.ts';
 import { initMessages, MESSAGES_HTML, MESSAGES_CSS } from './views/messages_view.ts';
@@ -17,11 +19,38 @@ function setAppState(appState: string) {
 setAppState('starting');
 
 const appCss = css`
+
+a {
+    color: ${unsafeCSS(Theme.primaryColor300Hex)};
+    text-underline-offset: 0.2rem;
+    text-decoration: none;
+}
+
+@media (hover: hover) {
+    a:hover {
+        text-decoration: underline;
+    }
+}
+
 main {
     margin: 2rem;
     display: flex;
     flex-direction: column;
 }
+
+@keyframes fadeInAnimation {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+summary {
+    cursor: pointer;
+}
+
 `;
 
 const appHtml = html`
@@ -46,6 +75,7 @@ appendStylesheets([
     MESSAGES_CSS.cssText,
     COMMENTS_CSS.cssText,
     XML_CSS.cssText,
+    CIRCULAR_PROGRESS_CSS.cssText,
 ]);
 
 LitElement.render(appHtml, document.body);

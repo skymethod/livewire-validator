@@ -26,17 +26,18 @@ export interface FetchCommentsOpts {
 }
 
 export interface FetchCommentsResult {
+    readonly subject: string;
     readonly rootComment: Comment;
     readonly commenters: ReadonlyMap<string, Commenter>;
 }
 
 //
 
-export async function fetchCommentsForUrl(url: string, opts: FetchCommentsOpts): Promise<FetchCommentsResult | undefined> {
+export async function fetchCommentsForUrl(url: string, subject: string, opts: FetchCommentsOpts): Promise<FetchCommentsResult | undefined> {
     const rootComment = await fetchCommentsForUrl_(url, opts);
     if (!rootComment) return undefined;
     const commenters = await collectCommenters(rootComment, opts);
-    return { rootComment, commenters };
+    return { subject, rootComment, commenters };
 }
 
 //
@@ -63,16 +64,17 @@ async function collectComments(note: Note, comment: Comment, opts: FetchComments
             if (obj.type === 'OrderedCollection') {
                 const orderedCollection = obj as unknown as OrderedCollection;
                 if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
-                    throw new Error(`TODO: orderedCollection.items/orderedItems not implemented ${obj}`);
+                    throw new Error(`TODO: orderedCollection.items/orderedItems not implemented ${JSON.stringify(obj)}`);
                 }
-                if (typeof orderedCollection.first === 'string') {
+                if (orderedCollection.first === undefined && orderedCollection.totalItems === 0) {
+                    // fine, empty
+                } else if (typeof orderedCollection.first === 'string') {
                     await fetchPages(orderedCollection.first, comment, opts, fetched);
                 } else {
-                    throw new Error(`TODO: orderedCollection.first not implemented ${obj}`);
+                    throw new Error(`TODO: orderedCollection.first not implemented ${JSON.stringify(obj)}`);
                 }
-                
             } else {
-                throw new Error(`TODO: obj.type not implemented ${obj}`);
+                throw new Error(`TODO: obj.type not implemented ${JSON.stringify(obj)}`);
             }
         } else if (note.replies.first) {
             if (typeof note.replies.first === 'object' && note.replies.first.type === 'CollectionPage') {
@@ -113,7 +115,6 @@ async function fetchPages(url: string, comment: Comment, opts: FetchCommentsOpts
         if (page.type === 'OrderedCollectionPage' && page.orderedItems) {
             await collectItems(page.orderedItems, comment, opts, url); if (!keepGoing()) return;
         }
-        if ((page.items?.length || 0) === 0) keepCollecting = false;
         if (page.next) {
             if (typeof page.next === 'string') {
                 if (fetched.has(page.next)) {

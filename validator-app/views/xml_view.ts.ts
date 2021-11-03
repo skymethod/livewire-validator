@@ -13,18 +13,7 @@ export const XML_CSS = css`
     font-size: 0.75rem;
     line-height: 1rem;
     color: ${unsafeCSS(Theme.textColorHex)};
-}
-
-#xml a {
-    color: ${unsafeCSS(Theme.primaryColor300Hex)};
-    text-underline-offset: 0.2rem;
-    text-decoration: none;
-}
-
-@media (hover: hover) {
-    #xml a:hover {
-        text-decoration: underline;
-    }
+    overflow-wrap: break-word;
 }
 
 #xml .indent {

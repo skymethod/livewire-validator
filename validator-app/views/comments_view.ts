@@ -1,15 +1,25 @@
-import { html, css } from '../deps_app.ts';
+import { html, css, unsafeCSS } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { Comment, Commenter, FetchCommentsResult } from '../comments.ts';
+import { Theme } from '../theme.ts';
 
 export const COMMENTS_HTML = html`
-<output id="comments"></output>
+<details id="comments-details" open>
+    <summary>Comments for <span id="comments-subject">subject</span></summary>
+    <output id="comments"></output>
+</details>
 `;
 
 export const COMMENTS_CSS = css`
 
+#comments-details {
+    display: none;
+    font-size: 0.75rem;
+    color: ${unsafeCSS(Theme.textColorHex)};
+}
+
 #comments {
-    max-width: 60ch;
+    max-width: 80ch;
 }
 
 .comment {
@@ -17,16 +27,16 @@ export const COMMENTS_CSS = css`
 }
 
 .comment .icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.5rem;
-    margin: 1rem;
+    width: 3em;
+    height: 3em;
+    border-radius: 0.5em;
+    margin: 0.75em 1em 0 0;
 }
 
 .comment .rhs {
     display: flex;
     flex-direction: column;
-    margin: 1rem 1rem 0 0;
+    margin: 0.75em 1em 0 0;
     flex-grow: 1;
 }
 
@@ -39,17 +49,21 @@ export const COMMENTS_CSS = css`
 }
 
 .comment .rhs p {
-    margin-block-start: 0.5rem;
-    margin-block-end: 0.5rem;
+    margin-block-start: 0.5em;
+    margin-block-end: 0.5em;
     line-height: 1.4;
 }
 
 `;
 
 export function initComments(document: Document, vm: ValidatorAppVM): () => void {
+    const commentsDetails = document.getElementById('comments-details') as HTMLDetailsElement;
+    const commentsSubjectSpan = document.getElementById('comments-subject') as HTMLSpanElement;
     const commentsOutput = document.getElementById('comments') as HTMLOutputElement;
     return () => {
         const result = vm.fetchCommentsResult;
+        commentsDetails.style.display = result ? 'block' : 'none';
+        commentsSubjectSpan.textContent = result?.subject || 'subject';
         if (result !== _renderedResult) {
             renderComments(result, commentsOutput);
             _renderedResult = result;
@@ -71,7 +85,7 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
     
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
-    if (level > 0) commentDiv.style.marginLeft = `${level * 4}rem`;
+    if (level > 0) commentDiv.style.marginLeft = `${level * 4}em`;
 
     const iconImg = document.createElement('img');
     iconImg.classList.add('icon');

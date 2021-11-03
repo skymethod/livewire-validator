@@ -211,7 +211,7 @@ interface CollectionBase extends Object_ {
       * 
       * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-totalitems
       */
-     readonly totalCount?: number;
+     readonly totalItems?: number;
  
      /**
       * In a paged Collection, indicates the furthest preceeding page of items in the collection.
