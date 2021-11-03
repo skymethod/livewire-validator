@@ -1,5 +1,5 @@
 import { Bytes, IncomingRequestCf } from './deps_worker.ts';
-import { VALIDATOR_APP_B64, VALIDATOR_APP_HASH } from './validator_data.ts';
+import { VALIDATOR_APP_B64, VALIDATOR_APP_HASH, VALIDATOR_APP_MAP_B64, VALIDATOR_APP_MAP_HASH } from './validator_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { AppManifest } from './app_manifest.d.ts';
@@ -19,6 +19,8 @@ export default {
             return new Response(computeHtml(url, { version, flags, twitter, pushId }), { headers });
         } else if (pathname === computeAppJsPath()) {
             return computeAppResponse();
+        } else if (pathname === computeAppSourcemapPath()) {
+            return computeAppSourcemapResponse();
         } else if (pathname === FAVICON_SVG_PATHNAME) {
             const headers = computeHeaders(SVG_MIME_TYPE, { immutable: true });
             return new Response(FAVICON_SVG, { headers });
@@ -96,9 +98,22 @@ function computeAppJsPath(): string {
     return `/app.${VALIDATOR_APP_HASH}.js`;
 }
 
+function computeAppSourcemapPath(): string {
+    return `/app.${VALIDATOR_APP_MAP_HASH}.js.map`;
+}
+
 function computeAppResponse(): Response {
-    const array = Bytes.ofBase64(VALIDATOR_APP_B64).array();
-    return new Response(array, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
+    const text = `//# sourceMappingURL=${computeAppSourcemapPath()}\n`  // SourceMap header alone doesn't work
+        + Bytes.ofBase64(VALIDATOR_APP_B64).utf8();
+    const headers = computeHeaders('text/javascript; charset=utf-8', { immutable: true });
+    headers.set('SourceMap', computeAppSourcemapPath());
+    return new Response(text, { headers });
+}
+
+function computeAppSourcemapResponse(): Response {
+    const array = Bytes.ofBase64(VALIDATOR_APP_MAP_B64).array();
+    const headers = computeHeaders('application/json; charset=utf-8', { immutable: true });
+    return new Response(array, { headers });
 }
 
 function encodeHtml(value: string): string {

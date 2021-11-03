@@ -1,5 +1,5 @@
 import { checkEqual, checkMatches, checkTrue } from './check.ts';
-import { fetchCommentsForUrl, FetchCommentsResult } from './comments.ts';
+import { fetchCommentsForUrl, FetchCommentsResult, Comment } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 
 export class ValidatorAppVM {
@@ -29,6 +29,7 @@ export class ValidatorAppVM {
         feedUrlStr = feedUrlStr.trim();
         this._status = 'Validating ' + feedUrlStr;
         this._messages.splice(0);
+        this._fetchCommentsResult = undefined;
         this._xml = undefined;
         this._validating = true;
         this.onChange();
@@ -60,56 +61,67 @@ export class ValidatorAppVM {
 
             const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
             const { response, side, fetchTime } = await localOrRemoteFetch(feedUrl.toString(), { headers }); if (!this._validating) return;
+
             if (side === 'remote') {
-                this._messages.push({ type: 'warning', text: `Local feed fetch failed: CORS issue?` });
+                this._messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?): ${feedUrl.toString()}` });
             }
             checkEqual('response.status', response.status, 200);
-            this._messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${response.headers.get('Content-Type')}, content-length=${response.headers.get('Content-Length')}` });
+            const contentType = response.headers.get('Content-Type');
+            this._messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
 
             let start = Date.now();
             const text = await response.text(); if (!this._validating) return;
             const readTime = Date.now() - start;
 
-            start = Date.now();
-            let parseTime = 0;
-            let xml: XmlNode | undefined;
-            try {
-                xml = parseFeedXml(text);
-            } catch (e) {
-                this._messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
-            } finally {
-                parseTime = Date.now() - start;
+            let validateFeed = true;
+            if (contentType && contentType.includes('/html')) {
+                this._messages.push({ type: 'info', text: 'Found html, trying again as ActivityPub' });
+                validateFeed = false;
+                activityPubRootCommentNodeUrls.push(feedUrl.toString());
             }
-            this._xml = xml;
-          
-            console.log(xml);
 
+            let parseTime: number | undefined;
             let validateTime: number | undefined;
-            if (xml) {
+            if (validateFeed) {
                 start = Date.now();
-                const callbacks: ValidationCallbacks = {
-                    onError: (_, message) => {
-                        console.error(message);
-                        this._messages.push({ type: 'error', text: message });
-                    },
-                    onWarning: (_, message) =>  {
-                        console.warn(message);
-                        this._messages.push({ type: 'warning', text: message });
-                    },
-                    onInfo: (node, message) =>  {
-                        console.info(message);
-                        this._messages.push({ type: 'info', text: message });
-                        if (message.includes('socialInteract')) {
-                            if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
-                                activityPubRootCommentNodeUrls.push(node.val);
-                            }
-                        }
-                    },
-                };
-                validateFeedXml(xml, callbacks);
-                validateTime = Date.now() - start;
-            }
+                
+                let xml: XmlNode | undefined;
+                try {
+                    xml = parseFeedXml(text);
+                } catch (e) {
+                    this._messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
+                } finally {
+                    parseTime = Date.now() - start;
+                }
+                this._xml = xml;
+            
+                console.log(xml);
 
+                if (xml) {
+                    start = Date.now();
+                    const callbacks: ValidationCallbacks = {
+                        onError: (_, message) => {
+                            console.error(message);
+                            this._messages.push({ type: 'error', text: message });
+                        },
+                        onWarning: (_, message) =>  {
+                            console.warn(message);
+                            this._messages.push({ type: 'warning', text: message });
+                        },
+                        onInfo: (node, message) =>  {
+                            console.info(message);
+                            this._messages.push({ type: 'info', text: message });
+                            if (message.includes('socialInteract')) {
+                                if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
+                                    activityPubRootCommentNodeUrls.push(node.val);
+                                }
+                            }
+                        },
+                    };
+                    validateFeedXml(xml, callbacks);
+                    validateTime = Date.now() - start;
+                }
+            }
             this._messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
 
             if (activityPubRootCommentNodeUrls.length > 0) {
@@ -118,7 +130,9 @@ export class ValidatorAppVM {
                     this._status = `Validating activityPubRootCommentNodeUrl: ${activityPubRootCommentNodeUrl}`; this.onChange();
                     const keepGoing = () => this._validating;
                     const remoteOnlyOrigins = new Set<string>();
-                    const computeUseSide = (url: string) => remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
+                    const computeUseSide = (url: string) => {
+                        return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
+                    };
                     const fetchActivityPub = async (url: string) => {
                         let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                         console.log(JSON.stringify(obj, undefined, 2));
@@ -141,13 +155,17 @@ export class ValidatorAppVM {
                         }
                         return obj;
                     };
-                    const fetchCommentsResult = await fetchCommentsForUrl(activityPubRootCommentNodeUrl, { keepGoing, fetchActivityPub })
+                    const warn = (comment: Comment, url: string, message: string) => {
+                        this._messages.push({ type: 'warning', text: message, comment, url }); this.onChange();
+                    };
+                    const fetchCommentsResult = await fetchCommentsForUrl(activityPubRootCommentNodeUrl, { keepGoing, fetchActivityPub, warn })
                     this._fetchCommentsResult = fetchCommentsResult;
                     this.onChange();
                 }
             }
 
         } catch (e) {
+            console.error(e);
             this._messages.push({ type: 'error', text: e.message });
         } finally {
             this._status = '';
@@ -162,6 +180,8 @@ export type MessageType = 'error' | 'warning' | 'info';
 export interface Message {
     readonly type: MessageType;
     readonly text: string;
+    readonly comment?: Comment;
+    readonly url?: string;
 }
 
 //

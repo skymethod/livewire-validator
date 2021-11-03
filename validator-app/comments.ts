@@ -1,9 +1,9 @@
-import { CollectionPage, Link, Note, Object_, Person, Image } from './activity_pub.ts';
-import { checkMatchesReturnMatcher } from './check.ts';
+import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage } from './activity_pub.ts';
 
 export interface Comment {
     readonly attributedTo: string;
     readonly content: string;
+    readonly published: string;
     readonly replies: Comment[];
 }
 
@@ -16,12 +16,13 @@ export interface Commenter {
 
 export interface Icon {
     readonly url: string;
-    readonly mediaType: string;
+    readonly mediaType?: string;
 }
 
 export interface FetchCommentsOpts {
     keepGoing(): boolean;
     fetchActivityPub(url: string): Promise<Record<string, unknown> | undefined>;
+    warn(comment: Comment, url: string, message: string): void;
 }
 
 export interface FetchCommentsResult {
@@ -45,47 +46,42 @@ async function fetchCommentsForUrl_(url: string, opts: FetchCommentsOpts): Promi
     const obj = await fetchActivityPub(url); if (!obj) return undefined;
     const note = obj as unknown as Note; // TODO validate
     const rootComment = initCommentFromObjectOrLink(note);
-    await collectComments(note, rootComment, opts);
+    await collectComments(note, rootComment, opts, url);
     return rootComment;
 }
 
-async function collectComments(note: Note, comment: Comment, opts: FetchCommentsOpts): Promise<void> {
+async function collectComments(note: Note, comment: Comment, opts: FetchCommentsOpts, url: string): Promise<void> {
     const { keepGoing, fetchActivityPub } = opts;
     const fetched = new Set<string>();
     if (note.replies) {
-        if (note.replies.first) {
+        if (typeof note.replies === 'string') {
+            const url = note.replies;
+            const obj = await fetchActivityPub(url); if (!keepGoing()) return;
+            if (!obj) return;
+            fetched.add(url);
+            console.log(JSON.stringify(obj, undefined, 2));
+            if (obj.type === 'OrderedCollection') {
+                const orderedCollection = obj as unknown as OrderedCollection;
+                if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
+                    throw new Error(`TODO: orderedCollection.items/orderedItems not implemented ${obj}`);
+                }
+                if (typeof orderedCollection.first === 'string') {
+                    await fetchPages(orderedCollection.first, comment, opts, fetched);
+                } else {
+                    throw new Error(`TODO: orderedCollection.first not implemented ${obj}`);
+                }
+                
+            } else {
+                throw new Error(`TODO: obj.type not implemented ${obj}`);
+            }
+        } else if (note.replies.first) {
             if (typeof note.replies.first === 'object' && note.replies.first.type === 'CollectionPage') {
                 if (note.replies.first.items && note.replies.first.items.length > 0) {
-                    await collectItems(note.replies.first.items, comment, opts); if (!keepGoing()) return;
+                    await collectItems(note.replies.first.items, comment, opts, url); if (!keepGoing()) return;
                 }
                 if (note.replies.first.next) {
                     if (typeof note.replies.first.next === 'string') {
-                        const url = note.replies.first.next;
-                        let obj = await fetchActivityPub(url); if (!keepGoing()) return;
-                        fetched.add(url);
-                        console.log(JSON.stringify(obj, undefined, 2));
-                        let keepCollecting = true;
-                        while (keepCollecting) {
-                            const page = obj as unknown as CollectionPage; // TODO validate
-                            if (page.items) {
-                                await collectItems(page.items, comment, opts); if (!keepGoing()) return;
-                            }
-                            if ((page.items?.length || 0) === 0) keepCollecting = false;
-                            if (page.next) {
-                                if (typeof page.next === 'string') {
-                                    if (fetched.has(page.next)) {
-                                        keepCollecting = false;
-                                    } else {
-                                        obj = await fetchActivityPub(page.next); if (!keepGoing()) return;
-                                        fetched.add(url);
-                                    }
-                                } else {
-                                    throw new Error(`TODO: page.next not implemented ${page.next}`);
-                                }
-                            } else {
-                                keepCollecting = false;
-                            }
-                        }
+                        await fetchPages(note.replies.first.next, comment, opts, fetched);
                     } else {
                         throw new Error(`TODO: first.next not implemented ${note.replies.first.next}`);
                     }
@@ -99,28 +95,71 @@ async function collectComments(note: Note, comment: Comment, opts: FetchComments
     }
 }
 
-async function collectItems(items: readonly (string | Link | Object_)[], comment: Comment, opts: FetchCommentsOpts) {
+async function fetchPages(url: string, comment: Comment, opts: FetchCommentsOpts, fetched: Set<string>) {
+    const { fetchActivityPub, keepGoing } = opts;
+    let obj = await fetchActivityPub(url); if (!keepGoing()) return;
+    if (!obj) return;
+    fetched.add(url);
+    console.log(JSON.stringify(obj, undefined, 2));
+    let keepCollecting = true;
+    while (keepCollecting) {
+        if (obj.type !== 'CollectionPage' && obj.type !== 'OrderedCollectionPage') {
+            throw new Error(`TODO: page obj.type not implemented ${JSON.stringify(obj)}`);
+        }
+        const page: CollectionPage | OrderedCollectionPage = obj.type === 'CollectionPage' ? (obj as unknown as CollectionPage) : (obj as unknown as OrderedCollectionPage); // TODO validate
+        if (page.items) {
+            await collectItems(page.items, comment, opts, url); if (!keepGoing()) return;
+        }
+        if (page.type === 'OrderedCollectionPage' && page.orderedItems) {
+            await collectItems(page.orderedItems, comment, opts, url); if (!keepGoing()) return;
+        }
+        if ((page.items?.length || 0) === 0) keepCollecting = false;
+        if (page.next) {
+            if (typeof page.next === 'string') {
+                if (fetched.has(page.next)) {
+                    keepCollecting = false;
+                } else {
+                    url = page.next;
+                    obj = await fetchActivityPub(url); if (!keepGoing()) return;
+                    if (!obj) return;
+                    fetched.add(url);
+                }
+            } else {
+                throw new Error(`TODO: page.next not implemented ${page.next}`);
+            }
+        } else {
+            keepCollecting = false;
+        }
+    }
+}
+
+async function collectItems(items: readonly (string | Link | Object_)[], comment: Comment, opts: FetchCommentsOpts, url: string) {
     for (const item of items) {
-        if (typeof item === 'string') {
+        if (typeof item === 'string' && !item.startsWith('{')) {
             // it's a link to another AP entity
             const reply = await fetchCommentsForUrl_(item, opts);
             if (reply) {
                 comment.replies.push(reply);
             }
         } else {
-            const reply = initCommentFromObjectOrLink(item);
+            const itemObj = typeof item === 'string' ? JSON.parse(item) : item;
+            const reply = initCommentFromObjectOrLink(itemObj);
             comment.replies.push(reply);
-            await collectComments(item as Note, reply, opts);
+            if (typeof item === 'string') {
+                opts.warn(reply, url, 'Found item incorrectly double encoded as a json string');
+            }
+            await collectComments(item as Note, reply, opts, url);
         }
     }
 }
 
 function initCommentFromObjectOrLink(object: Object_ | Link): Comment {
     if (object.type !== 'Note') throw new Error(`TODO: item type not implemented ${JSON.stringify(object)}`);
-    const { attributedTo, content } = object;
+    const { attributedTo, content, published } = object;
     if (typeof attributedTo !== 'string') throw new Error(`TODO: attributedTo type not implemented ${object}`);
     if (typeof content !== 'string') throw new Error(`TODO: content type not implemented ${object}`);
-    return { attributedTo, content, replies: [] };
+    if (typeof published !== 'string') throw new Error(`TODO: published type not implemented ${object}`);
+    return { attributedTo, content, published, replies: [] };
 }
 
 //
@@ -131,13 +170,15 @@ async function collectCommenters(comment: Comment, opts: FetchCommentsOpts): Pro
     const rt = new Map<string, Commenter>();
     for (const attributedTo of attributedTos) {
         const commenter = await fetchCommenter(attributedTo, opts);
+        if (!commenter) return rt;
         rt.set(attributedTo, commenter)
     }
     return rt;
 }
 
-async function fetchCommenter(url: string, opts: FetchCommentsOpts): Promise<Commenter> {
+async function fetchCommenter(url: string, opts: FetchCommentsOpts): Promise<Commenter | undefined> {
     const obj = await opts.fetchActivityPub(url);
+    if (!obj) return undefined;
     const person = obj as unknown as Person; // TODO validate
     return computeCommenter(person);
 }
@@ -148,22 +189,24 @@ function computeCommenter(person: Person): Commenter {
     const { name, url } = person;
     if (typeof name !== 'string') throw new Error(`TODO person.name not implemented: ${name}`);
     if (typeof url !== 'string') throw new Error(`TODO person.url not implemented: ${url}`);
-    const fqUsername = computeFqUsername(url);
+    const fqUsername = computeFqUsername(url, person.preferredUsername);
     return { icon, name, url, fqUsername };
 }
 
 function computeIcon(icon: Image): Icon {
     const { url, mediaType } = icon;
     if (typeof url !== 'string') throw new Error(`TODO icon.url not implemented: ${url}`);
-    if (typeof mediaType !== 'string') throw new Error(`TODO icon.mediaType not implemented: ${mediaType}`);
+    if (mediaType !== undefined && typeof mediaType !== 'string') throw new Error(`TODO icon.mediaType not implemented: ${mediaType}`);
     return { url, mediaType };
 }
 
-function computeFqUsername(url: string): string {
+function computeFqUsername(url: string, preferredUsername: string | undefined): string {
     // https://example.org/@user -> @user@example.org
     const u = new URL(url);
-    const m = checkMatchesReturnMatcher('url.pathname', u.pathname, /^\/(@[^\/]+)$/);
-    return `${m[1]}@${u.hostname}`;
+    const m = /^\/(@[^\/]+)$/.exec(u.pathname);
+    const username = m ? m[1] : preferredUsername;
+    if (!username) throw new Error(`Unable to compute username from url: ${url}`);
+    return `${username}@${u.hostname}`;
 }
 
 function collectAttributedTos(comment: Comment, attributedTos: Set<string>) {

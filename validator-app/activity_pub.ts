@@ -54,7 +54,7 @@ export interface Object_ {
      * 
      * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-replies
      */
-    readonly replies?: Collection;
+    readonly replies?: string | Collection;
 
     /**
      * A simple, human-readable, plain-text name for the object.
@@ -240,6 +240,19 @@ export interface Collection extends CollectionBase {
 }
 
 /**
+ * https://www.w3.org/TR/activitystreams-core/#dfn-orderedcollection
+ */
+interface OrderedCollectionProperties {
+    /** Ordered items are represented using the orderedItems property. */
+    readonly orderedItems?: readonly (string | Link | Object_)[];
+}
+
+export interface OrderedCollection extends CollectionBase, OrderedCollectionProperties {
+    readonly type: 'OrderedCollection';
+
+}
+
+/**
  * A Collection can contain a large number of items. 
  * 
  * Often, it becomes impractical for an implementation to serialize every item contained by a Collection using the items (or orderedItems) property alone. 
@@ -249,30 +262,58 @@ export interface Collection extends CollectionBase {
  * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-collectionpage
  * https://www.w3.org/TR/activitystreams-core/#dfn-collectionpage
  */
-export interface CollectionPage extends CollectionBase {
-
-    readonly type: 'CollectionPage';
-
+interface CollectionPageProperties {
     /** 
      * Identifies the Collection to which a CollectionPage objects items belong.
      * 
      * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-partof
      */
-    readonly partOf?: string | Link | Collection;
+     readonly partOf?: string | Link | Collection;
+
+     /**
+      * In a paged Collection, indicates the next page of items.
+      * 
+      * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-next
+      */
+     readonly next?: string | Link | CollectionPage;
+ 
+     /**
+      * In a paged Collection, identifies the previous page of items. 
+      * 
+      * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-prev
+      */
+     readonly prev?: string | Link | CollectionPage;
+}
+
+export interface CollectionPage extends CollectionBase, CollectionPageProperties {
+    readonly type: 'CollectionPage';
+}
+
+/**
+ * The OrderedCollectionPage type extends from both CollectionPage and OrderedCollection
+ * 
+ * https://www.w3.org/TR/activitystreams-core/#dfn-orderedcollectionpage
+ */
+export interface OrderedCollectionPage extends CollectionBase, CollectionPageProperties, OrderedCollectionProperties {
+    readonly type: 'OrderedCollectionPage';
+}
+
+/**
+ * ActivityPub actors are generally one of the ActivityStreams Actor Types, but they don't have to be.
+ * 
+ * For example, a Profile object might be used as an actor, or a type from an ActivityStreams extension. 
+ * Actors are retrieved like any other Object in ActivityPub. Like other ActivityStreams objects, actors have an id, which is a URI. 
+ * 
+ * https://www.w3.org/TR/activitypub/#actor-objects
+ */
+export interface Actor extends Object_ {
 
     /**
-     * In a paged Collection, indicates the next page of items.
+     * A short username which may be used to refer to the actor, with no uniqueness guarantees.
      * 
-     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-next
+     * https://www.w3.org/TR/activitypub/#preferredUsername
      */
-    readonly next?: string | Link | CollectionPage;
-
-    /**
-     * In a paged Collection, identifies the previous page of items. 
-     * 
-     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-prev
-     */
-    readonly prev?: string | Link | CollectionPage;
+    readonly preferredUsername?: string;
 
 }
 
@@ -281,7 +322,7 @@ export interface CollectionPage extends CollectionBase {
  *
  * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-person
  */
-export interface Person extends Object_ {
+export interface Person extends Actor {
     readonly type: 'Person';
 }
 

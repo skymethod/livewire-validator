@@ -8,6 +8,10 @@ export const COMMENTS_HTML = html`
 
 export const COMMENTS_CSS = css`
 
+#comments {
+    max-width: 60ch;
+}
+
 .comment {
     display: flex;
 }
@@ -23,6 +27,15 @@ export const COMMENTS_CSS = css`
     display: flex;
     flex-direction: column;
     margin: 1rem 1rem 0 0;
+    flex-grow: 1;
+}
+
+.comment .header {
+    display: flex;
+}
+
+.comment .header .attributed-to {
+    flex-grow: 1;
 }
 
 .comment .rhs p {
@@ -68,7 +81,11 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
     const rhsDiv = document.createElement('div');
     rhsDiv.classList.add('rhs');
     
+    const headerDiv = document.createElement('div');
+    headerDiv.classList.add('header');
+
     const attributedToDiv = document.createElement('div');
+    attributedToDiv.classList.add('attributed-to');
     if (commenter) {
         const a = document.createElement('a');
         a.href = commenter.url;
@@ -78,7 +95,13 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
     } else {
         attributedToDiv.appendChild(document.createTextNode(comment.attributedTo));
     }
-    rhsDiv.appendChild(attributedToDiv);
+    headerDiv.appendChild(attributedToDiv);
+
+    const ageDiv = document.createElement('div');
+    ageDiv.appendChild(document.createTextNode(computeAge(new Date(comment.published))));
+    headerDiv.appendChild(ageDiv);
+
+    rhsDiv.appendChild(headerDiv);
 
     const contentDiv = document.createElement('div');
     contentDiv.innerHTML = comment.content;
@@ -91,4 +114,15 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
     for (const reply of comment.replies) {
         renderNode(reply, commenters, containerElement, level + 1);
     }
+}
+
+function computeAge(date: Date): string {
+    const millis = Date.now() - date.getTime();
+    const seconds = millis / 1000;
+    const minutes = seconds / 60;
+    if (minutes < 60) return `${Math.max(Math.floor(minutes), 1)}m`;
+    const hours = minutes / 60;
+    if (hours < 24) return `${Math.floor(hours)}h`;
+    const days = hours / 24;
+    return `${Math.floor(days)}d`;
 }
