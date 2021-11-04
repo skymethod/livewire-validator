@@ -21,11 +21,12 @@ export class ValidatorAppVM {
         // load initial state, etc. noop for now
     }
 
-    validateFeed(feedUrlStr: string) {
+    validateFeed(feedUrlStr: string, options: ValidationOptions = { }) {
         feedUrlStr = feedUrlStr.trim();
         const job: ValidationJob = {
             id: this.nextJobId++,
             messages: [],
+            options,
             done: false,
             cancelled: false,
         }
@@ -127,7 +128,8 @@ export class ValidatorAppVM {
             }
             messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
 
-            if (activityPub) {
+            const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
+            if (validateComments && activityPub) {
                 const sleepMillisBetweenCalls = 0;
                 setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url }); this.onChange();
                 const keepGoing = () => !job.done;
@@ -185,6 +187,10 @@ export interface Message {
     readonly comment?: Comment;
     readonly url?: string;
     readonly tag?: string;
+}
+
+export interface ValidationOptions {
+    readonly validateComments?: boolean; // default = true
 }
 
 //
@@ -257,6 +263,7 @@ interface FetchResult {
 interface ValidationJob {
     readonly id: number;
     readonly messages: Message[]; // first message is status
+    readonly options: ValidationOptions;
     done: boolean;
     cancelled: boolean;
     xml?: XmlNode;

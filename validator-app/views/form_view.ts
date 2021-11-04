@@ -76,7 +76,11 @@ export function initForm(document: Document, vm: ValidatorAppVM, staticData: Sta
     const version = [staticData.version, staticData.pushId].map(v => (v || '').trim()).filter(v => v.length > 0).join('.');
     versionSpan.textContent = staticData.version ? `v${version}` : '';
 
-    const validateFeed = () =>  vm.validateFeed(feedUrlInput.value);
+    const { searchParams } = new URL(document.URL);
+    const validate = searchParams.get('validate') || undefined;
+    const input = searchParams.get('input') || undefined;
+    const nocomments = searchParams.has('nocomments');
+    const validateFeed = () =>  vm.validateFeed(feedUrlInput.value, { validateComments: !nocomments });
     inputForm.onsubmit = e => {
         e.preventDefault();
         if (vm.validating) {
@@ -85,9 +89,7 @@ export function initForm(document: Document, vm: ValidatorAppVM, staticData: Sta
             validateFeed();
         }
     }
-    const { searchParams } = new URL(document.URL);
-    const validate = searchParams.get('validate') || undefined;
-    const input = searchParams.get('input') || undefined;
+    
     if (validate) {
         feedUrlInput.value = validate;
         setTimeout(validateFeed, 0);

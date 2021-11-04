@@ -44,11 +44,11 @@ export const COMMENTS_CSS = css`
     display: flex;
     gap: 0.5em;
     align-items: baseline;
-    color: #888888;
+    color: ${unsafeCSS(Theme.textColorSecondaryHex)};
 }
 
 .comment .header .url {
-    color: #888888;
+    color: ${unsafeCSS(Theme.textColorSecondaryHex)};
 }
 
 .comment .rhs p {

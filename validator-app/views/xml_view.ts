@@ -13,8 +13,16 @@ export const XML_CSS = css`
     font-family: ${unsafeCSS(Theme.monospaceFontFamily)};
     font-size: 0.75rem;
     line-height: 1rem;
-    color: ${unsafeCSS(Theme.textColorHex)};
+    color: ${unsafeCSS(Theme.textColorSecondaryHex)};
     overflow-wrap: break-word;
+}
+
+#xml .content {
+    color: ${unsafeCSS(Theme.textColorHex)};
+}
+
+#xml .podcast {
+    color: #ab47bc;
 }
 
 #xml .indent {
@@ -60,12 +68,14 @@ function renderNode(node: XmlNode, containerElement: HTMLElement, level: number,
     if (level === 0) {
         renderTextPieces(summary, 'Xml');
     } else {
-        renderTextPieces(summary, '<', node.tagname, ...[...atts.entries()].flatMap(v => [` ${v[0]}="`, v[1], '"']), '>', itemNumber ? ` #${itemNumber}` : '');
+        const spanClass = node.tagname.startsWith('podcast:') ? 'podcast' : undefined;
+        renderTextPieces(summary, '<', { text: node.tagname, spanClass }, ...[...atts.entries()].flatMap(v => [` ${v[0]}="`, { text: v[1], spanClass: 'content' }, '"']), '>', itemNumber ? ` #${itemNumber}` : '');
     }
     details.appendChild(summary);
     let childCount = 0;
     if (text.length > 0) {
         const div = document.createElement('div');
+        div.classList.add('content');
         renderTextPieces(div, text)
         div.classList.add('indent2');
         details.appendChild(div);
@@ -84,16 +94,26 @@ function renderNode(node: XmlNode, containerElement: HTMLElement, level: number,
     if (node.tagname === 'item') context.add('found-item');
 }
 
-function renderTextPieces(element: HTMLElement, ...pieces: string[]) {
+function renderTextPieces(element: HTMLElement, ...pieces: (string | { text: string, spanClass?: string })[]) {
     for (const piece of pieces) {
-        if (/^https?:\/\/[^\s)]+$/.test(piece)) {
+        const text = typeof piece === 'string' ? piece : piece.text;
+        const spanClass = typeof piece === 'object' ? piece.spanClass : undefined;
+        if (/^https?:\/\/[^\s)]+$/.test(text)) {
             const a = document.createElement('a');
-            a.href = piece;
+            a.href = text;
             externalizeAnchor(a);
-            a.appendChild(document.createTextNode(piece));
+            a.appendChild(document.createTextNode(text));
             element.appendChild(a);
         } else {
-            element.appendChild(document.createTextNode(piece));
+            const textNode = document.createTextNode(text);
+            if (spanClass) {
+                const span = document.createElement('span');
+                span.classList.add(spanClass);
+                span.appendChild(textNode);
+                element.appendChild(span);
+            } else {
+                element.appendChild(textNode);
+            }
         }
     }
 }

@@ -31,7 +31,7 @@ export const MESSAGES_CSS = css`
 }
 
 #messages > div.info {
-    color: #888888;
+    color: ${unsafeCSS(Theme.textColorSecondaryHex)};
 }
 
 #messages > div.warning {
