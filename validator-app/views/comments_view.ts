@@ -46,9 +46,17 @@ export const COMMENTS_CSS = css`
     color: #888888;
 }
 
+.comment .header .url {
+    color: #888888;
+}
+
 .comment .rhs p {
     margin-block-start: 0em;
     margin-block-end: 0em;
+}
+
+.comment img {
+    max-width: 80ch;
 }
 
 `;
@@ -108,15 +116,39 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
     }
     headerDiv.appendChild(attributedToDiv);
 
-    const ageDiv = document.createElement('div');
-    ageDiv.appendChild(document.createTextNode(computeAge(new Date(comment.published))));
-    headerDiv.appendChild(ageDiv);
-
+    const ageText = document.createTextNode(computeAge(new Date(comment.published)));
+    if (comment.url) {
+        const ageAnchor = document.createElement('a');
+        ageAnchor.classList.add('url');
+        ageAnchor.href = comment.url;
+        ageAnchor.target = '_blank';
+        ageAnchor.rel = 'noreferrer noopener nofollow';
+        ageAnchor.appendChild(ageText);
+        headerDiv.appendChild(ageAnchor);
+    } else {
+        headerDiv.appendChild(ageText);
+    }
+    
     rhsDiv.appendChild(headerDiv);
 
     const contentDiv = document.createElement('div');
     contentDiv.innerHTML = comment.content;
     rhsDiv.appendChild(contentDiv);
+
+    for (const attachment of comment.attachments) {
+        const attachmentDetails = document.createElement('details');
+        const summary =  document.createElement('summary');
+        summary.textContent = `Attachment (${attachment.mediaType})`;
+        attachmentDetails.appendChild(summary);
+        const img = document.createElement('img');
+        img.src = attachment.url;
+        if (attachment.width && attachment.height) {
+            img.width = attachment.width;
+            img.height = attachment.height;
+        }
+        attachmentDetails.appendChild(img);
+        rhsDiv.appendChild(attachmentDetails);
+    }
 
     commentDiv.appendChild(rhsDiv);
 

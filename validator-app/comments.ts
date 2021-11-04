@@ -1,10 +1,12 @@
 import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage } from './activity_pub.ts';
 
 export interface Comment {
+    readonly url?: string;
     readonly attributedTo: string;
     readonly content: string;
     readonly published: string;
     readonly replies: Comment[];
+    readonly attachments: Attachment[];
 }
 
 export interface Commenter {
@@ -17,6 +19,13 @@ export interface Commenter {
 export interface Icon {
     readonly url: string;
     readonly mediaType?: string;
+}
+
+export interface Attachment {
+    readonly mediaType: string;
+    readonly width?: number;
+    readonly height?: number;
+    readonly url: string;
 }
 
 export interface FetchCommentsOpts {
@@ -156,14 +165,32 @@ async function collectItems(items: readonly (string | Link | Object_)[], comment
 
 function initCommentFromObjectOrLink(object: Object_ | Link): Comment {
     if (object.type !== 'Note') throw new Error(`TODO: item type not implemented ${JSON.stringify(object)}`);
-    const { attributedTo, content, published } = object;
-    if (typeof attributedTo !== 'string') throw new Error(`TODO: attributedTo type not implemented ${object}`);
-    if (typeof content !== 'string') throw new Error(`TODO: content type not implemented ${object}`);
-    if (typeof published !== 'string') throw new Error(`TODO: published type not implemented ${object}`);
-    return { attributedTo, content, published, replies: [] };
+    const { attributedTo, content, published, url } = object;
+    if (typeof attributedTo !== 'string') throw new Error(`TODO: attributedTo type not implemented ${JSON.stringify(object)}`);
+    if (typeof content !== 'string') throw new Error(`TODO: content type not implemented ${JSON.stringify(object)}`);
+    if (typeof published !== 'string') throw new Error(`TODO: published type not implemented ${JSON.stringify(object)}`);
+    if (url !== undefined && typeof url !== 'string') throw new Error(`TODO: url type not implemented ${JSON.stringify(object)}`);
+    const attachments = computeAttachments(object);
+    return { url, attributedTo, content, published, replies: [], attachments };
 }
 
 //
+
+function computeAttachments(object: Object_): Attachment[] {
+    const rt: Attachment[] = [];
+    if (!object.attachment) return rt;
+    const attachments = isReadonlyArray(object.attachment) ? object.attachment : [ object.attachment ];
+    for (const attachment of attachments) {
+        if (typeof attachment !== 'object' || attachment.type !== 'Document') throw new Error(`TODO: attachment type not implemented ${JSON.stringify(object)}`);
+        const { mediaType, width, height, url } = attachment;
+        if (typeof mediaType !== 'string') throw new Error(`TODO: mediaType type not implemented ${JSON.stringify(object)}`);
+        if (width !== undefined && typeof width !== 'number') throw new Error(`TODO: width type not implemented ${JSON.stringify(object)}`);
+        if (height !== undefined && typeof height !== 'number') throw new Error(`TODO: height type not implemented ${JSON.stringify(object)}`);
+        if (typeof url !== 'string') throw new Error(`TODO: url type not implemented ${JSON.stringify(object)}`);
+        rt.push({ mediaType, width, height, url});
+    }
+    return rt;
+}
 
 async function collectCommenters(comment: Comment, opts: FetchCommentsOpts): Promise<ReadonlyMap<string,Commenter>> {
     const attributedTos = new Set<string>();

@@ -96,6 +96,21 @@ export interface Object_ {
      * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-published
      */
     readonly published?: string;
+
+    /**
+     * Identifies a resource attached or related to an object that potentially requires special handling.
+     * 
+     * The intent is to provide a model that is at least semantically similar to attachments in email.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-attachment
+     */
+    readonly attachment?: Object_ | string | Link | readonly (Object_ | string | Link)[];
+
+    /** found on Document objects representing image attachments */
+    readonly width?: number;
+
+    /** found on Document objects representing image attachments */
+    readonly height?: number;
 }
 
 /**
@@ -104,9 +119,7 @@ export interface Object_ {
  * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-note
  */
 export interface Note extends Object_ {
-
     readonly type: 'Note';
-
 }
 
 /**
