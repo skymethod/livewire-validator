@@ -1,5 +1,6 @@
 import { Bytes, IncomingRequestCf } from './deps_worker.ts';
-import { VALIDATOR_APP_B64, VALIDATOR_APP_HASH, VALIDATOR_APP_MAP_B64, VALIDATOR_APP_MAP_HASH } from './validator_data.ts';
+import { VALIDATOR_APP_B64, VALIDATOR_APP_HASH } from './validator_data.ts';
+import { VALIDATOR_APP_MAP_B64, VALIDATOR_APP_MAP_HASH } from './validator_local_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { AppManifest } from './app_manifest.d.ts';
@@ -19,7 +20,7 @@ export default {
             return new Response(computeHtml(url, { version, flags, twitter, pushId }), { headers });
         } else if (pathname === computeAppJsPath()) {
             return computeAppResponse();
-        } else if (pathname === computeAppSourcemapPath()) {
+        } else if (VALIDATOR_APP_MAP_HASH !== '' && pathname === computeAppSourcemapPath()) {
             return computeAppSourcemapResponse();
         } else if (pathname === FAVICON_SVG_PATHNAME) {
             const headers = computeHeaders(SVG_MIME_TYPE, { immutable: true });

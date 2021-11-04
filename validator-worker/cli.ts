@@ -53,17 +53,7 @@ async function build(_args: (string | number)[]) {
             }
         
             await updateFile(result, dataPath, 'bundle.js', `VALIDATOR_APP`);
-            await updateFile(result, dataPath, 'bundle.js.map', `VALIDATOR_APP_MAP`);
-            // const scriptContentsStr = result.files['deno:///bundle.js'];
-            // if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
-           
-            // const scriptBytes = Bytes.ofUtf8(scriptContentsStr);
-            // const scriptBytesSha1 = await scriptBytes.sha1();
-            // await updateData('VALIDATOR_APP_B64', scriptBytes.base64(), dataPath);
-            // await updateData('VALIDATOR_APP_HASH', scriptBytesSha1.hex(), dataPath);
-
-            // const scriptMapContentsStr = result.files['deno:///bundle.js.map'];
-            // if (typeof scriptMapContentsStr !== 'string') throw new Error(`bundle.js.map not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+            // await updateFile(result, dataPath, 'bundle.js.map', `VALIDATOR_APP_MAP`);
 
         } catch (e) {
             console.warn('error in regenerateAppContents', e.stack || e);
