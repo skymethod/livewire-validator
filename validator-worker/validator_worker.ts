@@ -20,7 +20,7 @@ export default {
             return new Response(computeHtml(url, { version, flags, twitter, pushId }), { headers });
         } else if (pathname === computeAppJsPath()) {
             return computeAppResponse();
-        } else if (VALIDATOR_APP_MAP_HASH !== '' && pathname === computeAppSourcemapPath()) {
+        } else if (pathname === computeAppSourcemapPath()) {
             return computeAppSourcemapResponse();
         } else if (pathname === FAVICON_SVG_PATHNAME) {
             const headers = computeHeaders(SVG_MIME_TYPE, { immutable: true });
@@ -104,16 +104,22 @@ function computeAppJsPath(): string {
     return `/app.${VALIDATOR_APP_HASH}.js`;
 }
 
-function computeAppSourcemapPath(): string {
-    return `/app.${VALIDATOR_APP_MAP_HASH}.js.map`;
+function computeAppSourcemapPath(): string | undefined {
+    return VALIDATOR_APP_MAP_HASH === '' ? undefined : `/app.${VALIDATOR_APP_MAP_HASH}.js.map`;
 }
 
 function computeAppResponse(): Response {
-    const text = `//# sourceMappingURL=${computeAppSourcemapPath()}\n`  // SourceMap header alone doesn't work
-        + Bytes.ofBase64(VALIDATOR_APP_B64).utf8();
+    const scriptBytes = Bytes.ofBase64(VALIDATOR_APP_B64);
     const headers = computeHeaders('text/javascript; charset=utf-8', { immutable: true });
-    headers.set('SourceMap', computeAppSourcemapPath());
-    return new Response(text, { headers });
+    const appSourcemapPath = computeAppSourcemapPath();
+    if (appSourcemapPath) {
+        const text = `//# sourceMappingURL=${appSourcemapPath}\n`  // SourceMap header alone doesn't work
+            + scriptBytes.utf8();
+        headers.set('SourceMap', appSourcemapPath);
+        return new Response(text, { headers });
+    } else {
+        return new Response(scriptBytes.array(), { headers });
+    }
 }
 
 function computeAppSourcemapResponse(): Response {
