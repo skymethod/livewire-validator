@@ -2,6 +2,7 @@ import { html, css, unsafeCSS } from '../deps_app.ts';
 import { Theme } from '../theme.ts';
 import { computeAttributeMap, XmlNode } from '../validator.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
+import { externalizeAnchor } from './util.ts';
 
 export const XML_HTML = html`
 <output id="xml"></output>
@@ -88,8 +89,7 @@ function renderTextPieces(element: HTMLElement, ...pieces: string[]) {
         if (/^https?:\/\/[^\s)]+$/.test(piece)) {
             const a = document.createElement('a');
             a.href = piece;
-            a.target = '_blank';
-            a.rel = 'noreferrer noopener nofollow';
+            externalizeAnchor(a);
             a.appendChild(document.createTextNode(piece));
             element.appendChild(a);
         } else {

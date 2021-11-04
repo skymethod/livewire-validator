@@ -2,6 +2,7 @@ import { html, css, unsafeCSS } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { Comment, Commenter, FetchCommentsResult } from '../comments.ts';
 import { Theme } from '../theme.ts';
+import { externalizeAnchor } from './util.ts';
 
 export const COMMENTS_HTML = html`
 <details id="comments-details" open>
@@ -121,8 +122,7 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
         const ageAnchor = document.createElement('a');
         ageAnchor.classList.add('url');
         ageAnchor.href = comment.url;
-        ageAnchor.target = '_blank';
-        ageAnchor.rel = 'noreferrer noopener nofollow';
+        externalizeAnchor(ageAnchor);
         ageAnchor.appendChild(ageText);
         headerDiv.appendChild(ageAnchor);
     } else {
@@ -133,6 +133,7 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
 
     const contentDiv = document.createElement('div');
     contentDiv.innerHTML = comment.content;
+    contentDiv.querySelectorAll('a').forEach(externalizeAnchor);
     rhsDiv.appendChild(contentDiv);
 
     for (const attachment of comment.attachments) {
