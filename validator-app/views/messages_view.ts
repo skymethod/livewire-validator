@@ -1,6 +1,6 @@
 import { html, LitElement, css, unsafeCSS } from '../deps_app.ts';
 import { Theme } from '../theme.ts';
-import { MessageType, ValidatorAppVM } from '../validator_app_vm.ts';
+import { Message, MessageType, ValidatorAppVM } from '../validator_app_vm.ts';
 import { CHECK_ICON, ERROR_ICON, INFO_ICON, WARNING_ICON } from './icons.ts';
 
 export const MESSAGES_HTML = html`
@@ -54,9 +54,7 @@ export const MESSAGES_CSS = css`
 }
 
 #messages progress {
-    font-size: 0.4rem;
-    /* transform: scale(0.5); */
-    
+    font-size: 0.35rem;
 }
 
 `;
@@ -71,7 +69,7 @@ export function initMessages(document: Document, vm: ValidatorAppVM): () => void
 //
 
 const MESSAGE_HTML = (vm: ValidatorAppVM) => html`
-    ${vm.messages.map(message => html`<div class=${message.type}>${icon(message.type)}${message.text}${message.url ? ANCHOR_HTML(message.url) : undefined}</div>`)}`;
+    ${vm.messages.filter(filterDuplicates()).map(message => html`<div class=${message.type}>${icon(message.type)}${message.text}${message.url ? ANCHOR_HTML(message.url) : undefined}</div>`)}`;
 
 const ANCHOR_HTML = (url: string) => html`<a href=${url} target="_blank" rel="noreferrer noopener nofollow">${url}</a>`;
 
@@ -81,4 +79,18 @@ function icon(type: MessageType) {
         : type === 'error' ? ERROR_ICON
         : type === 'warning' ? WARNING_ICON
         : INFO_ICON;
+}
+
+function filterDuplicates(): (message: Message) => boolean {
+    const tagUrls = new Set<string>();
+    return message => {
+        const { tag, url } = message;
+        if (tag && url) {
+            const tagUrl = `${tag}|${url}`;
+            if (tagUrls.has(tagUrl)) return false;
+            tagUrls.add(tagUrl);
+            return true;
+        }
+        return true;
+    };
 }

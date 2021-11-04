@@ -24,7 +24,7 @@ export const XML_CSS = css`
     margin-left: 2rem;
 }
 
-summary.empty { list-style: none; }
+summary.empty { list-style: none; cursor: text; }
 summary.empty::-webkit-details-marker { display: none; }
 
 `;
@@ -56,7 +56,11 @@ function renderNode(node: XmlNode, containerElement: HTMLElement, level: number,
     if (level > 0) details.classList.add('indent');
     const summary = document.createElement('summary');
     const atts = computeAttributeMap(node.attrsMap);
-    renderTextPieces(summary, '<', node.tagname, ...[...atts.entries()].flatMap(v => [` ${v[0]}="`, v[1], '"']), '>', itemNumber ? ` #${itemNumber}` : '');
+    if (level === 0) {
+        renderTextPieces(summary, 'Xml');
+    } else {
+        renderTextPieces(summary, '<', node.tagname, ...[...atts.entries()].flatMap(v => [` ${v[0]}="`, v[1], '"']), '>', itemNumber ? ` #${itemNumber}` : '');
+    }
     details.appendChild(summary);
     let childCount = 0;
     if (text.length > 0) {

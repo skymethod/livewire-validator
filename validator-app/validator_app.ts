@@ -9,7 +9,7 @@ import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { COMMENTS_CSS, COMMENTS_HTML, initComments } from './views/comments_view.ts';
 import { FORM_CSS, FORM_HTML, initForm } from './views/form_view.ts';
 import { initMessages, MESSAGES_HTML, MESSAGES_CSS } from './views/messages_view.ts';
-import { initXml, XML_CSS, XML_HTML } from './views/xml_view.ts.ts';
+import { initXml, XML_CSS, XML_HTML } from './views/xml_view.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
 
@@ -86,13 +86,14 @@ function parseStaticData(): StaticData {
     const version = typeof data.version === 'string' ? data.version : undefined;
     const flags = typeof data.flags === 'string' ? data.flags : undefined;
     const debug = typeof data.debug === 'object' ? data.debug : undefined;
-    return { version, flags, debug };
+    const pushId = typeof data.pushId === 'string' ? data.pushId : undefined;
+    return { version, flags, debug, pushId };
 }
 
-const _data = parseStaticData();
+const staticData = parseStaticData();
 
 const vm = new ValidatorAppVM();
-const updateForm = initForm(document, vm);
+const updateForm = initForm(document, vm, staticData);
 const updateMessages = initMessages(document, vm);
 const updateComments = initComments(document, vm);
 const updateXml = initXml(document, vm);

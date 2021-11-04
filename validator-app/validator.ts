@@ -2,7 +2,7 @@ import { getTraversalObj } from './deps_app.ts';
 import { checkEqual } from './check.ts';
 
 export function parseFeedXml(xml: string): XmlNode {
-    return getTraversalObj(xml, { ignoreAttributes: false }) as XmlNode;
+    return getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;
 }
 
 export function validateFeedXml(xml: XmlNode, callbacks: ValidationCallbacks) {

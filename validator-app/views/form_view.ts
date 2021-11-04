@@ -1,15 +1,40 @@
 import { html, css, unsafeCSS } from '../deps_app.ts';
+import { StaticData } from '../static_data.ts';
 import { Theme } from '../theme.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
+import { CHECKLIST_ICON } from './icons.ts';
 
 export const FORM_HTML = html`
+<header>${CHECKLIST_ICON}<h1>Livewire Podcast Validator <span id="version">v0.2</span></h1></header>
 <form id="input">
-    <input id="feed-url" type="text" placeholder="Feed or ActivityPub url" autocomplete="on" required>
+    <input id="feed-url" type="text" placeholder="Podcast feed or ActivityPub url" autocomplete="on" required>
     <button id="submit" type="submit">Validate</button>
 </form>
 `;
 
 export const FORM_CSS = css`
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: ${unsafeCSS(Theme.textColorHex)};
+    margin-bottom: 1rem;
+    opacity: 0.75;
+}
+
+header h1 {
+    margin: 0;
+}
+
+header svg {
+    transform: scale(1.5);
+    fill: currentColor;
+}
+
+#version {
+    opacity: 0.25;
+}
 
 #input {
     display: flex;
@@ -42,10 +67,14 @@ input:-webkit-autofill, input:-webkit-autofill:focus {
 
 `;
 
-export function initForm(document: Document, vm: ValidatorAppVM): () => void {
+export function initForm(document: Document, vm: ValidatorAppVM, staticData: StaticData): () => void {
     const inputForm = document.getElementById('input') as HTMLFormElement;
     const feedUrlInput = document.getElementById('feed-url') as HTMLInputElement;
     const submitButton = document.getElementById('submit') as HTMLButtonElement;
+    const versionSpan = document.getElementById('version') as HTMLSpanElement;
+
+    const version = [staticData.version, staticData.pushId].map(v => (v || '').trim()).filter(v => v.length > 0).join('.');
+    versionSpan.textContent = staticData.version ? `v${version}` : '';
 
     inputForm.onsubmit = e => {
         e.preventDefault();

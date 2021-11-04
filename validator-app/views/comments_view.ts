@@ -16,21 +16,20 @@ export const COMMENTS_CSS = css`
     display: none;
     font-size: 0.75rem;
     color: ${unsafeCSS(Theme.textColorHex)};
-}
-
-#comments {
-    max-width: 80ch;
+    margin-bottom: 1rem;
 }
 
 .comment {
     display: flex;
+    max-width: 80ch;
+    line-height: 1.5;
 }
 
 .comment .icon {
     width: 3em;
     height: 3em;
     border-radius: 0.5em;
-    margin: 0.75em 1em 0 0;
+    margin: 0.75em 1em 1em 0;
 }
 
 .comment .rhs {
@@ -42,16 +41,14 @@ export const COMMENTS_CSS = css`
 
 .comment .header {
     display: flex;
-}
-
-.comment .header .attributed-to {
-    flex-grow: 1;
+    gap: 0.5em;
+    align-items: baseline;
+    color: #888888;
 }
 
 .comment .rhs p {
-    margin-block-start: 0.5em;
-    margin-block-end: 0.5em;
-    line-height: 1.4;
+    margin-block-start: 0em;
+    margin-block-end: 0em;
 }
 
 `;

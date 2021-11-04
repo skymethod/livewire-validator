@@ -59,14 +59,19 @@ async function computeFetch(request: Request): Promise<Response> {
     try {
         if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
         const { url, headers } = await request.json();
-        return await fetch(new URL(url).toString(), { headers });
+        console.log(`Fetching ${url}`, headers);
+        const rt = await fetch(new URL(url).toString(), { headers });
+        if (rt.status !== 200) {
+            console.log(`Response ${rt.status}`, [...rt.headers.entries()].map(v => v.join(':')).join(', '));
+        }
+        return rt;
     } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 400 });
     }
 }
 
 function computeManifest(): AppManifest {
-    const name = 'Livewire Validator';
+    const name = 'Livewire Podcast Validator';
     return {
         'short_name': name,
         name,
@@ -180,8 +185,8 @@ ${COMMON_STYLES}
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
     const { name, description } = computeManifest();
-    const { twitter, pushId } = staticData;
-    const title = [name, pushId].filter(v => v !== '').join(' ');
+    const { twitter } = staticData;
+    const title = name;
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
 <html lang="en" class="no-js">

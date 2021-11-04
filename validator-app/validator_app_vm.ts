@@ -2,15 +2,6 @@ import { checkEqual, checkMatches, checkTrue } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 
-
-interface ValidationJob {
-    readonly id: number;
-    readonly messages: Message[]; // first message is status
-    done: boolean;
-    xml?: XmlNode;
-    fetchCommentsResult?: FetchCommentsResult;
-}
-
 export class ValidatorAppVM {
 
     private nextJobId = 1;
@@ -36,6 +27,7 @@ export class ValidatorAppVM {
             id: this.nextJobId++,
             messages: [],
             done: false,
+            cancelled: false,
         }
         this.currentJob = job;
         job.messages.push({ type: 'running', text: 'Validating', url: feedUrlStr });
@@ -46,6 +38,7 @@ export class ValidatorAppVM {
 
     cancelValidation() {
         if (this.currentJob && !this.currentJob.done) {
+            this.currentJob.cancelled = true;
             this.currentJob.done = true;
             this.onChange();
         }
@@ -72,7 +65,7 @@ export class ValidatorAppVM {
             const { response, side, fetchTime } = await localOrRemoteFetch(feedUrl.toString(), { headers }); if (job.done) return;
 
             if (side === 'remote') {
-                messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: feedUrlStr });
+                messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: feedUrlStr, tag: 'cors' });
             }
             checkEqual('response.status', response.status, 200);
             const contentType = response.headers.get('Content-Type');
@@ -158,7 +151,7 @@ export class ValidatorAppVM {
                     if (side === 'remote') {
                         const origin = new URL(url).origin;
                         if (!remoteOnlyOrigins.has(origin)) {
-                            messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?)`, url }); this.onChange();
+                            messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?)`, url, tag: 'cors' }); this.onChange();
                             remoteOnlyOrigins.add(origin);
                         }
                     }
@@ -177,7 +170,7 @@ export class ValidatorAppVM {
             messages.push({ type: 'error', text: e.message });
         } finally {
             job.done = true;
-            setStatus('done!', { type: 'done' });
+            setStatus(job.cancelled ? 'Cancelled' : 'Done', { type: 'done' });
             this.onChange();
         }
     }
@@ -191,6 +184,7 @@ export interface Message {
     readonly text: string;
     readonly comment?: Comment;
     readonly url?: string;
+    readonly tag?: string;
 }
 
 //
@@ -258,4 +252,13 @@ interface FetchResult {
     readonly fetchTime: number;
     readonly side: FetchSide;
     readonly response: Response;
+}
+
+interface ValidationJob {
+    readonly id: number;
+    readonly messages: Message[]; // first message is status
+    done: boolean;
+    cancelled: boolean;
+    xml?: XmlNode;
+    fetchCommentsResult?: FetchCommentsResult;
 }
