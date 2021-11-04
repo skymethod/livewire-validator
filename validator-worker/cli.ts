@@ -20,10 +20,10 @@ async function validator(args: (string | number)[], options: Record<string, unkn
         dumpHelp();
         return;
     }
-    await fn(args.slice(1));
+    await fn(args.slice(1), options);
 }
 
-async function b64(args: (string | number)[]) {
+async function b64(args: (string | number)[], options: Record<string, unknown>) {
     const path = args[0];
     if (typeof path !== 'string') throw new Error('Must provide path to file');
     const contents = await Deno.readFile(path);
@@ -31,12 +31,13 @@ async function b64(args: (string | number)[]) {
     console.log(b64);
 }
 
-async function build(_args: (string | number)[]) {
+async function build(_args: (string | number)[], options: Record<string, unknown>) {
     const thisPath = fromFileUrl(import.meta.url);
     const validatorWorkerPath = dirname(thisPath);
     const validatorAppPath = resolve(validatorWorkerPath, '../validator-app');
     const appPath = join(validatorAppPath, 'validator_app.ts');
     const dataPath = join(validatorWorkerPath, 'validator_data.ts');
+    const localDataPath = join(validatorWorkerPath, 'validator_local_data.ts');
 
     const regenerateAppContents = async () => {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);
@@ -53,7 +54,7 @@ async function build(_args: (string | number)[]) {
             }
         
             await updateFile(result, dataPath, 'bundle.js', `VALIDATOR_APP`);
-            // await updateFile(result, dataPath, 'bundle.js.map', `VALIDATOR_APP_MAP`);
+            if (options.sourcemaps) await updateFile(result, localDataPath, 'bundle.js.map', `VALIDATOR_APP_MAP`);
 
         } catch (e) {
             console.warn('error in regenerateAppContents', e.stack || e);
