@@ -89,10 +89,6 @@ export function initForm(document: Document, vm: ValidatorAppVM, staticData: Sta
             startValidation();
         }
     }
-    vm.onSelectResult = url => {
-        textInput.value = url;
-        startValidation();
-    };
     
     if (validate) {
         textInput.value = validate;

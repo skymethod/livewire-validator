@@ -10,21 +10,33 @@ export class ValidatorAppVM {
 
     get validating(): boolean { return this.currentJob !== undefined && !this.currentJob.done; }
 
-    get messages(): readonly Message[] { return this.currentJob ? this.currentJob.messages : [] }
+    get messages(): readonly Message[] { return this.currentJob ? this.currentJob.messages : []; }
 
-    get isSearch(): boolean { return this.currentJob !== undefined && this.currentJob.search !== undefined  }
+    get isSearch(): boolean { return this.currentJob !== undefined && this.currentJob.search; }
 
-    get searchResults(): readonly PIFeedInfo[] { return this.currentJob ? this.currentJob.searchResults : [] }
+    get searchResults(): readonly PIFeedInfo[] { return this.currentJob ? this.currentJob.searchResults : []; }
 
     get xml(): XmlNode | undefined { return this.currentJob?.xml; }
 
     get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
 
     onChange: () => void = () => {};
-    onSelectResult: (url: string) => void = () => {};
 
     start() {
         // load initial state, etc. noop for now
+    }
+
+    continueWith(url: string) {
+        const { currentJob } = this;
+        if (currentJob) {
+            currentJob.done = false;
+            currentJob.search = false;
+            currentJob.searchResults.splice(0);
+            currentJob.messages[0] = { type: 'running', text: 'Validating', url };
+            currentJob.messages.push({ type: 'info', text: 'Continuing with feed from search', url });
+            this.onChange();
+            this.validateAsync(url, currentJob);
+        }
     }
 
     startValidation(input: string, options: ValidationOptions = { }) {
@@ -63,6 +75,7 @@ export class ValidatorAppVM {
         };
         let activityPub: { url: string, subject: string } | undefined;
         const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
+        let continueWithUrl: string | undefined;
         try {
             input = input.trim();
             if (input === '') throw new Error(`No input`);
@@ -78,9 +91,9 @@ export class ValidatorAppVM {
                 const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { headers }); if (job.done) return;
 
                 if (side === 'remote') {
-                    messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: input, tag: 'cors' });
+                    messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: input, tag: 'cors' }); this.onChange();
                 }
-                checkEqual('response.status', response.status, 200);
+                checkEqual(`${inputUrl.host} response status`, response.status, 200);
                 const contentType = response.headers.get('Content-Type');
                 messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
 
@@ -199,24 +212,28 @@ export class ValidatorAppVM {
                         messages.push({ type: 'error', text: searchResult.piIdResult });
                     } else {
                         if (!isReadonlyArray(searchResult.piIdResult.feed)) {
-                            this.onSelectResult(searchResult.piIdResult.feed.url);
+                            continueWithUrl = searchResult.piIdResult.feed.url;
                         }
                     }
                 }
             }
-
         } catch (e) {
             console.error(e);
             messages.push({ type: 'error', text: e.message });
         } finally {
-            job.done = true;
-            const status = job.cancelled ? 'Cancelled'
-                : job.search && job.searchResults.length === 0 ? 'Found no podcasts'
-                : job.search && job.searchResults.length === 1 ? 'Found one podcast, select to continue validation'
-                : job.search ? `Found ${job.searchResults.length} podcasts, select one to continue validation` 
-                : 'Done';
-            setStatus(status, { type: 'done' });
-            this.onChange();
+            if (continueWithUrl) {
+                this.continueWith(continueWithUrl);
+            } else {
+                job.done = true;
+                const status = job.cancelled ? 'Cancelled'
+                    : job.search && job.searchResults.length === 0 ? 'Found no podcasts'
+                    : job.search && job.searchResults.length === 1 ? 'Found one podcast, select to continue validation'
+                    : job.search ? `Found ${job.searchResults.length} podcasts, select one to continue validation` 
+                    : 'Done';
+                setStatus(status, { type: 'done' });
+                this.onChange();
+            }
+           
         }
     }
 

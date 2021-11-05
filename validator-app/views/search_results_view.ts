@@ -55,5 +55,5 @@ const RESULTS_HTML = (vm: ValidatorAppVM) => html`
 const IMAGE_HTML = (artwork?: string) => artwork ? html`<img src=${artwork}>` : SQUARE_ICON;
 
 function selectResult(vm: ValidatorAppVM, url: string): () => void {
-    return () => vm.onSelectResult(url);
+    return () => vm.continueWith(url);
 }
