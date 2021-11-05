@@ -55,7 +55,7 @@ export class ValidatorAppVM {
     //
 
     private async validateAsync(input: string, job: ValidationJob): Promise<void> {
-        
+        input = normalizeInput(input);
         const { messages } = job;
         const setStatus = (text: string, opts: { url?: string, type?: MessageType } = {}) => {
             const { url, type } = opts;
@@ -251,6 +251,13 @@ export interface PIFeedInfo {
 }
 
 //
+
+function normalizeInput(input: string): string {
+    input = input.trim();
+    const m = /^https:\/\/podcasts\.apple\.com\/.*?(id\d+)$/.exec(input);
+    if (m) return m[1];
+    return input;
+}
 
 function tryParseUrl(url: string): URL | undefined {
     try {

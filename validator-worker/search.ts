@@ -15,10 +15,19 @@ export async function search(input: string, opts: { headers: Record<string, stri
     let piSearchResult: Record<string, unknown> | string | undefined;
     let piIdResult: Record<string, unknown> | string | undefined;
     if (podcastIndexCredentials) {
+        let m: RegExpExecArray | null;
         if (/^\d+$/.test(input)) {
             try {
                 const u = new URL('https://api.podcastindex.org/api/1.0/podcasts/byfeedid');
                 u.searchParams.set('id', input);
+                piIdResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
+            } catch (e) {
+                piIdResult = e.message;
+            }
+        } else if ((m = /^id(\d+)$/.exec(input))) {
+            try {
+                const u = new URL('https://api.podcastindex.org/api/1.0/podcasts/byitunesid');
+                u.searchParams.set('id', m[1]);
                 piIdResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
             } catch (e) {
                 piIdResult = e.message;
