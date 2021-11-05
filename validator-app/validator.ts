@@ -89,7 +89,7 @@ function validateItem(item: XmlNode, callbacks: ValidationCallbacks, namespaces:
     try {
         const socialInteracts = findChildElements(item, namespaces, ...podcastIndexQnames('socialInteract'));
         for (const socialInteract of socialInteracts) {
-            callbacks.onInfo(socialInteract, 'Found socialInteract!', { tag: 'social-interact' });
+            callbacks.onInfo(socialInteract, 'Found podcast:socialInteract!', { tag: 'social-interact' });
         }
     } finally {
         namespaces.pop();

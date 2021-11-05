@@ -1,5 +1,5 @@
 import { checkEqual, checkMatches, checkTrue } from './check.ts';
-import { fetchCommentsForUrl, FetchCommentsResult, Comment } from './comments.ts';
+import { fetchCommentsForUrl, FetchCommentsResult, Comment, computeCommentCount } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 import { isReadonlyArray } from './util.ts';
 
@@ -44,6 +44,7 @@ export class ValidatorAppVM {
             id: this.nextJobId++,
             messages: [],
             searchResults: [],
+            times: {},
             options,
             search: false,
             done: false,
@@ -72,10 +73,18 @@ export class ValidatorAppVM {
         const setStatus = (text: string, opts: { url?: string, type?: MessageType } = {}) => {
             const { url, type } = opts;
             messages[0] = { type: type || messages[0].type, text, url };
+            this.onChange();
         };
+        const addMessage = (type: MessageType, text: string, opts: { tag?: string, url?: string, comment?: Comment } = {}) => {
+            const { url, tag, comment } = opts;
+            messages.push({ type, text, tag, url, comment });
+            this.onChange();
+        };
+
         let activityPub: { url: string, subject: string } | undefined;
         const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
+        const jobStart = Date.now();
         try {
             input = input.trim();
             if (input === '') throw new Error(`No input`);
@@ -89,37 +98,37 @@ export class ValidatorAppVM {
                 inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
 
                 const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { headers }); if (job.done) return;
+                job.times.fetchTime = fetchTime;
 
                 if (side === 'remote') {
-                    messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: input, tag: 'cors' }); this.onChange();
+                    addMessage('warning', `Local fetch failed (CORS issue?)`, { url: input, tag: 'cors' }); 
                 }
                 checkEqual(`${inputUrl.host} response status`, response.status, 200);
                 const contentType = response.headers.get('Content-Type');
-                messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
-
-                let start = Date.now();
-                const text = await response.text(); if (job.done) return;
-                const readTime = Date.now() - start;
 
                 let validateFeed = true;
                 if (contentType && contentType.includes('/html')) {
-                    messages.push({ type: 'info', text: 'Found html, trying again as ActivityPub' });
+                    addMessage('info', 'Found html, will try again as ActivityPub');
                     validateFeed = false;
                     activityPub = { url: input, subject: 'input url' };
                 }
 
-                let parseTime: number | undefined;
-                let validateTime: number | undefined;
+                let textLength: number | undefined;
                 if (validateFeed) {
+                    let start = Date.now();
+                    const text = await response.text(); if (job.done) return;
+                    textLength = text.length;
+                    job.times.readTime = Date.now() - start;
+
                     start = Date.now();
                     
                     let xml: XmlNode | undefined;
                     try {
                         xml = parseFeedXml(text);
                     } catch (e) {
-                        messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
+                        addMessage('error', `Xml parse failed: ${e.message}`);
                     } finally {
-                        parseTime = Date.now() - start;
+                        job.times.parseTime = Date.now() - start;
                     }
                     job.xml = xml;
                 
@@ -129,20 +138,17 @@ export class ValidatorAppVM {
                         start = Date.now();
                         const callbacks: ValidationCallbacks = {
                             onError: (_, message, opts) => {
-                                const { tag } = opts || {};
                                 console.error(message);
-                                messages.push({ type: 'error', text: message, tag });
+                                addMessage('error', message, opts);
                             },
                             onWarning: (_, message, opts) =>  {
-                                const { tag } = opts || {};
                                 console.warn(message);
-                                messages.push({ type: 'warning', text: message, tag });
+                                addMessage('warning', message, opts);
                             },
                             onInfo: (node, message, opts) =>  {
-                                const { tag } = opts || {};
                                 console.info(message);
-                                messages.push({ type: 'info', text: message, tag });
-                                if (tag === 'social-interact') {
+                                addMessage('info', message, opts);
+                                if (opts?.tag === 'social-interact') {
                                     if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
@@ -151,20 +157,21 @@ export class ValidatorAppVM {
                             },
                         };
                         validateFeedXml(xml, callbacks);
-                        validateTime = Date.now() - start;
+                        job.times.validateTime = Date.now() - start;
                     }
                 }
-                messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
 
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (validateComments && activityPub) {
                     const sleepMillisBetweenCalls = 0;
-                    setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url }); this.onChange();
+                    setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url });
+                    addMessage('info', 'Fetching ActivityPub comments', { url: activityPub.url });
                     const keepGoing = () => !job.done;
                     const remoteOnlyOrigins = new Set<string>();
                     const computeUseSide = (url: string) => {
                         return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
                     };
+                    let activityPubCalls = 0;
                     const fetchActivityPub = async (url: string) => {
                         let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                         console.log(JSON.stringify(obj, undefined, 2));
@@ -181,16 +188,22 @@ export class ValidatorAppVM {
                         if (side === 'remote') {
                             const origin = new URL(url).origin;
                             if (!remoteOnlyOrigins.has(origin)) {
-                                messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?)`, url, tag: 'cors' }); this.onChange();
+                                addMessage('warning', `Local ActivityPub fetch failed (CORS issue?)`, { url, tag: 'cors' });
                                 remoteOnlyOrigins.add(origin);
                             }
                         }
+                        activityPubCalls++;
                         return obj;
                     };
                     const warn = (comment: Comment, url: string, message: string) => {
-                        messages.push({ type: 'warning', text: message, comment, url }); this.onChange();
+                        addMessage('warning', message, { comment, url });
                     };
-                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn })
+                    const start = Date.now();
+                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn });
+                    if (fetchCommentsResult) {
+                        job.times.commentsTime = Date.now() - start;
+                        addMessage('info', `Found ${unitString(computeCommentCount(fetchCommentsResult.rootComment), 'comment')} and ${unitString(fetchCommentsResult.commenters.size, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
+                    }
                     job.fetchCommentsResult = fetchCommentsResult;
                     this.onChange();
                 }
@@ -203,13 +216,13 @@ export class ValidatorAppVM {
                 const searchResult = await searchResponse.json() as SearchResult;
                 if (searchResult.piSearchResult) {
                     if (typeof searchResult.piSearchResult === 'string') {
-                        messages.push({ type: 'error', text: searchResult.piSearchResult });
+                        addMessage('error', searchResult.piSearchResult);
                     } else {
                         job.searchResults.push(...searchResult.piSearchResult.feeds.slice(0, 20));
                     }
                 } else if (searchResult.piIdResult) {
                     if (typeof searchResult.piIdResult === 'string') {
-                        messages.push({ type: 'error', text: searchResult.piIdResult });
+                        addMessage('error', searchResult.piIdResult);
                     } else {
                         if (!isReadonlyArray(searchResult.piIdResult.feed)) {
                             continueWithUrl = searchResult.piIdResult.feed.url;
@@ -219,8 +232,9 @@ export class ValidatorAppVM {
             }
         } catch (e) {
             console.error(e);
-            messages.push({ type: 'error', text: e.message });
+            addMessage('error', e.message);
         } finally {
+            addMessage('info', `Took ${formatTime(Date.now() - jobStart)} (${computeJobTimesString(job)})`);
             if (continueWithUrl) {
                 this.continueWith(continueWithUrl);
             } else {
@@ -231,7 +245,6 @@ export class ValidatorAppVM {
                     : job.search ? `Found ${job.searchResults.length} podcasts, select one to continue validation` 
                     : 'Done';
                 setStatus(status, { type: 'done' });
-                this.onChange();
             }
            
         }
@@ -271,6 +284,22 @@ export interface PIFeedInfo {
 }
 
 //
+
+function formatTime(millis: number): string {
+    if (millis < 1000) return `${millis}ms`;
+    return `${Math.round(millis / 1000 * 100) / 100}s`;
+}
+
+function computeJobTimesString(job: ValidationJob): string {
+    return [['fetch', job.times.fetchTime],['read', job.times.readTime],['parse', job.times.parseTime],['validate', job.times.validateTime],['comments', job.times.commentsTime]]
+        .filter(v => v[1] !== undefined)
+        .map(v => `${v[0]}=${formatTime(v[1] as number)}`)
+        .join(', ');
+}
+
+function unitString(amount: number, unit: string): string {
+    return `${amount === 0 ? 'no' : amount === 1 ? 'one' : amount} ${unit}${amount === 1 ? '' : 's'}`;
+}
 
 function normalizeInput(input: string): string {
     input = input.trim();
@@ -349,11 +378,20 @@ interface ValidationJob {
     readonly messages: Message[]; // first message is status
     readonly searchResults: PIFeedInfo[];
     readonly options: ValidationOptions;
+    readonly times: ValidationJobTimes;
     search: boolean;
     done: boolean;
     cancelled: boolean;
     xml?: XmlNode;
     fetchCommentsResult?: FetchCommentsResult;
+}
+
+interface ValidationJobTimes {
+    fetchTime?: number;
+    readTime?: number;
+    parseTime?: number;
+    validateTime?: number;
+    commentsTime?: number;
 }
 
 interface SearchResult {

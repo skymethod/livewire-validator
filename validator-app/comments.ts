@@ -1,4 +1,4 @@
-import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage } from './activity_pub.ts';
+import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage, PodcastEpisode } from './activity_pub.ts';
 import { isReadonlyArray } from './util.ts';
 
 export interface Comment {
@@ -50,23 +50,28 @@ export async function fetchCommentsForUrl(url: string, subject: string, opts: Fe
     return { subject, rootComment, commenters };
 }
 
+export function computeCommentCount(comment: Comment): number {
+    return 1 + comment.replies.map(computeCommentCount).reduce((a, b) => a + b, 0);
+}
+
 //
 
 async function fetchCommentsForUrl_(url: string, opts: FetchCommentsOpts): Promise<Comment | undefined> {
     const { fetchActivityPub } = opts;
     const obj = await fetchActivityPub(url); if (!obj) return undefined;
-    const note = obj as unknown as Note; // TODO validate
-    const rootComment = initCommentFromObjectOrLink(note);
-    await collectComments(note, rootComment, opts, url);
+    const noteOrPodcastEpisode = obj as unknown as Note | PodcastEpisode; // TODO validate
+    const rootComment = initCommentFromObjectOrLink(noteOrPodcastEpisode);
+    await collectComments(noteOrPodcastEpisode, rootComment, opts, url);
     return rootComment;
 }
 
-async function collectComments(note: Note, comment: Comment, opts: FetchCommentsOpts, url: string): Promise<void> {
+async function collectComments(note: Note | PodcastEpisode, comment: Comment, opts: FetchCommentsOpts, url: string): Promise<void> {
     const { keepGoing, fetchActivityPub } = opts;
     const fetched = new Set<string>();
-    if (note.replies) {
-        if (typeof note.replies === 'string') {
-            const url = note.replies;
+    const podcastEpisodeComments = note.type === 'PodcastEpisode' ? note.comments : note.replies;
+    if (podcastEpisodeComments) {
+        if (typeof podcastEpisodeComments === 'string') {
+            const url = podcastEpisodeComments;
             const obj = await fetchActivityPub(url); if (!keepGoing()) return;
             if (!obj) return;
             fetched.add(url);
@@ -86,20 +91,20 @@ async function collectComments(note: Note, comment: Comment, opts: FetchComments
             } else {
                 throw new Error(`TODO: obj.type not implemented ${JSON.stringify(obj)}`);
             }
-        } else if (note.replies.first) {
-            if (typeof note.replies.first === 'object' && note.replies.first.type === 'CollectionPage') {
-                if (note.replies.first.items && note.replies.first.items.length > 0) {
-                    await collectItems(note.replies.first.items, comment, opts, url); if (!keepGoing()) return;
+        } else if (podcastEpisodeComments.first) {
+            if (typeof podcastEpisodeComments.first === 'object' && podcastEpisodeComments.first.type === 'CollectionPage') {
+                if (podcastEpisodeComments.first.items && podcastEpisodeComments.first.items.length > 0) {
+                    await collectItems(podcastEpisodeComments.first.items, comment, opts, url); if (!keepGoing()) return;
                 }
-                if (note.replies.first.next) {
-                    if (typeof note.replies.first.next === 'string') {
-                        await fetchPages(note.replies.first.next, comment, opts, fetched);
+                if (podcastEpisodeComments.first.next) {
+                    if (typeof podcastEpisodeComments.first.next === 'string') {
+                        await fetchPages(podcastEpisodeComments.first.next, comment, opts, fetched);
                     } else {
-                        throw new Error(`TODO: first.next not implemented ${note.replies.first.next}`);
+                        throw new Error(`TODO: first.next not implemented ${podcastEpisodeComments.first.next}`);
                     }
                 }
             } else {
-                throw new Error(`TODO: first type not implemented ${note.replies.first}`);
+                throw new Error(`TODO: first type not implemented ${podcastEpisodeComments.first}`);
             }
         } else {
             throw new Error(`TODO: first not found, implement items`);
@@ -165,14 +170,28 @@ async function collectItems(items: readonly (string | Link | Object_)[], comment
 }
 
 function initCommentFromObjectOrLink(object: Object_ | Link): Comment {
-    if (object.type !== 'Note') throw new Error(`TODO: item type not implemented ${JSON.stringify(object)}`);
-    const { attributedTo, content, published, url } = object;
-    if (typeof attributedTo !== 'string') throw new Error(`TODO: attributedTo type not implemented ${JSON.stringify(object)}`);
-    if (typeof content !== 'string') throw new Error(`TODO: content type not implemented ${JSON.stringify(object)}`);
-    if (typeof published !== 'string') throw new Error(`TODO: published type not implemented ${JSON.stringify(object)}`);
-    if (url !== undefined && typeof url !== 'string') throw new Error(`TODO: url type not implemented ${JSON.stringify(object)}`);
-    const attachments = computeAttachments(object);
-    return { url, attributedTo, content, published, replies: [], attachments };
+    if (object.type === 'Note') {
+        const { attributedTo, content, published, url } = object;
+        if (typeof attributedTo !== 'string') throw new Error(`TODO: Note.attributedTo type not implemented ${JSON.stringify(object)}`);
+        if (typeof content !== 'string') throw new Error(`TODO: Note.content type not implemented ${typeof content} ${JSON.stringify(object)}`);
+        if (typeof published !== 'string') throw new Error(`TODO: Note.published type not implemented ${JSON.stringify(object)}`);
+        if (url !== undefined && typeof url !== 'string') throw new Error(`TODO: Note.url type not implemented ${JSON.stringify(object)}`);
+        const attachments = computeAttachments(object);
+        return { url, attributedTo, content, published, replies: [], attachments };
+    }
+    if (object.type === 'PodcastEpisode') {
+        const podcastEpisode = object as PodcastEpisode;
+        const { attributedTo, published, description, image } = podcastEpisode;
+        if (typeof attributedTo !== 'string') throw new Error(`TODO: PodcastEpisode.attributedTo type not implemented ${JSON.stringify(object)}`);
+        if (typeof published !== 'string') throw new Error(`TODO: PodcastEpisode.published type not implemented ${JSON.stringify(object)}`);
+        if (typeof description !== 'object' || description.type !== 'Note') throw new Error(`TODO: PodcastEpisode.description type not implemented ${JSON.stringify(object)}`);
+        const { content } = description;
+        if (typeof content !== 'string') throw new Error(`TODO: PodcastEpisode.content type not implemented ${typeof content} ${JSON.stringify(object)}`);
+        const url = undefined;
+        const attachments = image ? [ computeAttachment(image) ] : [];
+        return { url, attributedTo, content, published, replies: [], attachments };
+    }
+    throw new Error(`TODO: item type not implemented ${JSON.stringify(object)}`);
 }
 
 //
@@ -182,15 +201,19 @@ function computeAttachments(object: Object_): Attachment[] {
     if (!object.attachment) return rt;
     const attachments = isReadonlyArray(object.attachment) ? object.attachment : [ object.attachment ];
     for (const attachment of attachments) {
-        if (typeof attachment !== 'object' || attachment.type !== 'Document') throw new Error(`TODO: attachment type not implemented ${JSON.stringify(object)}`);
-        const { mediaType, width, height, url } = attachment;
-        if (typeof mediaType !== 'string') throw new Error(`TODO: mediaType type not implemented ${JSON.stringify(object)}`);
-        if (width !== undefined && typeof width !== 'number') throw new Error(`TODO: width type not implemented ${JSON.stringify(object)}`);
-        if (height !== undefined && typeof height !== 'number') throw new Error(`TODO: height type not implemented ${JSON.stringify(object)}`);
-        if (typeof url !== 'string') throw new Error(`TODO: url type not implemented ${JSON.stringify(object)}`);
-        rt.push({ mediaType, width, height, url});
+        rt.push(computeAttachment(attachment));
     }
     return rt;
+}
+
+function computeAttachment(object: string | Link | Object_): Attachment {
+    if (typeof object !== 'object' || (object.type !== 'Document' && object.type !== 'Image')) throw new Error(`TODO: attachment type not implemented ${JSON.stringify(object)}`);
+    const { mediaType, width, height, url } = object;
+    if (typeof mediaType !== 'string') throw new Error(`TODO: mediaType type not implemented ${JSON.stringify(object)}`);
+    if (width !== undefined && typeof width !== 'number') throw new Error(`TODO: width type not implemented ${JSON.stringify(object)}`);
+    if (height !== undefined && typeof height !== 'number') throw new Error(`TODO: height type not implemented ${JSON.stringify(object)}`);
+    if (typeof url !== 'string') throw new Error(`TODO: url type not implemented ${JSON.stringify(object)}`);
+    return { mediaType, width, height, url};
 }
 
 async function collectCommenters(comment: Comment, opts: FetchCommentsOpts): Promise<ReadonlyMap<string,Commenter>> {

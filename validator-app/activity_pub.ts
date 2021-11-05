@@ -347,3 +347,30 @@ export interface Person extends Actor {
 export interface Image extends Object_ {
     readonly type: 'Image';
 }
+
+/**
+ * Represents an audio document of any kind.
+ * 
+ * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-audio
+ */
+ export interface Audio extends Object_ {
+    readonly type: 'Audio';
+}
+
+/**
+ * Castopod proposal?
+ * https://code.podlibre.org/podlibre/castopod-host/-/merge_requests/146
+ */
+export interface PodcastEpisode extends Object_ {
+
+    readonly type: 'PodcastEpisode';
+    // attributedTo
+    // published
+    // to
+    // cc
+    
+    readonly comments?: string; // url to ap collection
+    readonly description?: Note; // mediaType, content, contentMap
+    readonly image?: Image; // mediaType, url
+    readonly audio?: Audio; // name, size, duration, url (Link href, mediaType), transcript, chapters
+}

@@ -58,6 +58,8 @@ export const COMMENTS_CSS = css`
 
 .comment img {
     max-width: 80ch;
+    width: auto;
+    height: auto;
 }
 
 `;
