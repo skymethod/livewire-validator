@@ -16,12 +16,14 @@ export function validateFeedXml(xml: XmlNode, callbacks: ValidationCallbacks) {
     checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
 }
 
-export function computeAttributeMap(attrsMap: Record<string, string>): ReadonlyMap<string, string> {
+export function computeAttributeMap(attrsMap: Record<string, string> | undefined): ReadonlyMap<string, string> {
     let map: Map<string, string> | undefined;
-    for (const [ name, value ] of Object.entries(attrsMap)) {
-        if (!name.startsWith('@_')) throw new Error(`Bad attrsMap name: ${name}, ${attrsMap}`);
-        map = map || new Map<string, string>();
-        map.set(name.substring(2), value);
+    if (attrsMap) {
+        for (const [ name, value ] of Object.entries(attrsMap)) {
+            if (!name.startsWith('@_')) throw new Error(`Bad attrsMap name: ${name}, ${attrsMap}`);
+            map = map || new Map<string, string>();
+            map.set(name.substring(2), value);
+        }
     }
     return map || EMPTY_MAP;
 }

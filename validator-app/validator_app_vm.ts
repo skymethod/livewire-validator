@@ -1,6 +1,7 @@
 import { checkEqual, checkMatches, checkTrue } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
+import { isReadonlyArray } from './util.ts';
 
 export class ValidatorAppVM {
 
@@ -11,7 +12,7 @@ export class ValidatorAppVM {
 
     get messages(): readonly Message[] { return this.currentJob ? this.currentJob.messages : [] }
 
-    get isSearch(): boolean { return this.currentJob !== undefined && this.currentJob.search  }
+    get isSearch(): boolean { return this.currentJob !== undefined && this.currentJob.search !== undefined  }
 
     get searchResults(): readonly PIFeedInfo[] { return this.currentJob ? this.currentJob.searchResults : [] }
 
@@ -190,6 +191,14 @@ export class ValidatorAppVM {
                     } else {
                         job.searchResults.push(...searchResult.piSearchResult.feeds.slice(0, 20));
                     }
+                } else if (searchResult.piIdResult) {
+                    if (typeof searchResult.piIdResult === 'string') {
+                        messages.push({ type: 'error', text: searchResult.piIdResult });
+                    } else {
+                        if (!isReadonlyArray(searchResult.piIdResult.feed)) {
+                            this.onSelectResult(searchResult.piIdResult.feed.url);
+                        }
+                    }
                 }
             }
 
@@ -322,8 +331,14 @@ interface ValidationJob {
 
 interface SearchResult {
     readonly piSearchResult?: PISearchResponse | string;
+    readonly piIdResult?: PIIdResponse | string;
 }
 
 interface PISearchResponse {
     readonly feeds: readonly PIFeedInfo[];
 }
+
+interface PIIdResponse {
+    readonly feed: PIFeedInfo | readonly PIFeedInfo[]; // empty array when not found
+}
+

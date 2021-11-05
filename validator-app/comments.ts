@@ -1,4 +1,5 @@
 import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage } from './activity_pub.ts';
+import { isReadonlyArray } from './util.ts';
 
 export interface Comment {
     readonly url?: string;
@@ -242,10 +243,4 @@ function collectAttributedTos(comment: Comment, attributedTos: Set<string>) {
     for (const reply of comment.replies) {
         collectAttributedTos(reply, attributedTos);
     }
-}
-
-// workaround for https://github.com/microsoft/TypeScript/issues/17002
-// deno-lint-ignore no-explicit-any
-function isReadonlyArray(arg: any): arg is readonly any[] {
-    return Array.isArray(arg);
 }

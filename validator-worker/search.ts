@@ -7,21 +7,33 @@ export interface PodcastIndexCredentials {
 
 export interface SearchResult {
     readonly piSearchResult?: Record<string, unknown> | string;
+    readonly piIdResult?: Record<string, unknown> | string;
 }
 
 export async function search(input: string, opts: { headers: Record<string, string>, podcastIndexCredentials?: PodcastIndexCredentials }): Promise<SearchResult> {
     const { podcastIndexCredentials, headers } = opts;
     let piSearchResult: Record<string, unknown> | string | undefined;
+    let piIdResult: Record<string, unknown> | string | undefined;
     if (podcastIndexCredentials) {
-        try {
-            const u = new URL('https://api.podcastindex.org/api/1.0/search/byterm');
-            u.searchParams.set('q', input);
-            piSearchResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
-        } catch (e) {
-            piSearchResult = e.message;
+        if (/^\d+$/.test(input)) {
+            try {
+                const u = new URL('https://api.podcastindex.org/api/1.0/podcasts/byfeedid');
+                u.searchParams.set('id', input);
+                piIdResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
+            } catch (e) {
+                piIdResult = e.message;
+            }
+        } else {
+            try {
+                const u = new URL('https://api.podcastindex.org/api/1.0/search/byterm');
+                u.searchParams.set('q', input);
+                piSearchResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
+            } catch (e) {
+                piSearchResult = e.message;
+            }
         }
     }
-    return { piSearchResult };
+    return { piSearchResult, piIdResult };
 }
 
 //
