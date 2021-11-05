@@ -6,6 +6,7 @@ import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { AppManifest } from './app_manifest.d.ts';
 import { ValidatorWorkerEnv } from './validator_worker_env.d.ts';
 import { Theme } from './theme.ts';
+import { PodcastIndexCredentials, search } from './search.ts';
 
 export default {
 
@@ -39,6 +40,8 @@ export default {
             return new Response('User-agent: *\nDisallow:\n', { headers });
         } else if (/^\/f(\/.*)?$/.test(pathname)) {
             return await computeFetch(request);
+        } else if (pathname === '/s') {
+            return await computeSearch(request, computePodcastIndexCredentials(env.piCredentials));
         }
         
         const headers = computeHeaders('text/html; charset=utf-8');
@@ -69,6 +72,22 @@ async function computeFetch(request: Request): Promise<Response> {
     } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 400 });
     }
+}
+
+async function computeSearch(request: Request, podcastIndexCredentials: PodcastIndexCredentials | undefined): Promise<Response> {
+    try {
+        if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
+        const { input, headers } = await request.json();
+        const result = await search(input, { headers, podcastIndexCredentials });
+        return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json; charset=utf-8' }});
+    } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 400 });
+    }
+}
+
+function computePodcastIndexCredentials(str: string | undefined): PodcastIndexCredentials | undefined {
+    const m = /^(.+?):(.+?)$/.exec(str || '');
+    return m ? { apiKey: m[1], apiSecret: m[2] } : undefined;
 }
 
 function computeManifest(): AppManifest {

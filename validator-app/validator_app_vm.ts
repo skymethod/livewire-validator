@@ -11,30 +11,36 @@ export class ValidatorAppVM {
 
     get messages(): readonly Message[] { return this.currentJob ? this.currentJob.messages : [] }
 
+    get isSearch(): boolean { return this.currentJob !== undefined && this.currentJob.search  }
+
+    get searchResults(): readonly PIFeedInfo[] { return this.currentJob ? this.currentJob.searchResults : [] }
+
     get xml(): XmlNode | undefined { return this.currentJob?.xml; }
 
     get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
 
     onChange: () => void = () => {};
+    onSelectResult: (url: string) => void = () => {};
 
     start() {
         // load initial state, etc. noop for now
     }
 
-    validateFeed(feedUrlStr: string, options: ValidationOptions = { }) {
-        feedUrlStr = feedUrlStr.trim();
+    startValidation(input: string, options: ValidationOptions = { }) {
         const job: ValidationJob = {
             id: this.nextJobId++,
             messages: [],
+            searchResults: [],
             options,
+            search: false,
             done: false,
             cancelled: false,
         }
         this.currentJob = job;
-        job.messages.push({ type: 'running', text: 'Validating', url: feedUrlStr });
+        job.messages.push({ type: 'running', text: 'Validating', url: input });
         this.onChange();
 
-        this.validateFeedAsync(feedUrlStr, job);
+        this.validateAsync(input, job);
     }
 
     cancelValidation() {
@@ -47,124 +53,144 @@ export class ValidatorAppVM {
 
     //
 
-    private async validateFeedAsync(feedUrlStr: string, job: ValidationJob): Promise<void> {
+    private async validateAsync(input: string, job: ValidationJob): Promise<void> {
+        
         const { messages } = job;
         const setStatus = (text: string, opts: { url?: string, type?: MessageType } = {}) => {
             const { url, type } = opts;
             messages[0] = { type: type || messages[0].type, text, url };
         };
         let activityPub: { url: string, subject: string } | undefined;
+        const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
         try {
-            if (feedUrlStr === '') throw new Error(`Bad url: <blank>`);
-            const feedUrl = tryParseUrl(feedUrlStr);
-            if (!feedUrl) throw new Error(`Bad url: ${feedUrlStr}`);
-            checkMatches('feedUrl.protocol', feedUrl.protocol, /^https?:$/);
+            input = input.trim();
+            if (input === '') throw new Error(`No input`);
+            if (/^https?:\/\/.+/i.test(input)) {
+                // we have an url, validate it
 
-            feedUrl.searchParams.set('_t', Date.now().toString()); // cache bust
+                const inputUrl = tryParseUrl(input);
+                if (!inputUrl) throw new Error(`Bad url: ${input}`);
+                checkMatches('inputUrl.protocol', inputUrl.protocol, /^https?:$/);
 
-            const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
-            const { response, side, fetchTime } = await localOrRemoteFetch(feedUrl.toString(), { headers }); if (job.done) return;
+                inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
 
-            if (side === 'remote') {
-                messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: feedUrlStr, tag: 'cors' });
-            }
-            checkEqual('response.status', response.status, 200);
-            const contentType = response.headers.get('Content-Type');
-            messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
+                const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { headers }); if (job.done) return;
 
-            let start = Date.now();
-            const text = await response.text(); if (job.done) return;
-            const readTime = Date.now() - start;
-
-            let validateFeed = true;
-            if (contentType && contentType.includes('/html')) {
-                messages.push({ type: 'info', text: 'Found html, trying again as ActivityPub' });
-                validateFeed = false;
-                activityPub = { url: feedUrlStr, subject: 'input url' };
-            }
-
-            let parseTime: number | undefined;
-            let validateTime: number | undefined;
-            if (validateFeed) {
-                start = Date.now();
-                
-                let xml: XmlNode | undefined;
-                try {
-                    xml = parseFeedXml(text);
-                } catch (e) {
-                    messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
-                } finally {
-                    parseTime = Date.now() - start;
+                if (side === 'remote') {
+                    messages.push({ type: 'warning', text: `Local fetch failed (CORS issue?)`, url: input, tag: 'cors' });
                 }
-                job.xml = xml;
-            
-                console.log(xml);
+                checkEqual('response.status', response.status, 200);
+                const contentType = response.headers.get('Content-Type');
+                messages.push({ type: 'info', text: `Response status=${response.status}, content-type=${contentType}, content-length=${response.headers.get('Content-Length')}` });
 
-                if (xml) {
+                let start = Date.now();
+                const text = await response.text(); if (job.done) return;
+                const readTime = Date.now() - start;
+
+                let validateFeed = true;
+                if (contentType && contentType.includes('/html')) {
+                    messages.push({ type: 'info', text: 'Found html, trying again as ActivityPub' });
+                    validateFeed = false;
+                    activityPub = { url: input, subject: 'input url' };
+                }
+
+                let parseTime: number | undefined;
+                let validateTime: number | undefined;
+                if (validateFeed) {
                     start = Date.now();
-                    const callbacks: ValidationCallbacks = {
-                        onError: (_, message) => {
-                            console.error(message);
-                            messages.push({ type: 'error', text: message });
-                        },
-                        onWarning: (_, message) =>  {
-                            console.warn(message);
-                            messages.push({ type: 'warning', text: message });
-                        },
-                        onInfo: (node, message) =>  {
-                            console.info(message);
-                            messages.push({ type: 'info', text: message });
-                            if (message.includes('socialInteract')) {
-                                if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
-                                    const episodeTitle = findEpisodeTitle(node)
-                                    activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
-                                }
-                            }
-                        },
-                    };
-                    validateFeedXml(xml, callbacks);
-                    validateTime = Date.now() - start;
-                }
-            }
-            messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
+                    
+                    let xml: XmlNode | undefined;
+                    try {
+                        xml = parseFeedXml(text);
+                    } catch (e) {
+                        messages.push({ type: 'error', text: `Xml parse failed: ${e.message}` });
+                    } finally {
+                        parseTime = Date.now() - start;
+                    }
+                    job.xml = xml;
+                
+                    console.log(xml);
 
-            const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
-            if (validateComments && activityPub) {
-                const sleepMillisBetweenCalls = 0;
-                setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url }); this.onChange();
-                const keepGoing = () => !job.done;
-                const remoteOnlyOrigins = new Set<string>();
-                const computeUseSide = (url: string) => {
-                    return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
-                };
-                const fetchActivityPub = async (url: string) => {
-                    let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
-                    console.log(JSON.stringify(obj, undefined, 2));
-                    if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
-                        // https://docs.joinmastodon.org/methods/statuses/
-                        // https://docs.joinmastodon.org/entities/status/
-                        // uri = URI of the status used for federation (i.e. the AP url)
-                        url = obj.uri;
-                        const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
-                        obj = res.obj;
-                        side = res.side;
+                    if (xml) {
+                        start = Date.now();
+                        const callbacks: ValidationCallbacks = {
+                            onError: (_, message) => {
+                                console.error(message);
+                                messages.push({ type: 'error', text: message });
+                            },
+                            onWarning: (_, message) =>  {
+                                console.warn(message);
+                                messages.push({ type: 'warning', text: message });
+                            },
+                            onInfo: (node, message) =>  {
+                                console.info(message);
+                                messages.push({ type: 'info', text: message });
+                                if (message.includes('socialInteract')) {
+                                    if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
+                                        const episodeTitle = findEpisodeTitle(node)
+                                        activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                    }
+                                }
+                            },
+                        };
+                        validateFeedXml(xml, callbacks);
+                        validateTime = Date.now() - start;
+                    }
+                }
+                messages.push({ type: 'info', text: JSON.stringify({ fetchTime, readTime, parseTime, validateTime, textLength: text.length }) });
+
+                const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
+                if (validateComments && activityPub) {
+                    const sleepMillisBetweenCalls = 0;
+                    setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url }); this.onChange();
+                    const keepGoing = () => !job.done;
+                    const remoteOnlyOrigins = new Set<string>();
+                    const computeUseSide = (url: string) => {
+                        return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
+                    };
+                    const fetchActivityPub = async (url: string) => {
+                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                         console.log(JSON.stringify(obj, undefined, 2));
-                    }
-                    if (side === 'remote') {
-                        const origin = new URL(url).origin;
-                        if (!remoteOnlyOrigins.has(origin)) {
-                            messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?)`, url, tag: 'cors' }); this.onChange();
-                            remoteOnlyOrigins.add(origin);
+                        if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
+                            // https://docs.joinmastodon.org/methods/statuses/
+                            // https://docs.joinmastodon.org/entities/status/
+                            // uri = URI of the status used for federation (i.e. the AP url)
+                            url = obj.uri;
+                            const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                            obj = res.obj;
+                            side = res.side;
+                            console.log(JSON.stringify(obj, undefined, 2));
                         }
+                        if (side === 'remote') {
+                            const origin = new URL(url).origin;
+                            if (!remoteOnlyOrigins.has(origin)) {
+                                messages.push({ type: 'warning', text: `Local ActivityPub fetch failed (CORS issue?)`, url, tag: 'cors' }); this.onChange();
+                                remoteOnlyOrigins.add(origin);
+                            }
+                        }
+                        return obj;
+                    };
+                    const warn = (comment: Comment, url: string, message: string) => {
+                        messages.push({ type: 'warning', text: message, comment, url }); this.onChange();
+                    };
+                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn })
+                    job.fetchCommentsResult = fetchCommentsResult;
+                    this.onChange();
+                }
+            } else {
+                // not an url, do a search instead
+                job.search = true;
+                setStatus('Searching');
+                const searchResponse = await fetch(`/s`, { method: 'POST', body: JSON.stringify({ input, headers }) });
+                checkEqual('searchResponse.status', searchResponse.status, 200);
+                const searchResult = await searchResponse.json() as SearchResult;
+                if (searchResult.piSearchResult) {
+                    if (typeof searchResult.piSearchResult === 'string') {
+                        messages.push({ type: 'error', text: searchResult.piSearchResult });
+                    } else {
+                        job.searchResults.push(...searchResult.piSearchResult.feeds.slice(0, 20));
                     }
-                    return obj;
-                };
-                const warn = (comment: Comment, url: string, message: string) => {
-                    messages.push({ type: 'warning', text: message, comment, url }); this.onChange();
-                };
-                const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn })
-                job.fetchCommentsResult = fetchCommentsResult;
-                this.onChange();
+                }
             }
 
         } catch (e) {
@@ -172,7 +198,12 @@ export class ValidatorAppVM {
             messages.push({ type: 'error', text: e.message });
         } finally {
             job.done = true;
-            setStatus(job.cancelled ? 'Cancelled' : 'Done', { type: 'done' });
+            const status = job.cancelled ? 'Cancelled'
+                : job.search && job.searchResults.length === 0 ? 'Found no podcasts'
+                : job.search && job.searchResults.length === 1 ? 'Found one podcast, select to continue validation'
+                : job.search ? `Found ${job.searchResults.length} podcasts, select one to continue validation` 
+                : 'Done';
+            setStatus(status, { type: 'done' });
             this.onChange();
         }
     }
@@ -191,6 +222,23 @@ export interface Message {
 
 export interface ValidationOptions {
     readonly validateComments?: boolean; // default = true
+}
+
+export interface PIFeedInfo {
+    /** Current feed URL */
+    readonly url: string;
+
+    /** The URL of the feed, before it changed to the current url value */
+    readonly originalUrl?: string;
+
+    /** Name of the feed */
+    readonly title: string;
+
+    /** The channel-level author element. */
+    readonly author?: string;
+
+    /** The seemingly best artwork we can find for the feed. Might be the same as image in most instances. */
+    readonly artwork?: string;
 }
 
 //
@@ -263,9 +311,19 @@ interface FetchResult {
 interface ValidationJob {
     readonly id: number;
     readonly messages: Message[]; // first message is status
+    readonly searchResults: PIFeedInfo[];
     readonly options: ValidationOptions;
+    search: boolean;
     done: boolean;
     cancelled: boolean;
     xml?: XmlNode;
     fetchCommentsResult?: FetchCommentsResult;
+}
+
+interface SearchResult {
+    readonly piSearchResult?: PISearchResponse | string;
+}
+
+interface PISearchResponse {
+    readonly feeds: readonly PIFeedInfo[];
 }

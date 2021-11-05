@@ -21,10 +21,6 @@ export const MESSAGES_CSS = css`
     animation: fadeInAnimation 0.5s;
 }
 
-#messages > div.loaded {
-    opacity: 1;
-}
-
 #messages svg {
     transform: scale(0.75);
     fill: currentColor;

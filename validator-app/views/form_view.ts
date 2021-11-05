@@ -6,8 +6,8 @@ import { CHECKLIST_ICON } from './icons.ts';
 
 export const FORM_HTML = html`
 <header>${CHECKLIST_ICON}<h1>Livewire Podcast Validator <span id="version">v0.2</span></h1></header>
-<form id="input">
-    <input id="feed-url" type="text" placeholder="Podcast feed or ActivityPub url" autocomplete="on" required>
+<form id="form">
+    <input id="text-input" type="text" placeholder="Podcast feed url, ActivityPub url, or search text" autocomplete="url" required>
     <button id="submit" type="submit">Validate</button>
 </form>
 `;
@@ -36,13 +36,13 @@ header svg {
     opacity: 0.25;
 }
 
-#input {
+#form {
     display: flex;
     gap: 1rem;
     margin-bottom: 1rem;
 }
 
-#feed-url {
+#text-input {
     font-size: 1rem;
     flex-grow: 1;
     padding: 0 0.5rem;
@@ -52,7 +52,7 @@ header svg {
     color: ${unsafeCSS(Theme.textColorHex)};
 }
 
-#feed-url:read-only {
+#text-input:read-only {
     opacity: 0.5; 
 }
 
@@ -60,7 +60,7 @@ input:-webkit-autofill, input:-webkit-autofill:focus {
     transition: background-color 600000s 0s, color 600000s 0s;
 }
 
-#input button {
+#form button {
     padding: 0.5rem 1rem;
     min-width: 8rem;
 }
@@ -68,8 +68,8 @@ input:-webkit-autofill, input:-webkit-autofill:focus {
 `;
 
 export function initForm(document: Document, vm: ValidatorAppVM, staticData: StaticData): () => void {
-    const inputForm = document.getElementById('input') as HTMLFormElement;
-    const feedUrlInput = document.getElementById('feed-url') as HTMLInputElement;
+    const form = document.getElementById('form') as HTMLFormElement;
+    const textInput = document.getElementById('text-input') as HTMLInputElement;
     const submitButton = document.getElementById('submit') as HTMLButtonElement;
     const versionSpan = document.getElementById('version') as HTMLSpanElement;
 
@@ -80,27 +80,35 @@ export function initForm(document: Document, vm: ValidatorAppVM, staticData: Sta
     const validate = searchParams.get('validate') || undefined;
     const input = searchParams.get('input') || undefined;
     const nocomments = searchParams.has('nocomments');
-    const validateFeed = () =>  vm.validateFeed(feedUrlInput.value, { validateComments: !nocomments });
-    inputForm.onsubmit = e => {
+    const startValidation = () => vm.startValidation(textInput.value, { validateComments: !nocomments });
+    form.onsubmit = e => {
         e.preventDefault();
         if (vm.validating) {
             vm.cancelValidation();
         } else {
-            validateFeed();
+            startValidation();
         }
     }
+    vm.onSelectResult = url => {
+        textInput.value = url;
+        startValidation();
+    };
     
     if (validate) {
-        feedUrlInput.value = validate;
-        setTimeout(validateFeed, 0);
+        textInput.value = validate;
+        setTimeout(startValidation, 0);
     } else if (input) {
-        feedUrlInput.value = input;
+        textInput.value = input;
     }
-    feedUrlInput.focus();
+    textInput.focus();
 
     return () => {
-        feedUrlInput.disabled = vm.validating;
-        feedUrlInput.readOnly = vm.validating;
+        const wasDisabled = textInput.disabled;
+        textInput.disabled = vm.validating;
+        textInput.readOnly = vm.validating;
         submitButton.textContent = vm.validating ? 'Cancel' : 'Validate';
+        if (wasDisabled && !textInput.disabled) {
+            textInput.focus();
+        }
     };
 }

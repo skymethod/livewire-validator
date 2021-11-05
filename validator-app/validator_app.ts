@@ -9,6 +9,7 @@ import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { COMMENTS_CSS, COMMENTS_HTML, initComments } from './views/comments_view.ts';
 import { FORM_CSS, FORM_HTML, initForm } from './views/form_view.ts';
 import { initMessages, MESSAGES_HTML, MESSAGES_CSS } from './views/messages_view.ts';
+import { initSearchResults, SEARCH_RESULTS_HTML, SEARCH_RESULTS_CSS } from './views/search_results_view.ts';
 import { initXml, XML_CSS, XML_HTML } from './views/xml_view.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
@@ -57,6 +58,7 @@ const appHtml = html`
 <main>
 ${FORM_HTML}
 ${MESSAGES_HTML}
+${SEARCH_RESULTS_HTML}
 ${COMMENTS_HTML}
 ${XML_HTML}
 </main>
@@ -73,6 +75,7 @@ appendStylesheets([
     appCss.cssText, 
     FORM_CSS.cssText,
     MESSAGES_CSS.cssText,
+    SEARCH_RESULTS_CSS.cssText,
     COMMENTS_CSS.cssText,
     XML_CSS.cssText,
     CIRCULAR_PROGRESS_CSS.cssText,
@@ -95,12 +98,14 @@ const staticData = parseStaticData();
 const vm = new ValidatorAppVM();
 const updateForm = initForm(document, vm, staticData);
 const updateMessages = initMessages(document, vm);
+const updateSearchResults = initSearchResults(document, vm);
 const updateComments = initComments(document, vm);
 const updateXml = initXml(document, vm);
 
 vm.onChange = () => {
     updateForm();
     updateMessages();
+    updateSearchResults();
     updateComments();
     updateXml();
 };
