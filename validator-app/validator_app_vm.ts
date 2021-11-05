@@ -115,18 +115,21 @@ export class ValidatorAppVM {
                     if (xml) {
                         start = Date.now();
                         const callbacks: ValidationCallbacks = {
-                            onError: (_, message) => {
+                            onError: (_, message, opts) => {
+                                const { tag } = opts || {};
                                 console.error(message);
-                                messages.push({ type: 'error', text: message });
+                                messages.push({ type: 'error', text: message, tag });
                             },
-                            onWarning: (_, message) =>  {
+                            onWarning: (_, message, opts) =>  {
+                                const { tag } = opts || {};
                                 console.warn(message);
-                                messages.push({ type: 'warning', text: message });
+                                messages.push({ type: 'warning', text: message, tag });
                             },
-                            onInfo: (node, message) =>  {
+                            onInfo: (node, message, opts) =>  {
+                                const { tag } = opts || {};
                                 console.info(message);
-                                messages.push({ type: 'info', text: message });
-                                if (message.includes('socialInteract')) {
+                                messages.push({ type: 'info', text: message, tag });
+                                if (tag === 'social-interact') {
                                     if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };

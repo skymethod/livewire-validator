@@ -1,5 +1,6 @@
 import { getTraversalObj } from './deps_app.ts';
 import { checkEqual } from './check.ts';
+import { PODCAST_INDEX_NAMESPACES } from './podcast_namespace.ts';
 
 export function parseFeedXml(xml: string): XmlNode {
     return getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;
@@ -37,9 +38,9 @@ export interface XmlNode {
 }
 
 export interface ValidationCallbacks {
-    onInfo(node: XmlNode, message: string): void;
-    onError(node: XmlNode, message: string): void;
-    onWarning(node: XmlNode, message: string): void;
+    onInfo(node: XmlNode, message: string, opts?: { tag: string }): void;
+    onError(node: XmlNode, message: string, opts?: { tag: string }): void;
+    onWarning(node: XmlNode, message: string, opts?: { tag: string }): void;
 }
 
 //
@@ -86,22 +87,28 @@ function validateChannel(channel: XmlNode, callbacks: ValidationCallbacks, names
 function validateItem(item: XmlNode, callbacks: ValidationCallbacks, namespaces: XmlNamespaces) {
     const _ = namespaces.push(item.attrsMap);
     try {
-        const socialInteracts = findChildElements(item, namespaces, { name: 'socialInteract', namespaceUri: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md' });
+        const socialInteracts = findChildElements(item, namespaces, ...podcastIndexQnames('socialInteract'));
         for (const socialInteract of socialInteracts) {
-            callbacks.onInfo(socialInteract, 'Found socialInteract!');
+            callbacks.onInfo(socialInteract, 'Found socialInteract!', { tag: 'social-interact' });
         }
     } finally {
         namespaces.pop();
     }
 }
 
-function findChildElements(node: XmlNode, namespaces: XmlNamespaces, qname: Qname): readonly XmlNode[] {
+function podcastIndexQnames(name: string): readonly Qname[] {
+    return PODCAST_INDEX_NAMESPACES.map(v => ({ name, namespaceUri: v}));
+}
+
+function findChildElements(node: XmlNode, namespaces: XmlNamespaces, ...qnames: readonly Qname[]): readonly XmlNode[] {
     let rt: XmlNode[] | undefined;
     for (const [name, value] of Object.entries(node.child)) {
         const childQname = computeQname(name, namespaces);
-        if (childQname.name === qname.name && childQname.namespaceUri === qname.namespaceUri) {
-            rt = rt || [];
-            rt.push(...value);
+        for (const qname of qnames) {
+            if (childQname.name === qname.name && childQname.namespaceUri === qname.namespaceUri) {
+                rt = rt || [];
+                rt.push(...value);
+            }
         }
     }
     return rt || EMPTY_XML_NODE_ARRAY;

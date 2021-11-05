@@ -36,6 +36,9 @@ export const XML_CSS = css`
 summary.empty { list-style: none; cursor: text; }
 summary.empty::-webkit-details-marker { display: none; }
 
+#xml audio {
+    margin: 0.5rem 1rem;
+}
 `;
 
 export function initXml(document: Document, vm: ValidatorAppVM): () => void {
@@ -88,6 +91,15 @@ function renderNode(node: XmlNode, containerElement: HTMLElement, level: number,
             childCount++;
             itemNumber++;
         }
+    }
+    const audioUrl = (node.tagname === 'enclosure' && atts.get('url')) || (node.tagname === 'podcast:source' && atts.get('uri'));
+    if (audioUrl) {
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.preload = 'none';
+        audio.src = audioUrl;
+        details.appendChild(audio);
+        childCount++;
     }
     if (childCount === 0) summary.classList.add('empty', 'indent');
     containerElement.appendChild(details);
