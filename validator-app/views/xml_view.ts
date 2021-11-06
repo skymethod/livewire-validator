@@ -1,7 +1,7 @@
 import { html, css, unsafeCSS } from '../deps_app.ts';
 import { Qnames } from '../qnames.ts';
 import { Theme } from '../theme.ts';
-import { ExtendedXmlNode, XmlNode } from '../validator.ts';
+import { ExtendedXmlNode } from '../validator.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { externalizeAnchor } from './util.ts';
 
@@ -27,11 +27,11 @@ export const XML_CSS = css`
 }
 
 #xml .indent {
-    margin-left: 1rem;
+    margin-left: 0.75rem;
 }
 
 #xml .indent2 {
-    margin-left: 2rem;
+    margin-left: 1.5rem;
 }
 
 summary.empty { list-style: none; cursor: text; }
@@ -55,11 +55,13 @@ export function initXml(document: Document, vm: ValidatorAppVM): () => void {
 
 //
 
-let _renderedXml: XmlNode | undefined;
+const MAX_ITEMS_TO_DISPLAY = 20;
 
-function renderXml(xml: XmlNode | undefined, xmlOutput: HTMLOutputElement) {
+let _renderedXml: ExtendedXmlNode | undefined;
+
+function renderXml(xml: ExtendedXmlNode | undefined, xmlOutput: HTMLOutputElement) {
     while (xmlOutput.firstChild) xmlOutput.removeChild(xmlOutput.firstChild);
-    if (xml) renderNode(xml as ExtendedXmlNode, xmlOutput, 0, new Set(), undefined);
+    if (xml) renderNode(xml, xmlOutput, 0, new Set(), undefined);
 }
 
 function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level: number, context: Set<string>, itemNumber: number | undefined) {
@@ -85,12 +87,27 @@ function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level:
         details.appendChild(div);
         childCount++;
     }
-    for (const [_, value] of Object.entries(node.child)) {
+    for (const [name, value] of Object.entries(node.child)) {
         let itemNumber = 1;
+        let itemsNotShown = 0;
         for (const child of value) {
+            if (name === 'item' && itemNumber > MAX_ITEMS_TO_DISPLAY) {
+                itemsNotShown++;
+                continue;
+            }
             renderNode(child as ExtendedXmlNode, details, level + 1, context, value.length > 1 ? itemNumber : undefined);
             childCount++;
             itemNumber++;
+        }
+        if (itemsNotShown > 0) {
+            const fakeNode: ExtendedXmlNode = {
+                tagname: `...and ${itemsNotShown} more items`, 
+                atts: new Map<string, string>(),
+                qname: { name: '' },
+                attrsMap: {},
+                child: {},
+             };
+            renderNode(fakeNode, details, level - 1, context, undefined);
         }
     }
     const audioUrl = node.tagname === 'enclosure' && atts.get('url') 

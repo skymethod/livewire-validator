@@ -16,7 +16,7 @@ export class ValidatorAppVM {
 
     get searchResults(): readonly PIFeedInfo[] { return this.currentJob ? this.currentJob.searchResults : []; }
 
-    get xml(): XmlNode | undefined { return this.currentJob?.xml; }
+    get xml(): ExtendedXmlNode | undefined { return this.currentJob?.xml; }
 
     get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
 
@@ -394,7 +394,7 @@ interface ValidationJob {
     search: boolean;
     done: boolean;
     cancelled: boolean;
-    xml?: XmlNode;
+    xml?: ExtendedXmlNode;
     fetchCommentsResult?: FetchCommentsResult;
 }
 
