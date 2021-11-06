@@ -102,6 +102,25 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     const description = getSingleChild(channel, 'description', callbacks, opts);
     checkText(description, isNotEmpty, callbacks, opts);
 
+    // podcast:guid
+    const guidReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid' };
+    const guids = findChildElements(channel, ...Qnames.PodcastIndex.guid);
+    if (guids.length > 0) {
+        if (guids.length > 1) callbacks.onWarning(guids[1], 'Multiple <podcast:guid> elements are not allowed', { reference: guidReference });
+        const guid = guids[0];
+        const guidText = checkText(guid, isUuid, callbacks, { reference: guidReference });
+        if (guidText) {
+            const version = guidText.charAt(14);
+            if (version !== '5') {
+                callbacks.onWarning(guid, `Bad <${guid.tagname}> value: ${guidText}, expected a UUIDv5, found a UUIDv${version}`, { reference: guidReference });
+            }
+        }
+        const attNames = [...guid.atts.keys()];
+        if (attNames.length > 0) {
+            callbacks.onWarning(guid, `Bad <${guid.tagname}> attribute names: ${attNames.join(', ')}`, { reference: guidReference });
+        }
+    }
+
     // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
@@ -122,7 +141,7 @@ function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string
     if (node) {
         const trimmedText = (node.val || '').trim();
         if (!test(trimmedText)) {
-            callbacks.onWarning(node, `Bad <${node.tagname}> text content: ${trimmedText === '' ? '<empty>' : trimmedText}`, opts);
+            callbacks.onWarning(node, `Bad <${node.tagname}> value: ${trimmedText === '' ? '<empty>' : trimmedText}`, opts);
         }
         return trimmedText;
     }
@@ -139,6 +158,10 @@ function isUrl(trimmedText: string): boolean {
 
 function isMimeType(trimmedText: string): boolean {
     return /^\w+\/[-+.\w]+$/.test(trimmedText);
+}
+
+function isUuid(trimmedText: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {

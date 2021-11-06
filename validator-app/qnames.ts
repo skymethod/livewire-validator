@@ -44,6 +44,7 @@ export class Qnames {
         of: (name: string) => _podcastIndex(name),
         source: _podcastIndex('source'),
         socialInteract: _podcastIndex('socialInteract'),
+        guid: _podcastIndex('guid'),
     }
 
     static readonly MediaRss = {
