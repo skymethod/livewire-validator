@@ -2,17 +2,17 @@ import { getTraversalObj } from './deps_app.ts';
 import { checkEqual } from './check.ts';
 import { Qnames, Qname } from './qnames.ts';
 
-export function parseFeedXml(xml: string): XmlNode {
-    return getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;
+export function parseFeedXml(xml: string): ExtendedXmlNode {
+    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;
+    const namespaces = new XmlNamespaces();
+    applyQnames(rt, namespaces);
+    checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
+    return rt as ExtendedXmlNode;
 }
 
-export function validateFeedXml(xml: XmlNode, callbacks: ValidationCallbacks) {
+export function validateFeedXml(xml: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     if (xml.tagname !== '!xml') return callbacks.onError(xml, `Bad xml.tagname: ${xml.tagname}`);
     if (Object.keys(xml.attrsMap).length > 0) return callbacks.onError(xml, `Bad xml.attrsMap: ${xml.attrsMap}`);
-
-    const namespaces = new XmlNamespaces();
-    applyQnames(xml, namespaces);
-    checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
 
     const docElement = Object.values(xml.child).flatMap(v => v)[0];
     if (!docElement) return callbacks.onError(xml, `No xml root element`); 
@@ -39,11 +39,16 @@ export interface XmlNode {
     readonly val?: string;
 }
 
+export interface MessageOptions {
+    readonly tag?: string;
+    readonly reference?: RuleReference
+}
+
 export interface ValidationCallbacks {
-    onGood(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
-    onInfo(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
-    onError(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
-    onWarning(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
+    onGood(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
+    onInfo(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
+    onError(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
+    onWarning(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
 }
 
 export type ExtendedXmlNode = XmlNode & {
@@ -61,10 +66,10 @@ export interface RuleReference {
 const EMPTY_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_XML_NODE_ARRAY: readonly ExtendedXmlNode[] = [];
 
-function getSingleChild(node: XmlNode, tagName: string, callbacks: ValidationCallbacks, opts: Options = {}): ExtendedXmlNode | undefined {
-    const children = node.child[tagName] || [];
+function getSingleChild(node: ExtendedXmlNode, name: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
+    const children = findChildElements(node, { name });
     if (children.length !== 1) {
-        callbacks.onError(node, `Expected single ${tagName} child element under ${node.tagname}, found ${children.length === 0 ? 'none' : children.length}`, opts);
+        callbacks.onError(node, `Expected single <${name}> child element under <${node.tagname}>, found ${children.length === 0 ? 'none' : children.length}`, opts);
         return undefined;
     }
     return children[0] as ExtendedXmlNode;
@@ -72,13 +77,13 @@ function getSingleChild(node: XmlNode, tagName: string, callbacks: ValidationCal
 
 function validateRss(rss: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // rss required
-    const opts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#whatIsRss' } };
+    const opts: MessageOptions = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#whatIsRss' } };
     if (rss.tagname !== 'rss') return callbacks.onError(rss, `Bad xml root tag: ${rss.tagname}, expected rss`, opts);
     const version = rss.atts.get('version');
     if (version !== '2.0') callbacks.onWarning(rss, `Bad rss.version: ${version}, expected 2.0`, opts);
 
     // itunes required
-    const itunesOpts: Options = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
+    const itunesOpts: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
     checkAttributeEqual(rss, 'xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd', callbacks, itunesOpts);
     checkAttributeEqual(rss, 'xmlns:content', 'http://purl.org/rss/1.0/modules/content/', callbacks, itunesOpts);
 
@@ -89,7 +94,7 @@ function validateRss(rss: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
 function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // rss required
-    const opts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#requiredChannelElements' } };
+    const opts: MessageOptions = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#requiredChannelElements' } };
     const title = getSingleChild(channel, 'title', callbacks, opts);
     checkText(title, isNotEmpty, callbacks, opts);
     const link = getSingleChild(channel, 'link', callbacks, opts);
@@ -104,7 +109,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     }
 }
 
-function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpectedValue: string, callbacks: ValidationCallbacks, opts: Options = {}) {
+function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpectedValue: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}) {
     const attValue = node.atts.get(attName);
     if (!attValue) {
         callbacks.onWarning(node, `Missing <${node.tagname}> ${attName} attribute, expected ${attExpectedValue}`, opts);
@@ -113,7 +118,7 @@ function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpected
     }
 }
 
-function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string) => boolean, callbacks: ValidationCallbacks, opts: Options = {}): string | undefined {
+function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string) => boolean, callbacks: ValidationCallbacks, opts: MessageOptions = {}): string | undefined {
     if (node) {
         const trimmedText = (node.val || '').trim();
         if (!test(trimmedText)) {
@@ -136,7 +141,7 @@ function isMimeType(trimmedText: string): boolean {
     return /^\w+\/[-+.\w]+$/.test(trimmedText);
 }
 
-function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: Options = {}): ExtendedXmlNode | undefined {
+function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
     const elements = findChildElements(node, qname);
     if (elements.length === 0) {
         callbacks.onWarning(node, `Item is missing an <${qname.name}> element`, opts);
@@ -149,8 +154,8 @@ function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: V
 
 function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
-    const itunesOpts1: Options = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
-    const itunesOpts2: Options = { reference: { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' } };
+    const itunesOpts1: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
+    const itunesOpts2: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' } };
 
     // title
     const title = findFirstChildElement(item, { name: 'title' }, callbacks, itunesOpts2);
@@ -161,7 +166,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // enclosure
     const enclosure = findFirstChildElement(item, { name: 'enclosure' }, callbacks, itunesOpts2);
     if (enclosure) {
-        const rssEnclosureOpts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltenclosuregtSubelementOfLtitemgt' } };
+        const rssEnclosureOpts: MessageOptions = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltenclosuregtSubelementOfLtitemgt' } };
 
         const url = enclosure.atts.get('url');
         if (!url) callbacks.onWarning(enclosure, `Missing item <enclosure> url attribute`, rssEnclosureOpts);
@@ -181,7 +186,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     if (guid) {
         const guidText = checkText(guid, isNotEmpty, callbacks, itunesOpts1);
 
-        const rssGuidOpts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltguidgtSubelementOfLtitemgt' } };
+        const rssGuidOpts: MessageOptions = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltguidgtSubelementOfLtitemgt' } };
 
         const isPermaLink = guid.atts.get('isPermaLink') || 'true'; // default value is true!
         if (isPermaLink === 'true' && guidText && !isUrl(guidText)) callbacks.onWarning(guid, `Bad item <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
@@ -198,12 +203,13 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 function findChildElements(node: ExtendedXmlNode, ...qnames: readonly Qname[]): readonly ExtendedXmlNode[] {
     let rt: ExtendedXmlNode[] | undefined;
     for (const value of Object.values(node.child)) {
-        const childQname = value.length > 0 ? (value[0] as ExtendedXmlNode).qname : undefined;
-        if (!childQname) continue;
         for (const qname of qnames) {
-            if (Qnames.eq(childQname, qname)) {
-                rt = rt || [];
-                rt.push(...value as ExtendedXmlNode[]);
+            for (const child of value) {
+                const extChild = child as ExtendedXmlNode;
+                if (Qnames.eq(qname, extChild.qname)) {
+                    rt = rt || [];
+                    rt.push(extChild);
+                }
             }
         }
     }
@@ -234,10 +240,6 @@ function computeQname(nameWithOptionalPrefix: string, namespaces: XmlNamespaces)
 }
 
 //
-
-interface Options {
-    reference?: RuleReference;
-}
 
 class XmlNamespaces {
 

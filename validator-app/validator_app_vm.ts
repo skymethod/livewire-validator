@@ -1,6 +1,6 @@
 import { checkEqual, checkMatches } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment, computeCommentCount } from './comments.ts';
-import { computeAttributeMap, parseFeedXml, RuleReference, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
+import { computeAttributeMap, ExtendedXmlNode, MessageOptions, parseFeedXml, RuleReference, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 import { isReadonlyArray } from './util.ts';
 
 export class ValidatorAppVM {
@@ -122,7 +122,7 @@ export class ValidatorAppVM {
 
                     start = Date.now();
                     
-                    let xml: XmlNode | undefined;
+                    let xml: ExtendedXmlNode | undefined;
                     try {
                         xml = parseFeedXml(text);
                         console.log(xml);
@@ -136,28 +136,31 @@ export class ValidatorAppVM {
 
                     if (xml) {
                         start = Date.now();
+                        const onMessage = (type: MessageType, node: ExtendedXmlNode, message: string, opts: MessageOptions | undefined) => {
+                            addMessage(type, message, opts);
+                            if (opts?.tag === 'social-interact') {
+                                if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
+                                    const episodeTitle = findEpisodeTitle(node)
+                                    activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                }
+                            }
+                        };
                         const callbacks: ValidationCallbacks = {
-                            onGood: (_, message, opts) => {
+                            onGood: (node, message, opts) => {
                                 console.info(message);
-                                addMessage('good', message, opts);
+                                onMessage('good', node, message, opts);
                             },
-                            onError: (_, message, opts) => {
+                            onError: (node, message, opts) => {
                                 console.error(message);
-                                addMessage('error', message, opts);
+                                onMessage('error', node, message, opts);
                             },
-                            onWarning: (_, message, opts) =>  {
+                            onWarning: (node, message, opts) =>  {
                                 console.warn(message);
-                                addMessage('warning', message, opts);
+                                onMessage('warning', node, message, opts);
                             },
                             onInfo: (node, message, opts) =>  {
                                 console.info(message);
-                                addMessage('info', message, opts);
-                                if (opts?.tag === 'social-interact') {
-                                    if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
-                                        const episodeTitle = findEpisodeTitle(node)
-                                        activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
-                                    }
-                                }
+                                onMessage('info', node, message, opts);
                             },
                         };
                         validateFeedXml(xml, callbacks);
