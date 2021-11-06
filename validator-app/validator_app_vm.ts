@@ -39,7 +39,7 @@ export class ValidatorAppVM {
         }
     }
 
-    startValidation(input: string, options: ValidationOptions = { }) {
+    startValidation(input: string, options: ValidationOptions) {
         const job: ValidationJob = {
             id: this.nextJobId++,
             messages: [],
@@ -82,7 +82,7 @@ export class ValidatorAppVM {
         };
 
         let activityPub: { url: string, subject: string } | undefined;
-        const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': navigator.userAgent, 'Cache-Control': 'no-store' };
+        const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
         const jobStart = Date.now();
         try {
@@ -113,11 +113,9 @@ export class ValidatorAppVM {
                     activityPub = { url: input, subject: 'input url' };
                 }
 
-                let textLength: number | undefined;
                 if (validateFeed) {
                     let start = Date.now();
                     const text = await response.text(); if (job.done) return;
-                    textLength = text.length;
                     job.times.readTime = Date.now() - start;
 
                     start = Date.now();
@@ -273,6 +271,7 @@ export interface Message {
 }
 
 export interface ValidationOptions {
+    readonly userAgent: string;
     readonly validateComments?: boolean; // default = true
 }
 

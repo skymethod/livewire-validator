@@ -188,10 +188,13 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
         const rssGuidOpts: MessageOptions = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltguidgtSubelementOfLtitemgt' } };
 
+        const misspellings = [...guid.atts.keys()].filter(v => v !== 'isPermaLink' && v.toLowerCase() === 'ispermalink');
+        for (const misspelling of misspellings) {
+            callbacks.onWarning(guid, `Bad item <guid> isPermaLink attribute spelling: ${misspelling}`, rssGuidOpts);
+        }
         const isPermaLink = guid.atts.get('isPermaLink') || 'true'; // default value is true!
-        if (isPermaLink === 'true' && guidText && !isUrl(guidText)) callbacks.onWarning(guid, `Bad item <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
+        if (isPermaLink === 'true' && guidText && !isUrl(guidText) && misspellings.length === 0) callbacks.onWarning(guid, `Bad item <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
     }
-
 
     // podcast index
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);

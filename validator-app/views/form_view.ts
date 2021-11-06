@@ -118,7 +118,7 @@ export function initForm(document: Document, vm: ValidatorAppVM, staticData: Sta
     const validate = searchParams.get('validate') || undefined;
     const input = searchParams.get('input') || undefined;
     const nocomments = searchParams.has('nocomments');
-    const startValidation = () => vm.startValidation(textInput.value, { validateComments: !nocomments });
+    const startValidation = () => vm.startValidation(textInput.value, { validateComments: !nocomments, userAgent: navigator.userAgent });
     form.onsubmit = e => {
         e.preventDefault();
         if (vm.validating) {
