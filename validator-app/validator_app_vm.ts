@@ -241,8 +241,8 @@ export class ValidatorAppVM {
                 job.done = true;
                 const status = job.cancelled ? 'Cancelled'
                     : job.search && job.searchResults.length === 0 ? 'Found no podcasts'
-                    : job.search && job.searchResults.length === 1 ? 'Found one podcast, select to continue validation'
-                    : job.search ? `Found ${job.searchResults.length} podcasts, select one to continue validation` 
+                    : job.search && job.searchResults.length === 1 ? 'Found one podcast, select to continue'
+                    : job.search ? `Found ${job.searchResults.length} podcasts, select one to continue` 
                     : 'Done';
                 setStatus(status, { type: 'done' });
             }

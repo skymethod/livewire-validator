@@ -11,13 +11,13 @@ export const MESSAGES_CSS = css`
 
 #messages {
     margin-bottom: 1rem;
+    display: grid;
+    grid-template-columns: 2rem auto;
+    align-items: center;
+    font-size: 0.75rem;
 }
 
 #messages > div {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    font-size: 0.75rem;
     animation: fadeInAnimation 0.5s;
 }
 
@@ -42,12 +42,24 @@ export const MESSAGES_CSS = css`
     color: ${unsafeCSS(Theme.textColorHex)};
 }
 
-#messages .progress-icon {
+#messages .icon {
+    grid-column: 1;
     width: 24px;
     height: 24px;
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+#messages .message {
+    grid-column: 2;
+}
+
+#messages .url {
+    grid-column: 2;
+    margin-bottom: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #messages progress {
@@ -66,12 +78,15 @@ export function initMessages(document: Document, vm: ValidatorAppVM): () => void
 //
 
 const MESSAGE_HTML = (vm: ValidatorAppVM) => html`
-    ${vm.messages.filter(filterDuplicates()).map(message => html`<div class=${message.type}>${icon(message.type)}${message.text}${message.url ? ANCHOR_HTML(message.url) : undefined}</div>`)}`;
+    ${vm.messages.filter(filterDuplicates()).map(message => html`
+        <div class="${message.type} icon">${icon(message.type)}</div>
+        <div class="${message.type} message">${message.text}</div>
+        ${message.url ? ANCHOR_HTML(message.url) : undefined}`)}`;
 
-const ANCHOR_HTML = (url: string) => html`<a href=${url} target="_blank" rel="noreferrer noopener nofollow">${url}</a>`;
+const ANCHOR_HTML = (url: string) => html`<a href=${url} target="_blank" rel="noreferrer noopener nofollow" class="url">${url}</a>`;
 
 function icon(type: MessageType) {
-    return type === 'running' ? html`<div class="progress-icon"><progress class="pure-material-progress-circular"></progress></div>`
+    return type === 'running' ? html`<progress class="pure-material-progress-circular"></progress>`
         : type === 'done' ? CHECK_ICON
         : type === 'error' ? ERROR_ICON
         : type === 'warning' ? WARNING_ICON

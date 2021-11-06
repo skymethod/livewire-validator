@@ -18,6 +18,8 @@ export const COMMENTS_CSS = css`
     font-size: 0.75rem;
     color: ${unsafeCSS(Theme.textColorHex)};
     margin-bottom: 1rem;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .comment {

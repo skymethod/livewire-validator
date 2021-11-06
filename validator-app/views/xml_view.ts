@@ -1,7 +1,7 @@
 import { html, css, unsafeCSS } from '../deps_app.ts';
 import { Qnames } from '../qnames.ts';
 import { Theme } from '../theme.ts';
-import { computeAttributeMap, ExtendedXmlNode, XmlNode } from '../validator.ts';
+import { ExtendedXmlNode, XmlNode } from '../validator.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { externalizeAnchor } from './util.ts';
 
