@@ -234,7 +234,7 @@ export class ValidatorAppVM {
             console.error(e);
             addMessage('error', e.message);
         } finally {
-            addMessage('info', `Took ${formatTime(Date.now() - jobStart)} (${computeJobTimesString(job)})`);
+            addMessage('info', `Took ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job)}`);
             if (continueWithUrl) {
                 this.continueWith(continueWithUrl);
             } else {
@@ -290,11 +290,12 @@ function formatTime(millis: number): string {
     return `${Math.round(millis / 1000 * 100) / 100}s`;
 }
 
-function computeJobTimesString(job: ValidationJob): string {
-    return [['fetch', job.times.fetchTime],['read', job.times.readTime],['parse', job.times.parseTime],['validate', job.times.validateTime],['comments', job.times.commentsTime]]
+function computeJobTimesStringSuffix(job: ValidationJob): string {
+    const rt = [['fetch', job.times.fetchTime],['read', job.times.readTime],['parse', job.times.parseTime],['validate', job.times.validateTime],['comments', job.times.commentsTime]]
         .filter(v => v[1] !== undefined)
         .map(v => `${v[0]}=${formatTime(v[1] as number)}`)
         .join(', ');
+    return rt === '' ? '' : ` (${rt})`;
 }
 
 function unitString(amount: number, unit: string): string {

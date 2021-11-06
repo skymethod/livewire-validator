@@ -1,6 +1,7 @@
 import { html, css, unsafeCSS } from '../deps_app.ts';
+import { Qnames } from '../qnames.ts';
 import { Theme } from '../theme.ts';
-import { computeAttributeMap, XmlNode } from '../validator.ts';
+import { computeAttributeMap, ExtendedXmlNode, XmlNode } from '../validator.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { externalizeAnchor } from './util.ts';
 
@@ -58,10 +59,10 @@ let _renderedXml: XmlNode | undefined;
 
 function renderXml(xml: XmlNode | undefined, xmlOutput: HTMLOutputElement) {
     while (xmlOutput.firstChild) xmlOutput.removeChild(xmlOutput.firstChild);
-    if (xml) renderNode(xml, xmlOutput, 0, new Set(), undefined);
+    if (xml) renderNode(xml as ExtendedXmlNode, xmlOutput, 0, new Set(), undefined);
 }
 
-function renderNode(node: XmlNode, containerElement: HTMLElement, level: number, context: Set<string>, itemNumber: number | undefined) {
+function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level: number, context: Set<string>, itemNumber: number | undefined) {
     const details = document.createElement('details');
     const text = node.val || '';
     details.open = !context.has('found-item') || text.length > 0;
@@ -71,7 +72,7 @@ function renderNode(node: XmlNode, containerElement: HTMLElement, level: number,
     if (level === 0) {
         renderTextPieces(summary, 'Xml');
     } else {
-        const spanClass = node.tagname.startsWith('podcast:') ? 'podcast' : undefined;
+        const spanClass = Qnames.PodcastIndex.NAMESPACES.includes(node.qname.namespaceUri || '') ? 'podcast' : undefined;
         renderTextPieces(summary, '<', { text: node.tagname, spanClass }, ...[...atts.entries()].flatMap(v => [` ${v[0]}="`, { text: v[1], spanClass: 'content' }, '"']), '>', itemNumber ? ` #${itemNumber}` : '');
     }
     details.appendChild(summary);
@@ -87,12 +88,14 @@ function renderNode(node: XmlNode, containerElement: HTMLElement, level: number,
     for (const [_, value] of Object.entries(node.child)) {
         let itemNumber = 1;
         for (const child of value) {
-            renderNode(child, details, level + 1, context, value.length > 1 ? itemNumber : undefined);
+            renderNode(child as ExtendedXmlNode, details, level + 1, context, value.length > 1 ? itemNumber : undefined);
             childCount++;
             itemNumber++;
         }
     }
-    const audioUrl = (node.tagname === 'enclosure' && atts.get('url')) || (node.tagname === 'podcast:source' && atts.get('uri'));
+    const audioUrl = node.tagname === 'enclosure' && atts.get('url') 
+        || node.qname.namespaceUri && Qnames.includes(Qnames.PodcastIndex.source, node.qname) && atts.get('uri') 
+        || Qnames.eq(node.qname, Qnames.MediaRss.content) && atts.get('url');
     if (audioUrl) {
         const audio = document.createElement('audio');
         audio.controls = true;
