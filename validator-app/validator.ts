@@ -40,6 +40,7 @@ export interface XmlNode {
 }
 
 export interface ValidationCallbacks {
+    onGood(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
     onInfo(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
     onError(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
     onWarning(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
@@ -112,13 +113,15 @@ function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpected
     }
 }
 
-function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string) => boolean, callbacks: ValidationCallbacks, opts: Options = {}) {
+function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string) => boolean, callbacks: ValidationCallbacks, opts: Options = {}): string | undefined {
     if (node) {
         const trimmedText = (node.val || '').trim();
         if (!test(trimmedText)) {
             callbacks.onWarning(node, `Bad <${node.tagname}> text content: ${trimmedText === '' ? '<empty>' : trimmedText}`, opts);
         }
+        return trimmedText;
     }
+    return undefined;
 }
 
 function isNotEmpty(trimmedText: string): boolean {
@@ -129,10 +132,66 @@ function isUrl(trimmedText: string): boolean {
     return /^https?:\/\/.+?$/.test(trimmedText);
 }
 
+function isMimeType(trimmedText: string): boolean {
+    return /^\w+\/[-+.\w]+$/.test(trimmedText);
+}
+
+function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: Options = {}): ExtendedXmlNode | undefined {
+    const elements = findChildElements(node, qname);
+    if (elements.length === 0) {
+        callbacks.onWarning(node, `Item is missing an <${qname.name}> element`, opts);
+    } else {
+        if (elements.length > 1) callbacks.onWarning(node, `Item has multiple <${qname.name}> elements`, opts);
+        return elements[0];
+    }
+    return undefined;
+}
+
 function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+
+    const itunesOpts1: Options = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
+    const itunesOpts2: Options = { reference: { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' } };
+
+    // title
+    const title = findFirstChildElement(item, { name: 'title' }, callbacks, itunesOpts2);
+    if (title) {
+        checkText(title, isNotEmpty, callbacks, itunesOpts2);
+    }
+
+    // enclosure
+    const enclosure = findFirstChildElement(item, { name: 'enclosure' }, callbacks, itunesOpts2);
+    if (enclosure) {
+        const rssEnclosureOpts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltenclosuregtSubelementOfLtitemgt' } };
+
+        const url = enclosure.atts.get('url');
+        if (!url) callbacks.onWarning(enclosure, `Missing item <enclosure> url attribute`, rssEnclosureOpts);
+        if (url && !isUrl(url)) callbacks.onWarning(enclosure, `Bad item <enclosure> url attribute value: ${url}, expected url`, rssEnclosureOpts);
+
+        const length = enclosure.atts.get('length');
+        if (!length) callbacks.onWarning(enclosure, `Missing <enclosure> length attribute`, rssEnclosureOpts);
+        if (length && !/^\d+$/.test(length)) callbacks.onWarning(enclosure, `Bad item <enclosure> length attribute value: ${length}, expected non-negative integer`, rssEnclosureOpts);
+
+        const type = enclosure.atts.get('type');
+        if (!type) callbacks.onWarning(enclosure, `Missing <enclosure> type attribute`, rssEnclosureOpts);
+        if (type && !isMimeType(type)) callbacks.onWarning(enclosure, `Bad item <enclosure> type attribute value: ${type}, expected MIME type`, rssEnclosureOpts);
+    }
+
+    // guid
+    const guid = findFirstChildElement(item, { name: 'guid' }, callbacks, itunesOpts1);
+    if (guid) {
+        const guidText = checkText(guid, isNotEmpty, callbacks, itunesOpts1);
+
+        const rssGuidOpts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltguidgtSubelementOfLtitemgt' } };
+
+        const isPermaLink = guid.atts.get('isPermaLink') || 'true'; // default value is true!
+        if (isPermaLink === 'true' && guidText && !isUrl(guidText)) callbacks.onWarning(guid, `Bad item <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
+    }
+
+
+    // podcast index
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     for (const socialInteract of socialInteracts) {
-        callbacks.onInfo(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact' });
+        callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact', reference: { ruleset: 'podcastindex', href: 'https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element' } });
     }
 }
 

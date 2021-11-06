@@ -137,6 +137,10 @@ export class ValidatorAppVM {
                     if (xml) {
                         start = Date.now();
                         const callbacks: ValidationCallbacks = {
+                            onGood: (_, message, opts) => {
+                                console.info(message);
+                                addMessage('good', message, opts);
+                            },
                             onError: (_, message, opts) => {
                                 console.error(message);
                                 addMessage('error', message, opts);

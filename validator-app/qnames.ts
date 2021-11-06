@@ -33,6 +33,10 @@ export class Qnames {
         return lhs.some(v => Qnames.eq(v, rhs));
     }
 
+    static of(name: string): Qname {
+        return { name };
+    }
+
     //
 
     static readonly PodcastIndex = {
