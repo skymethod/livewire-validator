@@ -1,6 +1,6 @@
 import { checkEqual, checkMatches } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment, computeCommentCount } from './comments.ts';
-import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
+import { computeAttributeMap, parseFeedXml, RuleReference, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 import { isReadonlyArray } from './util.ts';
 
 export class ValidatorAppVM {
@@ -75,9 +75,9 @@ export class ValidatorAppVM {
             messages[0] = { type: type || messages[0].type, text, url };
             this.onChange();
         };
-        const addMessage = (type: MessageType, text: string, opts: { tag?: string, url?: string, comment?: Comment } = {}) => {
-            const { url, tag, comment } = opts;
-            messages.push({ type, text, tag, url, comment });
+        const addMessage = (type: MessageType, text: string, opts: { tag?: string, url?: string, comment?: Comment, reference?: RuleReference } = {}) => {
+            const { url, tag, comment, reference } = opts;
+            messages.push({ type, text, tag, url, comment, reference });
             this.onChange();
         };
 
@@ -262,6 +262,7 @@ export interface Message {
     readonly comment?: Comment;
     readonly url?: string;
     readonly tag?: string;
+    readonly reference?: RuleReference;
 }
 
 export interface ValidationOptions {

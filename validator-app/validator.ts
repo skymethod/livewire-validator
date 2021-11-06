@@ -15,8 +15,7 @@ export function validateFeedXml(xml: XmlNode, callbacks: ValidationCallbacks) {
     checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
 
     const docElement = Object.values(xml.child).flatMap(v => v)[0];
-    const docElementTagname = docElement?.tagname || 'unknown';
-    checkEqual('xml root tag name', docElementTagname, 'rss');
+    if (!docElement) return callbacks.onError(xml, `No xml root element`); 
     validateRss(docElement as ExtendedXmlNode, callbacks);
 }
 
@@ -41,9 +40,9 @@ export interface XmlNode {
 }
 
 export interface ValidationCallbacks {
-    onInfo(node: XmlNode, message: string, opts?: { tag: string }): void;
-    onError(node: XmlNode, message: string, opts?: { tag: string }): void;
-    onWarning(node: XmlNode, message: string, opts?: { tag: string }): void;
+    onInfo(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
+    onError(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
+    onWarning(node: XmlNode, message: string, opts?: { tag?: string, reference?: RuleReference }): void;
 }
 
 export type ExtendedXmlNode = XmlNode & {
@@ -51,40 +50,89 @@ export type ExtendedXmlNode = XmlNode & {
     readonly qname: Qname;
 };
 
+export interface RuleReference {
+    readonly ruleset: string;
+    readonly href: string;
+}
+
 //
 
 const EMPTY_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_XML_NODE_ARRAY: readonly ExtendedXmlNode[] = [];
 
-function getSingleChild(node: XmlNode, tagName: string, callbacks: ValidationCallbacks): ExtendedXmlNode | undefined {
+function getSingleChild(node: XmlNode, tagName: string, callbacks: ValidationCallbacks, opts: Options = {}): ExtendedXmlNode | undefined {
     const children = node.child[tagName] || [];
     if (children.length !== 1) {
-        callbacks.onError(node, `Expected single ${tagName} child element under ${node.tagname}, found ${children.length === 0 ? 'none' : children.length}`);
+        callbacks.onError(node, `Expected single ${tagName} child element under ${node.tagname}, found ${children.length === 0 ? 'none' : children.length}`, opts);
         return undefined;
     }
     return children[0] as ExtendedXmlNode;
 }
 
 function validateRss(rss: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    if (rss.tagname !== 'rss') return callbacks.onError(rss, `Bad rss.tagname: ${rss.tagname}`);
+    // rss required
+    const opts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#whatIsRss' } };
+    if (rss.tagname !== 'rss') return callbacks.onError(rss, `Bad xml root tag: ${rss.tagname}, expected rss`, opts);
     const version = rss.atts.get('version');
-    if (version !== '2.0') callbacks.onWarning(rss, `Bad rss.version: ${version}, expected 2.0`);
-    const channel = getSingleChild(rss, 'channel', callbacks); if (!channel) return;
-    validateChannel(channel, callbacks);
+    if (version !== '2.0') callbacks.onWarning(rss, `Bad rss.version: ${version}, expected 2.0`, opts);
+
+    // itunes required
+    const itunesOpts: Options = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
+    checkAttributeEqual(rss, 'xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd', callbacks, itunesOpts);
+    checkAttributeEqual(rss, 'xmlns:content', 'http://purl.org/rss/1.0/modules/content/', callbacks, itunesOpts);
+
+    // continue to channel
+    const channel = getSingleChild(rss, 'channel', callbacks, opts); if (!channel) return;
+    validateChannel(channel as ExtendedXmlNode, callbacks);
 }
 
 function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    if (channel.tagname !== 'channel') return callbacks.onError(channel, `Bad channel.tagname: ${channel.tagname}`);
+    // rss required
+    const opts: Options = { reference: { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#requiredChannelElements' } };
+    const title = getSingleChild(channel, 'title', callbacks, opts);
+    checkText(title, isNotEmpty, callbacks, opts);
+    const link = getSingleChild(channel, 'link', callbacks, opts);
+    checkText(link, isUrl, callbacks, opts);
+    const description = getSingleChild(channel, 'description', callbacks, opts);
+    checkText(description, isNotEmpty, callbacks, opts);
+
+    // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
         break;
     }
 }
 
+function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpectedValue: string, callbacks: ValidationCallbacks, opts: Options = {}) {
+    const attValue = node.atts.get(attName);
+    if (!attValue) {
+        callbacks.onWarning(node, `Missing <${node.tagname}> ${attName} attribute, expected ${attExpectedValue}`, opts);
+    } else if (attValue !== attExpectedValue) {
+        callbacks.onWarning(node, `Bad <${node.tagname}> ${attName} attribute value: ${attValue}, expected ${attExpectedValue}`, opts);
+    }
+}
+
+function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string) => boolean, callbacks: ValidationCallbacks, opts: Options = {}) {
+    if (node) {
+        const trimmedText = (node.val || '').trim();
+        if (!test(trimmedText)) {
+            callbacks.onWarning(node, `Bad <${node.tagname}> text content: ${trimmedText === '' ? '<empty>' : trimmedText}`, opts);
+        }
+    }
+}
+
+function isNotEmpty(trimmedText: string): boolean {
+    return trimmedText.length > 0;
+}
+
+function isUrl(trimmedText: string): boolean {
+    return /^https?:\/\/.+?$/.test(trimmedText);
+}
+
 function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     for (const socialInteract of socialInteracts) {
-        callbacks.onInfo(socialInteract, 'Found podcast:socialInteract!', { tag: 'social-interact' });
+        callbacks.onInfo(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact' });
     }
 }
 
@@ -127,6 +175,10 @@ function computeQname(nameWithOptionalPrefix: string, namespaces: XmlNamespaces)
 }
 
 //
+
+interface Options {
+    reference?: RuleReference;
+}
 
 class XmlNamespaces {
 

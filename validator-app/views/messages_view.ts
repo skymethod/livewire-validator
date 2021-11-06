@@ -1,5 +1,6 @@
 import { html, LitElement, css, unsafeCSS } from '../deps_app.ts';
 import { Theme } from '../theme.ts';
+import { RuleReference } from '../validator.ts';
 import { Message, MessageType, ValidatorAppVM } from '../validator_app_vm.ts';
 import { CHECK_ICON, ERROR_ICON, INFO_ICON, WARNING_ICON } from './icons.ts';
 
@@ -69,6 +70,11 @@ export const MESSAGES_CSS = css`
     font-size: 0.35rem;
 }
 
+#messages .reference {
+    display: inline-block;
+    margin-left: 0.25rem;
+}
+
 `;
 
 export function initMessages(document: Document, vm: ValidatorAppVM): () => void {
@@ -83,10 +89,11 @@ export function initMessages(document: Document, vm: ValidatorAppVM): () => void
 const MESSAGE_HTML = (vm: ValidatorAppVM) => html`
     ${vm.messages.filter(filterDuplicates()).map(message => html`
         <div class="${message.type} icon">${icon(message.type)}</div>
-        <div class="${message.type} message">${message.text}</div>
-        ${message.url ? ANCHOR_HTML(message.url) : undefined}`)}`;
+        <div class="${message.type} message">${message.text}${REFERENCE_HTML(message.reference)}</div>
+        ${ANCHOR_HTML(message.url)}`)}`;
 
-const ANCHOR_HTML = (url: string) => html`<a href=${url} target="_blank" rel="noreferrer noopener nofollow" class="url">${url}</a>`;
+const REFERENCE_HTML = (reference: RuleReference | undefined) => reference ? html`<a class="reference" href=${reference.href} target="_blank" rel="noreferrer noopener nofollow">[${reference.ruleset}]</a>` : undefined;
+const ANCHOR_HTML = (url: string | undefined) => url ? html`<a href=${url} target="_blank" rel="noreferrer noopener nofollow" class="url">${url}</a>` : undefined;
 
 function icon(type: MessageType) {
     return type === 'running' ? html`<progress class="pure-material-progress-circular"></progress>`
