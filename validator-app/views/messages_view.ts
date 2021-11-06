@@ -30,6 +30,9 @@ export const MESSAGES_CSS = css`
     color: ${unsafeCSS(Theme.textColorSecondaryHex)};
 }
 
+#messages > div.good {
+    color: #43a047;
+}
 #messages > div.warning {
     color: #e65100;
 }
@@ -90,6 +93,7 @@ function icon(type: MessageType) {
         : type === 'done' ? CHECK_ICON
         : type === 'error' ? ERROR_ICON
         : type === 'warning' ? WARNING_ICON
+        : type === 'good' ? CHECK_ICON
         : INFO_ICON;
 }
 

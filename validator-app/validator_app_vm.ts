@@ -32,7 +32,7 @@ export class ValidatorAppVM {
             currentJob.done = false;
             currentJob.search = false;
             currentJob.searchResults.splice(0);
-            currentJob.messages[0] = { type: 'running', text: 'Validating', url };
+            currentJob.messages[0] = { type: 'running', text: 'Validating' };
             currentJob.messages.push({ type: 'info', text: 'Continuing with feed from search', url });
             this.onChange();
             this.validateAsync(url, currentJob);
@@ -51,7 +51,7 @@ export class ValidatorAppVM {
             cancelled: false,
         }
         this.currentJob = job;
-        job.messages.push({ type: 'running', text: 'Validating', url: input });
+        job.messages.push({ type: 'running', text: 'Validating' });
         this.onChange();
 
         this.validateAsync(input, job);
@@ -100,8 +100,8 @@ export class ValidatorAppVM {
                 const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { headers }); if (job.done) return;
                 job.times.fetchTime = fetchTime;
 
-                if (side === 'remote') {
-                    addMessage('warning', `Local fetch failed (CORS issue?)`, { url: input, tag: 'cors' }); 
+                if (side === 'local') {
+                    addMessage('good', `Local fetch succeeded (CORS enabled)`, { url: input }); 
                 }
                 checkEqual(`${inputUrl.host} response status`, response.status, 200);
                 const contentType = response.headers.get('Content-Type');
@@ -162,7 +162,9 @@ export class ValidatorAppVM {
                 }
 
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
-                if (validateComments && activityPub) {
+                if (activityPub && !validateComments) {
+                    addMessage('info', 'Comments validation disabled, not fetching ActivityPub');
+                } else if (activityPub) {
                     const sleepMillisBetweenCalls = 0;
                     setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url });
                     addMessage('info', 'Fetching ActivityPub comments', { url: activityPub.url });
@@ -188,7 +190,7 @@ export class ValidatorAppVM {
                         if (side === 'remote') {
                             const origin = new URL(url).origin;
                             if (!remoteOnlyOrigins.has(origin)) {
-                                addMessage('warning', `Local ActivityPub fetch failed (CORS issue?)`, { url, tag: 'cors' });
+                                addMessage('warning', `Local ActivityPub fetch failed (CORS disabled?)`, { url, tag: 'cors' });
                                 remoteOnlyOrigins.add(origin);
                             }
                         }
@@ -234,7 +236,7 @@ export class ValidatorAppVM {
             console.error(e);
             addMessage('error', e.message);
         } finally {
-            addMessage('info', `Took ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job)}`);
+            addMessage('info', `${job.search ? 'Search took' : 'Took'} ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job)}`);
             if (continueWithUrl) {
                 this.continueWith(continueWithUrl);
             } else {
@@ -252,7 +254,7 @@ export class ValidatorAppVM {
 
 }
 
-export type MessageType = 'error' | 'warning' | 'info' | 'done' | 'running';
+export type MessageType = 'error' | 'warning' | 'info' | 'done' | 'running' | 'good';
 
 export interface Message {
     readonly type: MessageType;
