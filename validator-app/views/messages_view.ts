@@ -47,6 +47,7 @@ export const MESSAGES_CSS = css`
     height: 24px;
     display: flex;
     justify-content: center;
+    align-items: center;
 }
 
 #messages progress {

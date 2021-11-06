@@ -7,7 +7,7 @@ import { CHECKLIST_ICON } from './icons.ts';
 export const FORM_HTML = html`
 <header>${CHECKLIST_ICON}<h1>Livewire Podcast Validator <span id="version">v0.2</span></h1></header>
 <form id="form">
-    <input id="text-input" type="text" placeholder="Podcast feed url, ActivityPub url, or search text" autocomplete="url" required>
+    <input id="text-input" type="text" placeholder="Podcast feed url, ActivityPub url, Apple Podcasts url, or search text" autocomplete="url" required>
     <button id="submit" type="submit">Validate</button>
 </form>
 `;
