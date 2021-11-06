@@ -1,4 +1,4 @@
-import { checkEqual, checkMatches, checkTrue } from './check.ts';
+import { checkEqual, checkMatches } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment, computeCommentCount } from './comments.ts';
 import { computeAttributeMap, parseFeedXml, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
 import { isReadonlyArray } from './util.ts';
@@ -125,14 +125,14 @@ export class ValidatorAppVM {
                     let xml: XmlNode | undefined;
                     try {
                         xml = parseFeedXml(text);
+                        console.log(xml);
                     } catch (e) {
                         addMessage('error', `Xml parse failed: ${e.message}`);
                     } finally {
                         job.times.parseTime = Date.now() - start;
                     }
-                    job.xml = xml;
-                
-                    console.log(xml);
+
+                    if (xml && Object.keys(xml).length > 0) job.xml = xml; // empty root if not actually xml
 
                     if (xml) {
                         start = Date.now();
@@ -327,7 +327,9 @@ async function localOrRemoteFetchFetchActivityPub(url: string, useSide: FetchSid
     checkEqual('res.status', response.status, 200);
     console.log([...response.headers].map(v => v.join(': ')));
     const contentType = response.headers.get('Content-Type');
-    checkTrue('res.contentType', contentType, (contentType || '').includes('json')); // application/activity+json; charset=utf-8, application/json
+    if (!(contentType || '').includes('json')) { // application/activity+json; charset=utf-8, application/json
+        throw new Error('Found html, not ActivityPub');
+    }
     const obj = await response.json();
     return { obj, side };
 }

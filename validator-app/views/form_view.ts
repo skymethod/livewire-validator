@@ -42,10 +42,48 @@ header svg {
     margin-bottom: 1rem;
 }
 
+/** ios resets */
+@supports (-webkit-touch-callout: none) {
+    input, textarea, button {
+        -webkit-appearance: none;
+        border-radius: 0;
+    }
+
+    button {
+        border: solid 1px white;
+    }
+
+}
+
+@media only screen and (max-width: 650px) {
+
+    header {
+        font-size: 66%;
+        gap: 0.5rem;
+    }
+
+    header svg {
+        transform: scale(1.0);
+    }
+
+    #form {
+        flex-direction: column;
+    }
+
+}
+
+@media only screen and (max-width: 500px) {
+
+    #version {
+        display: none;
+    }
+
+}
+
 #text-input {
     font-size: 1rem;
     flex-grow: 1;
-    padding: 0 0.5rem;
+    padding: 0.5rem 0.5rem;
     background-color: inherit;
     border: solid 1px white;
     outline: none;

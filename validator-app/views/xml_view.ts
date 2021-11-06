@@ -63,12 +63,12 @@ function renderXml(xml: XmlNode | undefined, xmlOutput: HTMLOutputElement) {
 }
 
 function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level: number, context: Set<string>, itemNumber: number | undefined) {
+    const { atts } = node;
     const details = document.createElement('details');
     const text = node.val || '';
     details.open = !context.has('found-item') || text.length > 0;
     if (level > 0) details.classList.add('indent');
     const summary = document.createElement('summary');
-    const atts = computeAttributeMap(node.attrsMap);
     if (level === 0) {
         renderTextPieces(summary, 'Xml');
     } else {
@@ -95,7 +95,8 @@ function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level:
     }
     const audioUrl = node.tagname === 'enclosure' && atts.get('url') 
         || node.qname.namespaceUri && Qnames.includes(Qnames.PodcastIndex.source, node.qname) && atts.get('uri') 
-        || Qnames.eq(node.qname, Qnames.MediaRss.content) && atts.get('url');
+        || Qnames.eq(node.qname, Qnames.MediaRss.content) && (atts.get('type') || '').startsWith('audio') && atts.get('url')
+        ;
     if (audioUrl) {
         const audio = document.createElement('audio');
         audio.controls = true;

@@ -10,12 +10,14 @@ export function validateFeedXml(xml: XmlNode, callbacks: ValidationCallbacks) {
     if (xml.tagname !== '!xml') return callbacks.onError(xml, `Bad xml.tagname: ${xml.tagname}`);
     if (Object.keys(xml.attrsMap).length > 0) return callbacks.onError(xml, `Bad xml.attrsMap: ${xml.attrsMap}`);
 
-    const rss = getSingleChild(xml, 'rss', callbacks); if (!rss) return;
     const namespaces = new XmlNamespaces();
     applyQnames(xml, namespaces);
     checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
 
-    validateRss(rss, callbacks);
+    const docElement = Object.values(xml.child).flatMap(v => v)[0];
+    const docElementTagname = docElement?.tagname || 'unknown';
+    checkEqual('xml root tag name', docElementTagname, 'rss');
+    validateRss(docElement as ExtendedXmlNode, callbacks);
 }
 
 export function computeAttributeMap(attrsMap: Record<string, string> | undefined): ReadonlyMap<string, string> {
@@ -45,7 +47,7 @@ export interface ValidationCallbacks {
 }
 
 export type ExtendedXmlNode = XmlNode & {
-    readonly attrs: Map<string, string>;
+    readonly atts: Map<string, string>;
     readonly qname: Qname;
 };
 
@@ -57,7 +59,7 @@ const EMPTY_XML_NODE_ARRAY: readonly ExtendedXmlNode[] = [];
 function getSingleChild(node: XmlNode, tagName: string, callbacks: ValidationCallbacks): ExtendedXmlNode | undefined {
     const children = node.child[tagName] || [];
     if (children.length !== 1) {
-        callbacks.onError(node, `Expected single ${tagName} child element under ${node.tagname}, found ${children.length}`);
+        callbacks.onError(node, `Expected single ${tagName} child element under ${node.tagname}, found ${children.length === 0 ? 'none' : children.length}`);
         return undefined;
     }
     return children[0] as ExtendedXmlNode;
@@ -65,7 +67,7 @@ function getSingleChild(node: XmlNode, tagName: string, callbacks: ValidationCal
 
 function validateRss(rss: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     if (rss.tagname !== 'rss') return callbacks.onError(rss, `Bad rss.tagname: ${rss.tagname}`);
-    const version = rss.attrs.get('version');
+    const version = rss.atts.get('version');
     if (version !== '2.0') callbacks.onWarning(rss, `Bad rss.version: ${version}, expected 2.0`);
     const channel = getSingleChild(rss, 'channel', callbacks); if (!channel) return;
     validateChannel(channel, callbacks);
@@ -103,10 +105,10 @@ function findChildElements(node: ExtendedXmlNode, ...qnames: readonly Qname[]): 
 
 function applyQnames(node: XmlNode, namespaces: XmlNamespaces) {
     try {
-        const attrs = namespaces.push(node.attrsMap);
+        const atts = namespaces.push(node.attrsMap);
         // deno-lint-ignore no-explicit-any
         const nodeAsAny = node as any;
-        nodeAsAny.attrs = attrs;
+        nodeAsAny.atts = atts;
         nodeAsAny.qname = computeQname(node.tagname, namespaces);
         for (const value of Object.values(node.child)) {
             for (const childNode of value) {
