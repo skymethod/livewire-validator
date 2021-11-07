@@ -37,6 +37,18 @@ export function findChildElements(node: ExtendedXmlNode, ...qnames: readonly Qna
     return rt || EMPTY_XML_NODE_ARRAY;
 }
 
+export function findElementRecursive(root: ExtendedXmlNode, test: (node: ExtendedXmlNode) => boolean): ExtendedXmlNode | undefined {
+    if (test(root)) return root;
+    for (const value of Object.values(root.child)) {
+        for (const child of value) {
+            const extChild = child as ExtendedXmlNode;
+            const rt = findElementRecursive(extChild, test);
+            if (rt) return rt;
+        }
+    }
+    return undefined;
+}
+
 export function qnameEq(lhs: Qname, rhs: Qname): boolean {
     return lhs.name === rhs.name && lhs.namespaceUri === rhs.namespaceUri;
 }

@@ -1,6 +1,6 @@
 import { checkTrue } from './check.ts';
 import { Qnames } from './qnames.ts';
-import { ExtendedXmlNode, findChildElements, Qname } from './xml_parser.ts';
+import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './xml_parser.ts';
 
 export function validateFeedXml(xml: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     if (xml.tagname !== '!xml') return callbacks.onError(xml, `Bad xml.tagname: ${xml.tagname}`);
@@ -50,8 +50,10 @@ function validateRss(rss: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
     // itunes required
     const itunesOpts: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
-    checkAttributeEqual(rss, 'xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd', callbacks, itunesOpts);
-    checkAttributeEqual(rss, 'xmlns:content', 'http://purl.org/rss/1.0/modules/content/', callbacks, itunesOpts);
+    const hasItunesPrefix = findElementRecursive(rss, v => v.tagname.startsWith('itunes:')) !== undefined;
+    if (hasItunesPrefix) checkAttributeEqual(rss, 'xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd', callbacks, itunesOpts);
+    const hasContentPrefix = findElementRecursive(rss, v => v.tagname.startsWith('content:')) !== undefined;
+    if (hasContentPrefix) checkAttributeEqual(rss, 'xmlns:content', 'http://purl.org/rss/1.0/modules/content/', callbacks, itunesOpts);
 
     // continue to channel
     const channel = getSingleChild(rss, 'channel', callbacks, opts); if (!channel) return;
