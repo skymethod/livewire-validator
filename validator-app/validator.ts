@@ -52,7 +52,7 @@ export interface ValidationCallbacks {
 }
 
 export type ExtendedXmlNode = XmlNode & {
-    readonly atts: Map<string, string>;
+    readonly atts: ReadonlyMap<string, string>;
     readonly qname: Qname;
 };
 
@@ -104,22 +104,21 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 
     // podcast:guid
     const guidReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid' };
-    const guids = findChildElements(channel, ...Qnames.PodcastIndex.guid);
-    if (guids.length > 0) {
-        if (guids.length > 1) callbacks.onWarning(guids[1], 'Multiple <podcast:guid> elements are not allowed', { reference: guidReference });
-        const guid = guids[0];
-        const guidText = checkText(guid, isUuid, callbacks, { reference: guidReference });
-        if (guidText) {
+    ElementValidation.forSingleChild('channel', channel, callbacks, guidReference, ...Qnames.PodcastIndex.guid)
+        .checkValue(isUuid, guidText => {
             const version = guidText.charAt(14);
             if (version !== '5') {
-                callbacks.onWarning(guid, `Bad <${guid.tagname}> value: ${guidText}, expected a UUIDv5, found a UUIDv${version}`, { reference: guidReference });
+                return `expected a UUIDv5, found a UUIDv${version}`;
             }
-        }
-        const attNames = [...guid.atts.keys()];
-        if (attNames.length > 0) {
-            callbacks.onWarning(guid, `Bad <${guid.tagname}> attribute names: ${attNames.join(', ')}`, { reference: guidReference });
-        }
-    }
+        })
+        .checkRemainingAttributes();
+
+    // podcast:locked
+    const lockedReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked' };
+    ElementValidation.forSingleChild('channel', channel, callbacks, lockedReference, ...Qnames.PodcastIndex.locked)
+        .checkValue(v => /^(yes|no)$/.test(v))
+        .checkRequiredAttribute('owner', isEmailAddress)
+        .checkRemainingAttributes();
 
     // continue to items
     for (const item of channel.child.item || []) {
@@ -162,6 +161,10 @@ function isMimeType(trimmedText: string): boolean {
 
 function isUuid(trimmedText: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(trimmedText);
+}
+
+function isEmailAddress(trimmedText: string): boolean {
+    return /^[^@\s]+@[^@\s]+$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -219,7 +222,18 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
         if (isPermaLink === 'true' && guidText && !isUrl(guidText) && misspellings.length === 0) callbacks.onWarning(guid, `Bad item <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
     }
 
-    // podcast index
+    // podcast:transcript
+    const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);
+    for (const transcript of transcripts) {
+        ElementValidation.forElement('item', transcript, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript' })
+            .checkRequiredAttribute('url', isUrl)
+            .checkRequiredAttribute('type', isMimeType)
+            .checkOptionalAttribute('language', isNotEmpty)
+            .checkOptionalAttribute('rel', isNotEmpty)
+            .checkRemainingAttributes();
+    }
+
+    // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     for (const socialInteract of socialInteracts) {
         callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact', reference: { ruleset: 'podcastindex', href: 'https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element' } });
@@ -308,6 +322,84 @@ class XmlNamespaces {
             if (rt) return rt;
         }
         throw new Error(`getNamespaceUri: prefix not found: ${prefix}`);
+    }
+
+}
+
+type Level = 'channel' | 'item';
+
+class ElementValidation {
+    private static readonly EMPTY_STRING_SET = new Set<string>();
+    private readonly level: Level;
+    private readonly node?: ExtendedXmlNode;
+    private readonly callbacks: ValidationCallbacks;
+    private readonly opts: MessageOptions;
+    private readonly remainingAttNames: Set<string>;
+
+    private constructor(level: Level, node: ExtendedXmlNode | undefined, callbacks: ValidationCallbacks, opts: MessageOptions) {
+        this.level = level;
+        this.node = node;
+        this.callbacks = callbacks;
+        this.opts = opts;
+        this.remainingAttNames = node ? new Set(node.atts.keys()) : ElementValidation.EMPTY_STRING_SET;
+    }
+
+    static forElement(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks, reference: RuleReference): ElementValidation {
+        return new ElementValidation(level, node, callbacks, { reference });
+    }
+
+    static forSingleChild(level: Level, parent: ExtendedXmlNode, callbacks: ValidationCallbacks, reference: RuleReference, ...qnames: Qname[]): ElementValidation {
+        const elements = findChildElements(parent, ...qnames);
+        if (elements.length > 0) {
+            if (elements.length > 1) callbacks.onWarning(elements[1], `Multiple ${level} <${elements[1].tagname}> elements are not allowed`, { reference });
+            const element = elements[0];
+            return new ElementValidation(level, element, callbacks, { reference });
+        }
+        return new ElementValidation(level, undefined, callbacks, { reference });
+    }
+
+    checkValue(test: (trimmedText: string) => boolean, additionalTest?: (trimmedText: string) => string | undefined): ElementValidation {
+        const { node, callbacks, opts } = this;
+        if (node) {
+            const trimmedText = checkText(node, test, callbacks, opts);
+            if (trimmedText && additionalTest) {
+                const warningSuffix = additionalTest(trimmedText);
+                if (warningSuffix) {
+                    callbacks.onWarning(node, `Bad <${node.tagname}> value: ${trimmedText === '' ? '<empty>' : trimmedText}, ${warningSuffix}`, opts);
+                }
+            }
+        }
+        return this;
+    }
+
+    checkRequiredAttribute(name: string, test: (value: string) => boolean): ElementValidation {
+        const { node, callbacks, opts, level } = this;
+        if (node) {
+            const value = node.atts.get(name);
+            if (!value) callbacks.onWarning(node, `Missing ${level} <${node.tagname}> ${name} attribute`, opts);
+            if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
+            this.remainingAttNames.delete(name);
+        }
+        return this;
+    }
+
+    checkOptionalAttribute(name: string, test: (value: string) => boolean): ElementValidation {
+        const { node, callbacks, opts, level } = this;
+        if (node) {
+            const value = node.atts.get(name);
+            if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
+            this.remainingAttNames.delete(name);
+        }
+        return this;
+    }
+
+    checkRemainingAttributes() {
+        const { remainingAttNames, callbacks, node, opts, level } = this;
+        if (node) {
+            if (remainingAttNames.size > 0) {
+                callbacks.onWarning(node, `Bad ${level} <${node.tagname}> attribute name${remainingAttNames.size > 1 ? 's' : ''}: ${[...remainingAttNames].join(', ')}`, opts);
+            }
+        }
     }
 
 }

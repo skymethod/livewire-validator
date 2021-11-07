@@ -45,6 +45,8 @@ export class Qnames {
         source: _podcastIndex('source'),
         socialInteract: _podcastIndex('socialInteract'),
         guid: _podcastIndex('guid'),
+        locked: _podcastIndex('locked'),
+        transcript: _podcastIndex('transcript'),
     }
 
     static readonly MediaRss = {
