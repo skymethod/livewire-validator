@@ -130,11 +130,41 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
             .checkRemainingAttributes();
     }
 
+    // podcast:person
+    checkPodcastPerson('channel', channel, callbacks);
+
+    // podcast:location
+    checkPodcastLocation('channel', channel, callbacks);
+
     // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
         break;
     }
+}
+
+function checkPodcastPerson(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    const personReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#person'};
+    for (const person of findChildElements(node, ...Qnames.PodcastIndex.person)) {
+        ElementValidation.forElement(level, person, callbacks, personReference)
+            .checkValue(isNotEmpty)
+            .checkValue(isAtMostCharacters(128))
+            .checkOptionalAttribute('role', isNotEmpty)
+            .checkOptionalAttribute('group', isNotEmpty)
+            .checkOptionalAttribute('img', isUrl)
+            .checkOptionalAttribute('href', isUrl)
+            .checkRemainingAttributes();
+    }
+}
+
+function checkPodcastLocation(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    const locationReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#location'};
+    ElementValidation.forSingleChild(level, node, callbacks, locationReference, ...Qnames.PodcastIndex.location)
+        .checkOptionalAttribute('geo', isGeoLatLon)
+        .checkOptionalAttribute('osm', isOpenStreetMapIdentifier)
+        .checkValue(isNotEmpty)
+        .checkValue(isAtMostCharacters(128))
+        .checkRemainingAttributes();
 }
 
 function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpectedValue: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}) {
@@ -183,6 +213,15 @@ function isAtMostCharacters(maxCharacters: number): (trimmedText: string) => boo
 
 function isSeconds(trimmedText: string): boolean {
     return /^\d+(\.\d+)?$/.test(trimmedText);
+}
+
+function isGeoLatLon(trimmedText: string): boolean {
+    return /^geo:-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/.test(trimmedText);
+}
+
+function isOpenStreetMapIdentifier(trimmedText: string): boolean {
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#osm-recommended
+    return /^[NWR]\d+(#\d+)?$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -267,6 +306,12 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
             .checkRemainingAttributes();
     }
    
+    // podcast:person
+    checkPodcastPerson('item', item, callbacks);
+
+    // podcast:location
+    checkPodcastLocation('item', item, callbacks);
+
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     for (const socialInteract of socialInteracts) {
