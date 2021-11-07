@@ -101,7 +101,7 @@ function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level:
         }
         if (itemsNotShown > 0) {
             const fakeNode: ExtendedXmlNode = {
-                tagname: `...and ${itemsNotShown} more items`, 
+                tagname: `...and ${new Intl.NumberFormat().format(itemsNotShown)} more items`, 
                 atts: new Map<string, string>(),
                 qname: { name: '' },
                 attrsMap: {},

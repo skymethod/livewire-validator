@@ -50,6 +50,7 @@ export interface ValidationCallbacks {
     onError(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
     onWarning(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
     onPodcastIndexTagNamesFound(known: ReadonlySet<string>, unknown: ReadonlySet<string>): void;
+    onRssItemsFound(itemsCount: number, itemsWithEnclosuresCount: number): void;
 }
 
 export type ExtendedXmlNode = XmlNode & {
@@ -70,7 +71,7 @@ const EMPTY_XML_NODE_ARRAY: readonly ExtendedXmlNode[] = [];
 function getSingleChild(node: ExtendedXmlNode, name: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
     const children = findChildElements(node, { name });
     if (children.length !== 1) {
-        callbacks.onError(node, `Expected single <${name}> child element under <${node.tagname}>, found ${children.length === 0 ? 'none' : children.length}`, opts);
+        callbacks.onWarning(node, `Expected single <${name}> child element under <${node.tagname}>, found ${children.length === 0 ? 'none' : children.length}`, opts);
         return undefined;
     }
     return children[0] as ExtendedXmlNode;
@@ -159,10 +160,18 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkPodcastTagUsage(channel, callbacks);
 
     // continue to items
-    for (const item of channel.child.item || []) {
-        validateItem(item as ExtendedXmlNode, callbacks);
-        break;
+    const items = channel.child.item || [];
+    let itemsWithEnclosuresCount = 0;
+    let itemsValidated = 0;
+    for (const item of items) {
+        if (itemsValidated < 1) { // just validate the first item for now
+            validateItem(item as ExtendedXmlNode, callbacks);
+            itemsValidated++;
+        }
+        const elements = findChildElements(item as ExtendedXmlNode, { name: 'enclosure' });
+        if (elements.length > 0) itemsWithEnclosuresCount++;
     }
+    callbacks.onRssItemsFound(items.length, itemsWithEnclosuresCount);
 }
 
 function checkPodcastPerson(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {

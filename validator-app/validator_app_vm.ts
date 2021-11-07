@@ -145,6 +145,8 @@ export class ValidatorAppVM {
                         };
                         const knownPiTags = new Set<string>();
                         const unknownPiTags = new Set<string>();
+                        let itemsCount = 0;
+                        let itemsWithEnclosuresCount = 0;
                         const callbacks: ValidationCallbacks = {
                             onGood: (node, message, opts) => {
                                 console.info(message);
@@ -166,10 +168,15 @@ export class ValidatorAppVM {
                                 known.forEach(v => knownPiTags.add(v));
                                 unknown.forEach(v => unknownPiTags.add(v));
                             },
+                            onRssItemsFound: (itemsCount_, itemsWithEnclosuresCount_) => {
+                                itemsCount = itemsCount_;
+                                itemsWithEnclosuresCount = itemsWithEnclosuresCount_;
+                            },
                         };
                         validateFeedXml(xml, callbacks);
                         job.times.validateTime = Date.now() - start;
 
+                        addMessage('info', `Found ${unitString(itemsWithEnclosuresCount, 'episode')} in a ${formatBytes(text.length)} feed`);
                         const piReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md' };
                         const tagString = (set: ReadonlySet<string>) => [...set].map(v => `<podcast:${v}>`).join(', ');
                         if (knownPiTags.size > 0) {
@@ -309,6 +316,15 @@ export interface PIFeedInfo {
 
 //
 
+function formatBytes(bytes: number): string {
+    let amount = bytes;
+    if (amount < 1024) return `${amount}-byte`;
+    amount = amount / 1024;
+    if (amount < 1024) return `${Math.round(amount * 100) / 100}kb`;
+    amount = amount / 1024;
+    return `${Math.round(amount * 100) / 100}mb`;
+}
+
 function formatTime(millis: number): string {
     if (millis < 1000) return `${millis}ms`;
     return `${Math.round(millis / 1000 * 100) / 100}s`;
@@ -323,7 +339,7 @@ function computeJobTimesStringSuffix(job: ValidationJob): string {
 }
 
 function unitString(amount: number, unit: string): string {
-    return `${amount === 0 ? 'no' : amount === 1 ? 'one' : amount} ${unit}${amount === 1 ? '' : 's'}`;
+    return `${amount === 0 ? 'no' : amount === 1 ? 'one' : new Intl.NumberFormat().format(amount)} ${unit}${amount === 1 ? '' : 's'}`;
 }
 
 function normalizeInput(input: string): string {
