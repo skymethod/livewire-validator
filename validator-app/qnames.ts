@@ -4,7 +4,10 @@ const PODCAST_INDEX_NAMESPACE = 'https://podcastindex.org/namespace/1.0';
 const PODCAST_INDEX_NAMESPACE_ALT = 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md';
 const PODCAST_INDEX_NAMESPACES = [ PODCAST_INDEX_NAMESPACE, PODCAST_INDEX_NAMESPACE_ALT ];
 
-function _podcastIndex(name: string): readonly Qname[] {
+const PODCAST_INDEX_KNOWN_NAMES = new Set<string>();
+
+function _podcastIndex(name: string, known = true): readonly Qname[] {
+    if (known) PODCAST_INDEX_KNOWN_NAMES.add(name);
     return PODCAST_INDEX_NAMESPACES.map(v => ({ name, namespaceUri: v }));
 }
 
@@ -41,7 +44,8 @@ export class Qnames {
 
     static readonly PodcastIndex = {
         NAMESPACES: PODCAST_INDEX_NAMESPACES,
-        of: (name: string) => _podcastIndex(name),
+        get KNOWN_NAMES(): ReadonlySet<string> { return PODCAST_INDEX_KNOWN_NAMES },
+        of: (name: string) => _podcastIndex(name, false /*known*/),
         source: _podcastIndex('source'),
         socialInteract: _podcastIndex('socialInteract'),
         guid: _podcastIndex('guid'),

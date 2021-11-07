@@ -143,6 +143,8 @@ export class ValidatorAppVM {
                                 }
                             }
                         };
+                        const knownPiTags = new Set<string>();
+                        const unknownPiTags = new Set<string>();
                         const callbacks: ValidationCallbacks = {
                             onGood: (node, message, opts) => {
                                 console.info(message);
@@ -160,9 +162,22 @@ export class ValidatorAppVM {
                                 console.info(message);
                                 onMessage('info', node, message, opts);
                             },
+                            onPodcastIndexTagNamesFound: (known, unknown) => {
+                                known.forEach(v => knownPiTags.add(v));
+                                unknown.forEach(v => unknownPiTags.add(v));
+                            },
                         };
                         validateFeedXml(xml, callbacks);
                         job.times.validateTime = Date.now() - start;
+
+                        const piReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md' };
+                        const tagString = (set: ReadonlySet<string>) => [...set].map(v => `<podcast:${v}>`).join(', ');
+                        if (knownPiTags.size > 0) {
+                            addMessage('good', `Found and checked ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, { reference: piReference });
+                        }
+                        if (unknownPiTags.size > 0) {
+                            addMessage('warning', `Found ${unitString(unknownPiTags.size, 'unknown podcast namespace tag')}: ${tagString(unknownPiTags)}`, { reference: piReference });
+                        }
                     }
                 }
 

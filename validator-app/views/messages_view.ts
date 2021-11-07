@@ -18,7 +18,7 @@ export const MESSAGES_CSS = css`
     font-size: 0.75rem;
 }
 
-#messages > div {
+#messages > div, #messages > a {
     animation: fadeInAnimation 0.5s;
 }
 

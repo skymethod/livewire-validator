@@ -49,6 +49,7 @@ export interface ValidationCallbacks {
     onInfo(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
     onError(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
     onWarning(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
+    onPodcastIndexTagNamesFound(known: ReadonlySet<string>, unknown: ReadonlySet<string>): void;
 }
 
 export type ExtendedXmlNode = XmlNode & {
@@ -155,6 +156,8 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:social
     // TODO when the spec is more baked and we have feeds
 
+    checkPodcastTagUsage(channel, callbacks);
+
     // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
@@ -212,6 +215,18 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
                 .checkOptionalAttribute('fee', isBoolean)
                 .checkRemainingAttributes();
         }
+    }
+}
+
+function checkPodcastTagUsage(node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    const known = new Set<string>();
+    const unknown = new Set<string>();
+    for (const element of findChildElements(node, ...Qnames.PodcastIndex.NAMESPACES.map(v => ({ name: '*', namespaceUri: v })))) {
+        const isKnown = Qnames.PodcastIndex.KNOWN_NAMES.has(element.qname.name);
+        (isKnown ? known : unknown).add(element.qname.name);
+    }
+    if (known.size + unknown.size > 0) {
+        callbacks.onPodcastIndexTagNamesFound(known, unknown);
     }
 }
 
@@ -465,6 +480,8 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
         callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>, nice!', { tag: 'social-interact', reference: socialInteractReference });
     }
+
+    checkPodcastTagUsage(item, callbacks);
 }
 
 function podcastIndexReference(href: string): RuleReference {
@@ -477,7 +494,7 @@ function findChildElements(node: ExtendedXmlNode, ...qnames: readonly Qname[]): 
         for (const qname of qnames) {
             for (const child of value) {
                 const extChild = child as ExtendedXmlNode;
-                if (Qnames.eq(qname, extChild.qname)) {
+                if (qname.name === '*' ? qname.namespaceUri === extChild.qname.namespaceUri : Qnames.eq(qname, extChild.qname)) {
                     rt = rt || [];
                     rt.push(extChild);
                 }
