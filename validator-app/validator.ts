@@ -181,6 +181,10 @@ function isAtMostCharacters(maxCharacters: number): (trimmedText: string) => boo
     return trimmedText => trimmedText.length <= maxCharacters;
 }
 
+function isSeconds(trimmedText: string): boolean {
+    return /^\d+(\.\d+)?$/.test(trimmedText);
+}
+
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
     const elements = findChildElements(node, qname);
     if (elements.length === 0) {
@@ -253,7 +257,16 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
         .checkRequiredAttribute('type', isMimeType)
         .checkRemainingAttributes();
 
-
+    // podcast:soundbite
+    const soundbites = findChildElements(item, ...Qnames.PodcastIndex.soundbite);
+    for (const soundbite of soundbites) {
+        ElementValidation.forElement('item', soundbite, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#soundbite' })
+            .checkRequiredAttribute('startTime', isSeconds)
+            .checkRequiredAttribute('duration', isSeconds)
+            .checkValue(isAtMostCharacters(128))
+            .checkRemainingAttributes();
+    }
+   
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     for (const socialInteract of socialInteracts) {

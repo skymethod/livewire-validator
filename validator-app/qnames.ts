@@ -49,6 +49,7 @@ export class Qnames {
         transcript: _podcastIndex('transcript'),
         funding: _podcastIndex('funding'),
         chapters: _podcastIndex('chapters'),
+        soundbite: _podcastIndex('soundbite'),
     }
 
     static readonly MediaRss = {
