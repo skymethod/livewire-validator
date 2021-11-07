@@ -136,6 +136,23 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:location
     checkPodcastLocation('channel', channel, callbacks);
 
+    // podcast:trailer
+    const trailerReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#trailer'};
+    for (const trailer of findChildElements(channel, ...Qnames.PodcastIndex.trailer)) {
+        ElementValidation.forElement('channel', trailer, callbacks, trailerReference)
+            .checkValue(isNotEmpty)
+            .checkValue(isAtMostCharacters(128))
+            .checkRequiredAttribute('url', isUrl)
+            .checkRequiredAttribute('pubdate', isRfc2822)
+            .checkOptionalAttribute('length', isNonNegativeInteger)
+            .checkOptionalAttribute('type', isMimeType)
+            .checkOptionalAttribute('season', isNonNegativeInteger)
+            .checkRemainingAttributes();
+    }
+
+    // podcast:license
+    checkPodcastLicense('channel', channel, callbacks);
+
     // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
@@ -167,6 +184,15 @@ function checkPodcastLocation(level: Level, node: ExtendedXmlNode, callbacks: Va
         .checkRemainingAttributes();
 }
 
+function checkPodcastLicense(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    const licenseReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#license'};
+    ElementValidation.forSingleChild(level, node, callbacks, licenseReference, ...Qnames.PodcastIndex.license)
+        .checkOptionalAttribute('url', isUrl)
+        .checkValue(isNotEmpty)
+        .checkValue(isAtMostCharacters(128))
+        .checkRemainingAttributes();
+}
+
 function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpectedValue: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}) {
     const attValue = node.atts.get(attName);
     if (!attValue) {
@@ -192,7 +218,15 @@ function isNotEmpty(trimmedText: string): boolean {
 }
 
 function isUrl(trimmedText: string): boolean {
-    return /^https?:\/\/.+?$/.test(trimmedText);
+    return /^https?:\/\/.+?$/.test(trimmedText) && tryParseUrl(trimmedText) !== undefined;
+}
+
+function tryParseUrl(str: string): URL | undefined {
+    try {
+        return new URL(str);
+    } catch {
+        return undefined;
+    }
 }
 
 function isMimeType(trimmedText: string): boolean {
@@ -222,6 +256,23 @@ function isGeoLatLon(trimmedText: string): boolean {
 function isOpenStreetMapIdentifier(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#osm-recommended
     return /^[NWR]\d+(#\d+)?$/.test(trimmedText);
+}
+
+function isNonNegativeInteger(trimmedText: string): boolean {
+    return /^\d+$/.test(trimmedText) 
+        && parseInt(trimmedText) >= 0 
+        && parseInt(trimmedText).toString() === trimmedText;
+}
+
+function isDecimal(trimmedText: string): boolean {
+    return /^\d+(\.\d+)?$/.test(trimmedText);
+}
+
+function isRfc2822(trimmedText: string): boolean {
+    // https://datatracker.ietf.org/doc/html/rfc2822
+    // 01 Jun 2016 14:31:46 -0700
+    // Thu, 01 Apr 2021 08:00:00 EST
+    return /^[0-9A-Za-z: -]+$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -257,7 +308,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
         const length = enclosure.atts.get('length');
         if (!length) callbacks.onWarning(enclosure, `Missing <enclosure> length attribute`, rssEnclosureOpts);
-        if (length && !/^\d+$/.test(length)) callbacks.onWarning(enclosure, `Bad item <enclosure> length attribute value: ${length}, expected non-negative integer`, rssEnclosureOpts);
+        if (length && !isNonNegativeInteger(length)) callbacks.onWarning(enclosure, `Bad item <enclosure> length attribute value: ${length}, expected non-negative integer`, rssEnclosureOpts);
 
         const type = enclosure.atts.get('type');
         if (!type) callbacks.onWarning(enclosure, `Missing <enclosure> type attribute`, rssEnclosureOpts);
@@ -311,6 +362,21 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
     // podcast:location
     checkPodcastLocation('item', item, callbacks);
+
+    // podcast:season
+    ElementValidation.forSingleChild('item', item, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#season' }, ...Qnames.PodcastIndex.season)
+        .checkOptionalAttribute('name', v => isNotEmpty(v) && isAtMostCharacters(128)(v))
+        .checkValue(isNonNegativeInteger)
+        .checkRemainingAttributes();
+
+    // podcast:episode
+    ElementValidation.forSingleChild('item', item, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#episode' }, ...Qnames.PodcastIndex.episode)
+        .checkOptionalAttribute('display', v => isNotEmpty(v) && isAtMostCharacters(32)(v))
+        .checkValue(isDecimal)
+        .checkRemainingAttributes();
+
+    // podcast:license
+    checkPodcastLicense('item', item, callbacks);
 
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);

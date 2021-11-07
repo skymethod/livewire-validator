@@ -52,6 +52,10 @@ export class Qnames {
         soundbite: _podcastIndex('soundbite'),
         person: _podcastIndex('person'),
         location: _podcastIndex('location'),
+        season: _podcastIndex('season'),
+        episode: _podcastIndex('episode'),
+        trailer: _podcastIndex('trailer'),
+        license: _podcastIndex('license'),
     }
 
     static readonly MediaRss = {
