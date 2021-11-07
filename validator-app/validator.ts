@@ -149,6 +149,12 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:license
     checkPodcastLicense('channel', channel, callbacks);
 
+    // podcast:value
+    checkPodcastValue('channel', channel, callbacks);
+
+    // podcast:social
+    // TODO when the spec is more baked and we have feeds
+
     // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
@@ -184,6 +190,29 @@ function checkPodcastLicense(level: Level, node: ExtendedXmlNode, callbacks: Val
         .checkValue(isNotEmpty)
         .checkValue(isAtMostCharacters(128))
         .checkRemainingAttributes();
+}
+
+function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    const value = ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value'), ...Qnames.PodcastIndex.value)
+        .checkRequiredAttribute('type', isPodcastValueTypeSlug)
+        .checkRequiredAttribute('method', isNotEmpty)
+        .checkOptionalAttribute('suggested', isDecimal)
+        .checkRemainingAttributes()
+        .node;
+
+    if (value) {
+        for (const valueRecipient of findChildElements(value, ...Qnames.PodcastIndex.valueRecipient)) {
+            ElementValidation.forElement('value', valueRecipient, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient'))
+                .checkOptionalAttribute('name', isNotEmpty)
+                .checkOptionalAttribute('customKey', isNotEmpty)
+                .checkOptionalAttribute('customValue', isNotEmpty)
+                .checkRequiredAttribute('type', isPodcastValueTypeSlug)
+                .checkRequiredAttribute('address', isNotEmpty)
+                .checkRequiredAttribute('split', isNonNegativeInteger)
+                .checkOptionalAttribute('fee', isBoolean)
+                .checkRemainingAttributes();
+        }
+    }
 }
 
 function checkAttributeEqual(node: ExtendedXmlNode, attName: string, attExpectedValue: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}) {
@@ -273,8 +302,18 @@ function isRfc2822(trimmedText: string): boolean {
     return /^[0-9A-Za-z: -]+$/.test(trimmedText);
 }
 
+function isIso8601(trimmedText: string): boolean {
+    // 2021-04-14T10:25:42Z
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(trimmedText);
+}
+
 function isBoolean(trimmedText: string): boolean {
     return /^(true|false)$/.test(trimmedText);
+}
+
+function isPodcastValueTypeSlug(trimmedText: string): boolean {
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/value/valueslugs.txt
+    return /^[a-z]+$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -409,10 +448,22 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
         }
     }
 
+    // podcast:value
+    checkPodcastValue('item', item, callbacks);
+
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
+    const socialInteractReference = podcastIndexReference('https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element');
     for (const socialInteract of socialInteracts) {
-        callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact', reference: podcastIndexReference('https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element') });
+        ElementValidation.forElement('item', socialInteract, callbacks, socialInteractReference)
+            .checkRequiredAttribute('platform', isNotEmpty)
+            .checkRequiredAttribute('podcastAccountId', isNotEmpty)
+            .checkOptionalAttribute('pubDate', isIso8601)
+            .checkOptionalAttribute('priority', isNonNegativeInteger)
+            .checkValue(isUri)
+            .checkRemainingAttributes();
+
+        callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>, nice!', { tag: 'social-interact', reference: socialInteractReference });
     }
 }
 
@@ -510,8 +561,10 @@ type Level = 'channel' | 'item' | string;
 
 class ElementValidation {
     private static readonly EMPTY_STRING_SET = new Set<string>();
+
+    readonly node?: ExtendedXmlNode;
+
     private readonly level: Level;
-    private readonly node?: ExtendedXmlNode;
     private readonly callbacks: ValidationCallbacks;
     private readonly opts: MessageOptions;
     private readonly remainingAttNames: Set<string>;
@@ -574,13 +627,14 @@ class ElementValidation {
         return this;
     }
 
-    checkRemainingAttributes() {
+    checkRemainingAttributes(): ElementValidation {
         const { remainingAttNames, callbacks, node, opts, level } = this;
         if (node) {
             if (remainingAttNames.size > 0) {
                 callbacks.onWarning(node, `Bad ${level} <${node.tagname}> attribute name${remainingAttNames.size > 1 ? 's' : ''}: ${[...remainingAttNames].join(', ')}`, opts);
             }
         }
+        return this;
     }
 
 }

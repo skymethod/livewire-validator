@@ -58,6 +58,8 @@ export class Qnames {
         license: _podcastIndex('license'),
         alternateEnclosure: _podcastIndex('alternateEnclosure'),
         integrity: _podcastIndex('integrity'),
+        value: _podcastIndex('value'),
+        valueRecipient: _podcastIndex('valueRecipient'),
     }
 
     static readonly MediaRss = {
