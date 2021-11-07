@@ -143,10 +143,10 @@ export class ValidatorAppVM {
                                 }
                             }
                         };
+  
                         const knownPiTags = new Set<string>();
                         const unknownPiTags = new Set<string>();
-                        let itemsCount = 0;
-                        let itemsWithEnclosuresCount = 0;
+                        let rssItemInfo: { itemsCount: number, itemsWithEnclosuresCount: number } | undefined;
                         const callbacks: ValidationCallbacks = {
                             onGood: (node, message, opts) => {
                                 console.info(message);
@@ -168,19 +168,25 @@ export class ValidatorAppVM {
                                 known.forEach(v => knownPiTags.add(v));
                                 unknown.forEach(v => unknownPiTags.add(v));
                             },
-                            onRssItemsFound: (itemsCount_, itemsWithEnclosuresCount_) => {
-                                itemsCount = itemsCount_;
-                                itemsWithEnclosuresCount = itemsWithEnclosuresCount_;
+                            onRssItemsFound: (itemsCount, itemsWithEnclosuresCount) => {
+                                rssItemInfo = { itemsCount, itemsWithEnclosuresCount};
                             },
                         };
                         validateFeedXml(xml, callbacks);
                         job.times.validateTime = Date.now() - start;
 
-                        addMessage('info', `Found ${unitString(itemsWithEnclosuresCount, 'episode')} in a ${formatBytes(text.length)} feed`);
+                        if (rssItemInfo) {
+                            const { itemsCount, itemsWithEnclosuresCount } = rssItemInfo;
+                            const itemsWithoutEnclosuresCount = itemsCount - itemsWithEnclosuresCount;
+                            const pieces = [ `Found ${unitString(itemsWithEnclosuresCount, 'episode')}` ];
+                            if (itemsWithoutEnclosuresCount > 0) pieces.push(`and ${unitString(itemsWithoutEnclosuresCount, 'item')} without enclosures`);
+                            pieces.push(`in a ${formatBytes(text.length)} feed`);
+                            addMessage('info', pieces.join(' '));
+                        }
                         const piReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md' };
                         const tagString = (set: ReadonlySet<string>) => [...set].map(v => `<podcast:${v}>`).join(', ');
                         if (knownPiTags.size > 0) {
-                            addMessage('good', `Found and checked ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, { reference: piReference });
+                            addMessage('good', `Found ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, { reference: piReference });
                         }
                         if (unknownPiTags.size > 0) {
                             addMessage('warning', `Found ${unitString(unknownPiTags.size, 'unknown podcast namespace tag')}: ${tagString(unknownPiTags)}`, { reference: piReference });
