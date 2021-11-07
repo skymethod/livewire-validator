@@ -1,5 +1,5 @@
 import { getTraversalObj } from './deps_app.ts';
-import { checkEqual } from './check.ts';
+import { checkEqual, checkTrue } from './check.ts';
 import { Qnames, Qname } from './qnames.ts';
 
 export function parseFeedXml(xml: string): ExtendedXmlNode {
@@ -120,6 +120,16 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
         .checkRequiredAttribute('owner', isEmailAddress)
         .checkRemainingAttributes();
 
+    // podcast:funding
+    const fundingReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding'};
+    for (const funding of findChildElements(channel, ...Qnames.PodcastIndex.funding)) {
+        ElementValidation.forElement('channel', funding, callbacks, fundingReference)
+            .checkValue(isNotEmpty)
+            .checkValue(isAtMostCharacters(128))
+            .checkRequiredAttribute('url', isUrl)
+            .checkRemainingAttributes();
+    }
+
     // continue to items
     for (const item of channel.child.item || []) {
         validateItem(item as ExtendedXmlNode, callbacks);
@@ -165,6 +175,10 @@ function isUuid(trimmedText: string): boolean {
 
 function isEmailAddress(trimmedText: string): boolean {
     return /^[^@\s]+@[^@\s]+$/.test(trimmedText);
+}
+
+function isAtMostCharacters(maxCharacters: number): (trimmedText: string) => boolean {
+    return trimmedText => trimmedText.length <= maxCharacters;
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -232,6 +246,13 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
             .checkOptionalAttribute('rel', isNotEmpty)
             .checkRemainingAttributes();
     }
+
+    // podcast:chapters
+    ElementValidation.forSingleChild('item', item, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#chapters' }, ...Qnames.PodcastIndex.chapters)
+        .checkRequiredAttribute('url', isUrl)
+        .checkRequiredAttribute('type', isMimeType)
+        .checkRemainingAttributes();
+
 
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
@@ -349,6 +370,7 @@ class ElementValidation {
     }
 
     static forSingleChild(level: Level, parent: ExtendedXmlNode, callbacks: ValidationCallbacks, reference: RuleReference, ...qnames: Qname[]): ElementValidation {
+        checkTrue('qnames.length', qnames.length, qnames.length > 0);
         const elements = findChildElements(parent, ...qnames);
         if (elements.length > 0) {
             if (elements.length > 1) callbacks.onWarning(elements[1], `Multiple ${level} <${elements[1].tagname}> elements are not allowed`, { reference });
