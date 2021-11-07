@@ -19,7 +19,7 @@ export const SEARCH_RESULTS_CSS = css`
     gap: 0.5rem;
     align-items: center;
     font-size: 0.75rem;
-    animation: fadeInAnimation 0.5s;
+    animation: fadeInAnimation 0.4s;
     margin-bottom: 0.75rem;
     cursor: pointer;
 }

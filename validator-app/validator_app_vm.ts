@@ -1,6 +1,8 @@
 import { checkEqual, checkMatches } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment, computeCommentCount } from './comments.ts';
-import { computeAttributeMap, ExtendedXmlNode, MessageOptions, parseFeedXml, RuleReference, validateFeedXml, ValidationCallbacks, XmlNode } from './validator.ts';
+import { MessageOptions, RuleReference, validateFeedXml, ValidationCallbacks } from './validator.ts';
+import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
+
 import { isReadonlyArray } from './util.ts';
 
 export class ValidatorAppVM {
@@ -122,7 +124,7 @@ export class ValidatorAppVM {
                     
                     let xml: ExtendedXmlNode | undefined;
                     try {
-                        xml = parseFeedXml(text);
+                        xml = parseXml(text);
                         console.log(xml);
                     } catch (e) {
                         addMessage('error', `Xml parse failed: ${e.message}`);
@@ -398,7 +400,7 @@ async function localOrRemoteFetch(url: string, opts: { headers?: Record<string, 
     return { fetchTime: Date.now() - start, side: 'remote', response };
 }
 
-function findEpisodeTitle(socialInteract: XmlNode): string | undefined {
+function findEpisodeTitle(socialInteract: ExtendedXmlNode): string | undefined {
     const item = socialInteract.parent;
     if (item) {
         const title = item.child['title'];
@@ -455,4 +457,3 @@ interface PISearchResponse {
 interface PIIdResponse {
     readonly feed: PIFeedInfo | readonly PIFeedInfo[]; // empty array when not found
 }
-

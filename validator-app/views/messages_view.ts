@@ -19,7 +19,7 @@ export const MESSAGES_CSS = css`
 }
 
 #messages > div, #messages > a {
-    animation: fadeInAnimation 0.5s;
+    animation: fadeInAnimation 0.4s;
 }
 
 #messages svg {

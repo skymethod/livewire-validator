@@ -1,3 +1,5 @@
+import { Qname } from './xml_parser.ts';
+
 // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md
 
 const PODCAST_INDEX_NAMESPACE = 'https://podcastindex.org/namespace/1.0';
@@ -21,27 +23,8 @@ function _mediaRss(name: string): Qname {
 
 //
 
-export interface Qname {
-    readonly name: string;
-    readonly namespaceUri?: string;
-}
-
 export class Qnames {
-
-    static eq(lhs: Qname, rhs: Qname): boolean {
-        return lhs.name === rhs.name && lhs.namespaceUri === rhs.namespaceUri;
-    }
-
-    static includes(lhs: readonly Qname[], rhs: Qname): boolean {
-        return lhs.some(v => Qnames.eq(v, rhs));
-    }
-
-    static of(name: string): Qname {
-        return { name };
-    }
-
-    //
-
+    
     static readonly PodcastIndex = {
         NAMESPACES: PODCAST_INDEX_NAMESPACES,
         get KNOWN_NAMES(): ReadonlySet<string> { return PODCAST_INDEX_KNOWN_NAMES },

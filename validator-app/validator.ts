@@ -1,14 +1,6 @@
-import { getTraversalObj } from './deps_app.ts';
-import { checkEqual, checkTrue } from './check.ts';
-import { Qnames, Qname } from './qnames.ts';
-
-export function parseFeedXml(xml: string): ExtendedXmlNode {
-    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;
-    const namespaces = new XmlNamespaces();
-    applyQnames(rt, namespaces);
-    checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
-    return rt as ExtendedXmlNode;
-}
+import { checkTrue } from './check.ts';
+import { Qnames } from './qnames.ts';
+import { ExtendedXmlNode, findChildElements, Qname } from './xml_parser.ts';
 
 export function validateFeedXml(xml: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     if (xml.tagname !== '!xml') return callbacks.onError(xml, `Bad xml.tagname: ${xml.tagname}`);
@@ -17,26 +9,6 @@ export function validateFeedXml(xml: ExtendedXmlNode, callbacks: ValidationCallb
     const docElement = Object.values(xml.child).flatMap(v => v)[0];
     if (!docElement) return callbacks.onError(xml, `No xml root element`); 
     validateRss(docElement as ExtendedXmlNode, callbacks);
-}
-
-export function computeAttributeMap(attrsMap: Record<string, string> | undefined): ReadonlyMap<string, string> {
-    let map: Map<string, string> | undefined;
-    if (attrsMap) {
-        for (const [ name, value ] of Object.entries(attrsMap)) {
-            if (!name.startsWith('@_')) throw new Error(`Bad attrsMap name: ${name}, ${attrsMap}`);
-            map = map || new Map<string, string>();
-            map.set(name.substring(2), value);
-        }
-    }
-    return map || EMPTY_MAP;
-}
-
-export interface XmlNode {
-    readonly tagname: string; // !xml for top-level
-    readonly attrsMap: Record<string, string>; // e.g. @_version: "2.0", @_xmlns:itunes: "http://www.itunes.com/dtds/podcast-1.0.dtd"
-    readonly child: Record<string, XmlNode[]>;
-    readonly parent?: XmlNode;
-    readonly val?: string;
 }
 
 export interface MessageOptions {
@@ -53,20 +25,12 @@ export interface ValidationCallbacks {
     onRssItemsFound(itemsCount: number, itemsWithEnclosuresCount: number): void;
 }
 
-export type ExtendedXmlNode = XmlNode & {
-    readonly atts: ReadonlyMap<string, string>;
-    readonly qname: Qname;
-};
-
 export interface RuleReference {
     readonly ruleset: string;
     readonly href: string;
 }
 
 //
-
-const EMPTY_MAP: ReadonlyMap<string, string> = new Map<string, string>();
-const EMPTY_XML_NODE_ARRAY: readonly ExtendedXmlNode[] = [];
 
 function getSingleChild(node: ExtendedXmlNode, name: string, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
     const children = findChildElements(node, { name });
@@ -497,91 +461,7 @@ function podcastIndexReference(href: string): RuleReference {
     return { ruleset: 'podcastindex', href };
 }
 
-function findChildElements(node: ExtendedXmlNode, ...qnames: readonly Qname[]): readonly ExtendedXmlNode[] {
-    let rt: ExtendedXmlNode[] | undefined;
-    for (const value of Object.values(node.child)) {
-        for (const qname of qnames) {
-            for (const child of value) {
-                const extChild = child as ExtendedXmlNode;
-                if (qname.name === '*' ? qname.namespaceUri === extChild.qname.namespaceUri : Qnames.eq(qname, extChild.qname)) {
-                    rt = rt || [];
-                    rt.push(extChild);
-                }
-            }
-        }
-    }
-    return rt || EMPTY_XML_NODE_ARRAY;
-}
-
-function applyQnames(node: XmlNode, namespaces: XmlNamespaces) {
-    try {
-        const atts = namespaces.push(node.attrsMap);
-        // deno-lint-ignore no-explicit-any
-        const nodeAsAny = node as any;
-        nodeAsAny.atts = atts;
-        nodeAsAny.qname = computeQname(node.tagname, namespaces);
-        for (const value of Object.values(node.child)) {
-            for (const childNode of value) {
-                applyQnames(childNode, namespaces);
-            }
-        }
-    } finally {
-        namespaces.pop();
-    }
-}
-
-function computeQname(nameWithOptionalPrefix: string, namespaces: XmlNamespaces): Qname {
-    const i = nameWithOptionalPrefix.indexOf(':');
-    if (i < 0) return { name: nameWithOptionalPrefix, namespaceUri: namespaces.findNamespaceUri('') };
-    return { name: nameWithOptionalPrefix.substring(i + 1), namespaceUri: namespaces.getNamespaceUri(nameWithOptionalPrefix.substring(0, i)) };
-}
-
 //
-
-class XmlNamespaces {
-
-    private stack: ReadonlyMap<string, string>[] = [];
-
-    get stackSize(): number { return this.stack.length; }
-
-    push(attrsMap: Record<string, string>): ReadonlyMap<string, string> {
-        const attrs = computeAttributeMap(attrsMap);
-        let map: Map<string, string> | undefined;
-        for (const [ name, value ] of attrs.entries()) {
-            if (name === 'xmlns') {
-                map = map || new Map<string, string>();
-                map.set('', value);
-            } else if (name.startsWith('xmlns:')) {
-                map = map || new Map<string, string>();
-                const prefix = name.substring(6);
-                map.set(prefix, value);
-            }
-        }
-        this.stack.push(map || EMPTY_MAP);
-        return attrs;
-    }
-
-    pop() {
-        this.stack.pop();
-    }
-
-    findNamespaceUri(prefix: string): string | undefined {
-        for (let i = this.stack.length - 1; i >= 0; i--) {
-            const rt = this.stack[i].get(prefix);
-            if (rt) return rt;
-        }
-        return undefined;
-    }
-
-    getNamespaceUri(prefix: string): string {
-        for (let i = this.stack.length - 1; i >= 0; i--) {
-            const rt = this.stack[i].get(prefix);
-            if (rt) return rt;
-        }
-        throw new Error(`getNamespaceUri: prefix not found: ${prefix}`);
-    }
-
-}
 
 type Level = 'channel' | 'item' | string;
 

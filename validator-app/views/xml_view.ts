@@ -1,8 +1,8 @@
 import { html, css, unsafeCSS } from '../deps_app.ts';
 import { Qnames } from '../qnames.ts';
 import { Theme } from '../theme.ts';
-import { ExtendedXmlNode } from '../validator.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
+import { qnameEq, ExtendedXmlNode, qnamesInclude } from '../xml_parser.ts';
 import { externalizeAnchor } from './util.ts';
 
 export const XML_HTML = html`
@@ -111,8 +111,8 @@ function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level:
         }
     }
     const audioUrl = node.tagname === 'enclosure' && atts.get('url') 
-        || node.qname.namespaceUri && Qnames.includes(Qnames.PodcastIndex.source, node.qname) && atts.get('uri') 
-        || Qnames.eq(node.qname, Qnames.MediaRss.content) && (atts.get('type') || '').startsWith('audio') && atts.get('url')
+        || node.qname.namespaceUri && qnamesInclude(Qnames.PodcastIndex.source, node.qname) && atts.get('uri') 
+        || qnameEq(node.qname, Qnames.MediaRss.content) && (atts.get('type') || '').startsWith('audio') && atts.get('url')
         ;
     if (audioUrl) {
         const audio = document.createElement('audio');
