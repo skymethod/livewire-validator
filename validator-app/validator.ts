@@ -103,8 +103,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkText(description, isNotEmpty, callbacks, opts);
 
     // podcast:guid
-    const guidReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid' };
-    ElementValidation.forSingleChild('channel', channel, callbacks, guidReference, ...Qnames.PodcastIndex.guid)
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid'), ...Qnames.PodcastIndex.guid)
         .checkValue(isUuid, guidText => {
             const version = guidText.charAt(14);
             if (version !== '5') {
@@ -114,16 +113,14 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
         .checkRemainingAttributes();
 
     // podcast:locked
-    const lockedReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked' };
-    ElementValidation.forSingleChild('channel', channel, callbacks, lockedReference, ...Qnames.PodcastIndex.locked)
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked'), ...Qnames.PodcastIndex.locked)
         .checkValue(v => /^(yes|no)$/.test(v))
         .checkRequiredAttribute('owner', isEmailAddress)
         .checkRemainingAttributes();
 
     // podcast:funding
-    const fundingReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding'};
     for (const funding of findChildElements(channel, ...Qnames.PodcastIndex.funding)) {
-        ElementValidation.forElement('channel', funding, callbacks, fundingReference)
+        ElementValidation.forElement('channel', funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkRequiredAttribute('url', isUrl)
@@ -137,9 +134,8 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkPodcastLocation('channel', channel, callbacks);
 
     // podcast:trailer
-    const trailerReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#trailer'};
     for (const trailer of findChildElements(channel, ...Qnames.PodcastIndex.trailer)) {
-        ElementValidation.forElement('channel', trailer, callbacks, trailerReference)
+        ElementValidation.forElement('channel', trailer, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#trailer'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkRequiredAttribute('url', isUrl)
@@ -161,9 +157,8 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 }
 
 function checkPodcastPerson(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    const personReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#person'};
     for (const person of findChildElements(node, ...Qnames.PodcastIndex.person)) {
-        ElementValidation.forElement(level, person, callbacks, personReference)
+        ElementValidation.forElement(level, person, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#person'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkOptionalAttribute('role', isNotEmpty)
@@ -175,8 +170,7 @@ function checkPodcastPerson(level: Level, node: ExtendedXmlNode, callbacks: Vali
 }
 
 function checkPodcastLocation(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    const locationReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#location'};
-    ElementValidation.forSingleChild(level, node, callbacks, locationReference, ...Qnames.PodcastIndex.location)
+    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#location'), ...Qnames.PodcastIndex.location)
         .checkOptionalAttribute('geo', isGeoLatLon)
         .checkOptionalAttribute('osm', isOpenStreetMapIdentifier)
         .checkValue(isNotEmpty)
@@ -185,8 +179,7 @@ function checkPodcastLocation(level: Level, node: ExtendedXmlNode, callbacks: Va
 }
 
 function checkPodcastLicense(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    const licenseReference: RuleReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#license'};
-    ElementValidation.forSingleChild(level, node, callbacks, licenseReference, ...Qnames.PodcastIndex.license)
+    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#license'), ...Qnames.PodcastIndex.license)
         .checkOptionalAttribute('url', isUrl)
         .checkValue(isNotEmpty)
         .checkValue(isAtMostCharacters(128))
@@ -218,7 +211,12 @@ function isNotEmpty(trimmedText: string): boolean {
 }
 
 function isUrl(trimmedText: string): boolean {
-    return /^https?:\/\/.+?$/.test(trimmedText) && tryParseUrl(trimmedText) !== undefined;
+    const u = tryParseUrl(trimmedText);
+    return u && u.protocol === 'https:' || u?.protocol === 'http:';
+}
+
+function isUri(trimmedText: string): boolean {
+    return tryParseUrl(trimmedText) !== undefined;
 }
 
 function tryParseUrl(str: string): URL | undefined {
@@ -273,6 +271,10 @@ function isRfc2822(trimmedText: string): boolean {
     // 01 Jun 2016 14:31:46 -0700
     // Thu, 01 Apr 2021 08:00:00 EST
     return /^[0-9A-Za-z: -]+$/.test(trimmedText);
+}
+
+function isBoolean(trimmedText: string): boolean {
+    return /^(true|false)$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -333,7 +335,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // podcast:transcript
     const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);
     for (const transcript of transcripts) {
-        ElementValidation.forElement('item', transcript, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript' })
+        ElementValidation.forElement('item', transcript, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript'))
             .checkRequiredAttribute('url', isUrl)
             .checkRequiredAttribute('type', isMimeType)
             .checkOptionalAttribute('language', isNotEmpty)
@@ -342,7 +344,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     }
 
     // podcast:chapters
-    ElementValidation.forSingleChild('item', item, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#chapters' }, ...Qnames.PodcastIndex.chapters)
+    ElementValidation.forSingleChild('item', item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#chapters'), ...Qnames.PodcastIndex.chapters)
         .checkRequiredAttribute('url', isUrl)
         .checkRequiredAttribute('type', isMimeType)
         .checkRemainingAttributes();
@@ -350,7 +352,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // podcast:soundbite
     const soundbites = findChildElements(item, ...Qnames.PodcastIndex.soundbite);
     for (const soundbite of soundbites) {
-        ElementValidation.forElement('item', soundbite, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#soundbite' })
+        ElementValidation.forElement('item', soundbite, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#soundbite'))
             .checkRequiredAttribute('startTime', isSeconds)
             .checkRequiredAttribute('duration', isSeconds)
             .checkValue(isAtMostCharacters(128))
@@ -364,13 +366,13 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     checkPodcastLocation('item', item, callbacks);
 
     // podcast:season
-    ElementValidation.forSingleChild('item', item, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#season' }, ...Qnames.PodcastIndex.season)
+    ElementValidation.forSingleChild('item', item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#season'), ...Qnames.PodcastIndex.season)
         .checkOptionalAttribute('name', v => isNotEmpty(v) && isAtMostCharacters(128)(v))
         .checkValue(isNonNegativeInteger)
         .checkRemainingAttributes();
 
     // podcast:episode
-    ElementValidation.forSingleChild('item', item, callbacks, { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#episode' }, ...Qnames.PodcastIndex.episode)
+    ElementValidation.forSingleChild('item', item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#episode'), ...Qnames.PodcastIndex.episode)
         .checkOptionalAttribute('display', v => isNotEmpty(v) && isAtMostCharacters(32)(v))
         .checkValue(isDecimal)
         .checkRemainingAttributes();
@@ -378,11 +380,44 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // podcast:license
     checkPodcastLicense('item', item, callbacks);
 
+    // podcast:alternateEnclosure
+    const alternateEnclosures = findChildElements(item, ...Qnames.PodcastIndex.alternateEnclosure);
+    for (const alternateEnclosure of alternateEnclosures) {
+        ElementValidation.forElement('item', alternateEnclosure, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#alternate-enclosure'))
+            .checkRequiredAttribute('type', isMimeType)
+            .checkRequiredAttribute('length', isNonNegativeInteger)
+            .checkOptionalAttribute('bitrate', isDecimal)
+            .checkOptionalAttribute('height', isNonNegativeInteger)
+            .checkOptionalAttribute('lang', isNotEmpty)
+            .checkOptionalAttribute('title', v => isNotEmpty(v) && isAtMostCharacters(32)(v))
+            .checkOptionalAttribute('rel', v => isNotEmpty(v) && isAtMostCharacters(32)(v))
+            .checkOptionalAttribute('codecs', isNotEmpty)
+            .checkOptionalAttribute('default', isBoolean)
+            .checkRemainingAttributes();
+        
+        ElementValidation.forSingleChild('alternateEnclosure', alternateEnclosure, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#integrity'), ...Qnames.PodcastIndex.integrity)
+            .checkRequiredAttribute('type', v => /^(sri|pgp-signature)$/.test(v))
+            .checkRequiredAttribute('value', isNotEmpty)
+            .checkRemainingAttributes();
+
+        const sources = findChildElements(alternateEnclosure, ...Qnames.PodcastIndex.source);
+        for (const source of sources) {
+            ElementValidation.forElement('alternateEnclosure', source, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#alternate-enclosure'))
+                .checkRequiredAttribute('uri', isUri)
+                .checkOptionalAttribute('contentType', isMimeType)
+                .checkRemainingAttributes();
+        }
+    }
+
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     for (const socialInteract of socialInteracts) {
-        callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact', reference: { ruleset: 'podcastindex', href: 'https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element' } });
+        callbacks.onGood(socialInteract, 'Found <podcast:socialInteract>!', { tag: 'social-interact', reference: podcastIndexReference('https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element') });
     }
+}
+
+function podcastIndexReference(href: string): RuleReference {
+    return { ruleset: 'podcastindex', href };
 }
 
 function findChildElements(node: ExtendedXmlNode, ...qnames: readonly Qname[]): readonly ExtendedXmlNode[] {
@@ -471,7 +506,7 @@ class XmlNamespaces {
 
 }
 
-type Level = 'channel' | 'item';
+type Level = 'channel' | 'item' | string;
 
 class ElementValidation {
     private static readonly EMPTY_STRING_SET = new Set<string>();

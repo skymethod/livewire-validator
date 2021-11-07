@@ -56,6 +56,8 @@ export class Qnames {
         episode: _podcastIndex('episode'),
         trailer: _podcastIndex('trailer'),
         license: _podcastIndex('license'),
+        alternateEnclosure: _podcastIndex('alternateEnclosure'),
+        integrity: _podcastIndex('integrity'),
     }
 
     static readonly MediaRss = {
