@@ -16,6 +16,13 @@ export const XML_CSS = css`
     line-height: 1rem;
     color: ${unsafeCSS(Theme.textColorSecondaryHex)};
     overflow-wrap: break-word;
+    line-height: 1.4;
+}
+
+#xml .root {
+    font-family: ${unsafeCSS(Theme.sansSerifFontFamily)};
+    color: ${unsafeCSS(Theme.textColorHex)};
+    line-height: 2;
 }
 
 #xml .content {
@@ -47,7 +54,7 @@ export function initXml(document: Document, vm: ValidatorAppVM): () => void {
     return () => {
         const xml = vm.xml;
         if (xml !== _renderedXml) {
-            renderXml(xml, xmlOutput);
+            renderXml(xml, xmlOutput, vm.xmlSummaryText);
             _renderedXml = xml;
         }
     };
@@ -59,12 +66,12 @@ const MAX_ITEMS_TO_DISPLAY = 20;
 
 let _renderedXml: ExtendedXmlNode | undefined;
 
-function renderXml(xml: ExtendedXmlNode | undefined, xmlOutput: HTMLOutputElement) {
+function renderXml(xml: ExtendedXmlNode | undefined, xmlOutput: HTMLOutputElement, xmlSummaryText?: string) {
     while (xmlOutput.firstChild) xmlOutput.removeChild(xmlOutput.firstChild);
-    if (xml) renderNode(xml, xmlOutput, 0, new Set(), undefined);
+    if (xml) renderNode(xml, xmlOutput, 0, new Set(), undefined, xmlSummaryText);
 }
 
-function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level: number, context: Set<string>, itemNumber: number | undefined) {
+function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level: number, context: Set<string>, itemNumber: number | undefined, xmlSummaryText?: string) {
     const { atts } = node;
     const details = document.createElement('details');
     const text = node.val || '';
@@ -72,7 +79,8 @@ function renderNode(node: ExtendedXmlNode, containerElement: HTMLElement, level:
     if (level > 0) details.classList.add('indent');
     const summary = document.createElement('summary');
     if (level === 0) {
-        renderTextPieces(summary, 'Xml');
+        renderTextPieces(summary, xmlSummaryText || 'Xml');
+        summary.classList.add('root');
     } else {
         const spanClass = Qnames.PodcastIndex.NAMESPACES.includes(node.qname.namespaceUri || '') ? 'podcast' : undefined;
         renderTextPieces(summary, '<', { text: node.tagname, spanClass }, ...[...atts.entries()].flatMap(v => [` ${v[0]}="`, { text: v[1], spanClass: 'content' }, '"']), '>', itemNumber ? ` #${itemNumber}` : '');

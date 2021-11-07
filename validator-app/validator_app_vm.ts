@@ -20,6 +20,8 @@ export class ValidatorAppVM {
 
     get xml(): ExtendedXmlNode | undefined { return this.currentJob?.xml; }
 
+    get xmlSummaryText(): string | undefined { return this.currentJob?.xmlSummaryText; }
+
     get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
 
     onChange: () => void = () => {};
@@ -132,8 +134,6 @@ export class ValidatorAppVM {
                         job.times.parseTime = Date.now() - start;
                     }
 
-                    if (xml && Object.keys(xml).length > 0) job.xml = xml; // empty root if not actually xml
-
                     if (xml) {
                         start = Date.now();
                         const onMessage = (type: MessageType, node: ExtendedXmlNode, message: string, opts: MessageOptions | undefined) => {
@@ -174,6 +174,7 @@ export class ValidatorAppVM {
                                 rssItemInfo = { itemsCount, itemsWithEnclosuresCount};
                             },
                         };
+                        let xmlSummaryText = 'Xml structure';
                         validateFeedXml(xml, callbacks);
                         job.times.validateTime = Date.now() - start;
 
@@ -184,6 +185,7 @@ export class ValidatorAppVM {
                             if (itemsWithoutEnclosuresCount > 0) pieces.push(`and ${unitString(itemsWithoutEnclosuresCount, 'item')} without enclosures`);
                             pieces.push(`in a ${formatBytes(text.length)} feed`);
                             addMessage('info', pieces.join(' '));
+                            xmlSummaryText = `${itemsWithEnclosuresCount > 1 ? 'Podcast feed' : 'Feed'} structure`;
                         }
                         const piReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md' };
                         const tagString = (set: ReadonlySet<string>) => [...set].map(v => `<podcast:${v}>`).join(', ');
@@ -193,6 +195,13 @@ export class ValidatorAppVM {
                         if (unknownPiTags.size > 0) {
                             addMessage('warning', `Found ${unitString(unknownPiTags.size, 'unknown podcast namespace tag')}: ${tagString(unknownPiTags)}`, { reference: piReference });
                         }
+
+                        if (xml && Object.keys(xml).length > 0) { // fast-xml-parser returns empty root if not actually xml
+                            job.xml = xml;
+                            job.xmlSummaryText = xmlSummaryText;
+                            this.onChange();
+                        }
+
                     }
                 }
 
@@ -434,6 +443,7 @@ interface ValidationJob {
     done: boolean;
     cancelled: boolean;
     xml?: ExtendedXmlNode;
+    xmlSummaryText?: string;
     fetchCommentsResult?: FetchCommentsResult;
 }
 
