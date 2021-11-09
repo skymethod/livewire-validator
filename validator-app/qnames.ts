@@ -4,7 +4,8 @@ import { Qname } from './xml_parser.ts';
 
 const PODCAST_INDEX_NAMESPACE = 'https://podcastindex.org/namespace/1.0';
 const PODCAST_INDEX_NAMESPACE_ALT = 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md';
-const PODCAST_INDEX_NAMESPACES = [ PODCAST_INDEX_NAMESPACE, PODCAST_INDEX_NAMESPACE_ALT ];
+const PODCAST_INDEX_NAMESPACE_KNOWN_MISSPELLING = 'https://podcastindex.org/namespace/1.0/';
+const PODCAST_INDEX_NAMESPACES = [ PODCAST_INDEX_NAMESPACE, PODCAST_INDEX_NAMESPACE_ALT, PODCAST_INDEX_NAMESPACE_KNOWN_MISSPELLING ];
 
 const PODCAST_INDEX_KNOWN_NAMES = new Set<string>();
 
@@ -26,7 +27,8 @@ function _mediaRss(name: string): Qname {
 export class Qnames {
     
     static readonly PodcastIndex = {
-        NAMESPACES: PODCAST_INDEX_NAMESPACES,
+        NAMESPACES: PODCAST_INDEX_NAMESPACES as readonly string[],
+        KNOWN_MISSPELLED_NAMESPACES: [ PODCAST_INDEX_NAMESPACE_KNOWN_MISSPELLING ] as readonly string[],
         get KNOWN_NAMES(): ReadonlySet<string> { return PODCAST_INDEX_KNOWN_NAMES },
         of: (name: string) => _podcastIndex(name, false /*known*/),
         source: _podcastIndex('source'),
@@ -47,6 +49,9 @@ export class Qnames {
         integrity: _podcastIndex('integrity'),
         value: _podcastIndex('value'),
         valueRecipient: _podcastIndex('valueRecipient'),
+        podping: _podcastIndex('podping'),
+        hiveAccount: _podcastIndex('hiveAccount'),
+        medium: _podcastIndex('medium'),
     }
 
     static readonly MediaRss = {

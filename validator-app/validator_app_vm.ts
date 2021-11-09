@@ -1,9 +1,11 @@
 import { checkEqual, checkMatches } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, Comment, computeCommentCount } from './comments.ts';
-import { MessageOptions, RuleReference, validateFeedXml, ValidationCallbacks } from './validator.ts';
+import { MessageOptions, podcastIndexReference, RuleReference, validateFeedXml, ValidationCallbacks } from './validator.ts';
 import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
 
 import { isReadonlyArray } from './util.ts';
+import { Qnames } from "./qnames.ts";
+import { setIntersect } from "./sets.ts";
 
 export class ValidatorAppVM {
 
@@ -148,6 +150,7 @@ export class ValidatorAppVM {
   
                         const knownPiTags = new Set<string>();
                         const unknownPiTags = new Set<string>();
+                        const piNamespaceUris = new Set<string>();
                         let rssItemInfo: { itemsCount: number, itemsWithEnclosuresCount: number } | undefined;
                         const callbacks: ValidationCallbacks = {
                             onGood: (node, message, opts) => {
@@ -166,9 +169,10 @@ export class ValidatorAppVM {
                                 console.info(message);
                                 onMessage('info', node, message, opts);
                             },
-                            onPodcastIndexTagNamesFound: (known, unknown) => {
+                            onPodcastIndexTagNamesFound: (known, unknown, namespaceUris) => {
                                 known.forEach(v => knownPiTags.add(v));
                                 unknown.forEach(v => unknownPiTags.add(v));
+                                namespaceUris.forEach(v => piNamespaceUris.add(v));
                             },
                             onRssItemsFound: (itemsCount, itemsWithEnclosuresCount) => {
                                 rssItemInfo = { itemsCount, itemsWithEnclosuresCount};
@@ -187,13 +191,18 @@ export class ValidatorAppVM {
                             addMessage('info', pieces.join(' '));
                             xmlSummaryText = `${itemsWithEnclosuresCount > 1 ? 'Podcast feed' : 'Feed'} structure`;
                         }
-                        const piReference = { ruleset: 'podcastindex', href: 'https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md' };
+                        const piReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md');
                         const tagString = (set: ReadonlySet<string>) => [...set].map(v => `<podcast:${v}>`).join(', ');
                         if (knownPiTags.size > 0) {
                             addMessage('good', `Found ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, { reference: piReference });
                         }
                         if (unknownPiTags.size > 0) {
                             addMessage('warning', `Found ${unitString(unknownPiTags.size, 'unknown podcast namespace tag')}: ${tagString(unknownPiTags)}`, { reference: piReference });
+                        }
+                        const misspelledNamespaces = setIntersect(piNamespaceUris, new Set(Qnames.PodcastIndex.KNOWN_MISSPELLED_NAMESPACES));
+                        if (misspelledNamespaces.size > 0) {
+                            const reference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#rss-namespace-extension-for-podcasting-tag-specification');
+                            addMessage('warning', `Found ${unitString(misspelledNamespaces.size, 'misspelled podcast namespace uri')}: ${[...misspelledNamespaces].join(', ')}`, { reference });
                         }
 
                         if (xml && Object.keys(xml).length > 0) { // fast-xml-parser returns empty root if not actually xml

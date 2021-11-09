@@ -11,6 +11,12 @@ export function validateFeedXml(xml: ExtendedXmlNode, callbacks: ValidationCallb
     validateRss(docElement as ExtendedXmlNode, callbacks);
 }
 
+export function podcastIndexReference(href: string): RuleReference {
+    return { ruleset: 'podcastindex', href };
+}
+
+//
+
 export interface MessageOptions {
     readonly tag?: string;
     readonly reference?: RuleReference
@@ -21,7 +27,7 @@ export interface ValidationCallbacks {
     onInfo(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
     onError(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
     onWarning(node: ExtendedXmlNode, message: string, opts?: MessageOptions): void;
-    onPodcastIndexTagNamesFound(known: ReadonlySet<string>, unknown: ReadonlySet<string>): void;
+    onPodcastIndexTagNamesFound(known: ReadonlySet<string>, unknown: ReadonlySet<string>, namespaceUris: ReadonlySet<string>): void;
     onRssItemsFound(itemsCount: number, itemsWithEnclosuresCount: number): void;
 }
 
@@ -120,8 +126,29 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:value
     checkPodcastValue('channel', channel, callbacks);
 
+    // PROPOSALS
+
     // podcast:social
     // TODO when the spec is more baked and we have feeds
+
+    // podcast:podping
+    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/podping/podping.md#specification');
+    const podping = ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping)
+        .checkOptionalAttribute('usesPodping', isBoolean)
+        .checkRemainingAttributes()
+        .node;
+    if (podping) {
+        for (const hiveAccount of findChildElements(podping, ...Qnames.PodcastIndex.hiveAccount)) {
+            ElementValidation.forElement('podping', hiveAccount, callbacks, podpingReference)
+                .checkRequiredAttribute('account', isNotEmpty)
+                .checkRemainingAttributes();
+        }
+    }
+
+    // podcast:medium
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/README.md#podcastmedium---discuss'), ...Qnames.PodcastIndex.medium)
+        .checkValue(isPodcastMedium)
+        .checkRemainingAttributes();
 
     checkPodcastTagUsage(channel, callbacks);
 
@@ -196,12 +223,14 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
 function checkPodcastTagUsage(node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     const known = new Set<string>();
     const unknown = new Set<string>();
+    const namespaceUris = new Set<string>();
     for (const element of findChildElements(node, ...Qnames.PodcastIndex.NAMESPACES.map(v => ({ name: '*', namespaceUri: v })))) {
         const isKnown = Qnames.PodcastIndex.KNOWN_NAMES.has(element.qname.name);
         (isKnown ? known : unknown).add(element.qname.name);
+        if (element.qname.namespaceUri) namespaceUris.add(element.qname.namespaceUri);
     }
     if (known.size + unknown.size > 0) {
-        callbacks.onPodcastIndexTagNamesFound(known, unknown);
+        callbacks.onPodcastIndexTagNamesFound(known, unknown, namespaceUris);
     }
 }
 
@@ -303,6 +332,10 @@ function isBoolean(trimmedText: string): boolean {
 
 function isPodcastValueTypeSlug(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/value/valueslugs.txt
+    return /^[a-z]+$/.test(trimmedText);
+}
+
+function isPodcastMedium(trimmedText: string): boolean {
     return /^[a-z]+$/.test(trimmedText);
 }
 
@@ -441,6 +474,8 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // podcast:value
     checkPodcastValue('item', item, callbacks);
 
+    // PROPOSALS
+
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
     const socialInteractReference = podcastIndexReference('https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element');
@@ -457,10 +492,6 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     }
 
     checkPodcastTagUsage(item, callbacks);
-}
-
-function podcastIndexReference(href: string): RuleReference {
-    return { ruleset: 'podcastindex', href };
 }
 
 //
