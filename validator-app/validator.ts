@@ -129,7 +129,30 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // PROPOSALS
 
     // podcast:social
-    // TODO when the spec is more baked and we have feeds
+    const socials = findChildElements(channel, ...Qnames.PodcastIndex.social);
+    const socialReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#social-element');
+    const socialSignUpReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#socialsignup-element');
+    for (const social of socials) {
+        ElementValidation.forElement('channel', social, callbacks, socialReference)
+            .checkRequiredAttribute('platform', isNotEmpty)
+            .checkRequiredAttribute('podcastAccountId', isNotEmpty)
+            .checkRequiredAttribute('podcastAccountUrl', isUrl)
+            .checkOptionalAttribute('priority', isNonNegativeInteger)
+            .checkRemainingAttributes();
+            
+        const socialSignUps = findChildElements(channel, ...Qnames.PodcastIndex.socialSignUp);
+        for (const socialSignUp of socialSignUps) {
+            ElementValidation.forElement('social', socialSignUp, callbacks, socialSignUpReference)
+                .checkRequiredAttribute('homeUrl', isUrl)
+                .checkRequiredAttribute('signUpUrl', isUrl)
+                .checkOptionalAttribute('priority', isNonNegativeInteger)
+                .checkRemainingAttributes();
+        }
+    }
+    const badSocialSignups = findChildElements(channel, ...Qnames.PodcastIndex.socialSignUp);
+    if (badSocialSignups.length > 0) {
+        callbacks.onWarning(badSocialSignups[0], `Bad <${badSocialSignups[0].tagname}>: should be a child of <podcast:social>, not channel`);
+    }
 
     // podcast:podping
     const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/podping/podping.md#specification');
@@ -478,7 +501,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
     // podcast:socialInteract
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
-    const socialInteractReference = podcastIndexReference('https://github.com/benjaminbellamy/podcast-namespace/blob/patch-9/proposal-docs/social/social.md#socialinteract-element');
+    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#socialinteract-element');
     for (const socialInteract of socialInteracts) {
         ElementValidation.forElement('item', socialInteract, callbacks, socialInteractReference)
             .checkRequiredAttribute('platform', isNotEmpty)
