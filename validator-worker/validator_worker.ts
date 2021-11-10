@@ -5,7 +5,7 @@ import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { AppManifest } from './app_manifest.d.ts';
 import { ValidatorWorkerEnv } from './validator_worker_env.d.ts';
-import { Theme } from './theme.ts';
+import { Theme } from './common/theme.ts';
 import { PodcastIndexCredentials, search } from './search.ts';
 
 export default {

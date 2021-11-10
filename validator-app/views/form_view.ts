@@ -1,6 +1,5 @@
-import { html, css, unsafeCSS } from '../deps_app.ts';
+import { html, css, unsafeCSS, Theme } from '../deps_app.ts';
 import { StaticData } from '../static_data.ts';
-import { Theme } from '../theme.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { CHECKLIST_ICON } from './icons.ts';
 

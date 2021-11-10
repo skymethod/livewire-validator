@@ -1,33 +1,6 @@
 import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage, PodcastEpisode } from './activity_pub.ts';
+import { Comment, Commenter, Attachment, Icon } from './deps_app.ts';
 import { isReadonlyArray } from './util.ts';
-
-export interface Comment {
-    readonly url?: string;
-    readonly attributedTo: string;
-    readonly content: string;
-    readonly published: string;
-    readonly replies: Comment[];
-    readonly attachments: Attachment[];
-}
-
-export interface Commenter {
-    readonly icon: Icon;
-    readonly name: string;
-    readonly url: string;
-    readonly fqUsername: string; // e.g. @user@example.com
-}
-
-export interface Icon {
-    readonly url: string;
-    readonly mediaType?: string;
-}
-
-export interface Attachment {
-    readonly mediaType: string;
-    readonly width?: number;
-    readonly height?: number;
-    readonly url: string;
-}
 
 export interface FetchCommentsOpts {
     keepGoing(): boolean;
@@ -38,7 +11,7 @@ export interface FetchCommentsOpts {
 export interface FetchCommentsResult {
     readonly subject: string;
     readonly rootComment: Comment;
-    readonly commenters: ReadonlyMap<string, Commenter>;
+    readonly commenters: ReadonlyMap<string, Commenter>; // attributedTo -> Commenter
 }
 
 //

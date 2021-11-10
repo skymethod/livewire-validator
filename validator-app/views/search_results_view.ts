@@ -1,5 +1,4 @@
-import { html, LitElement, css, unsafeCSS } from '../deps_app.ts';
-import { Theme } from '../theme.ts';
+import { html, LitElement, css, unsafeCSS, Theme } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { SQUARE_ICON } from './icons.ts';
 

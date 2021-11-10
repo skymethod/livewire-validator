@@ -1,9 +1,8 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { css, html, LitElement, unsafeCSS } from './deps_app.ts';
+import { css, html, LitElement, unsafeCSS, Theme } from './deps_app.ts';
 import { StaticData } from './static_data.ts';
-import { Theme } from './theme.ts';
 import { ValidatorAppVM } from './validator_app_vm.ts';
 import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { COMMENTS_CSS, COMMENTS_HTML, initComments } from './views/comments_view.ts';
