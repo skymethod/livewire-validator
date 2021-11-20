@@ -6,6 +6,8 @@ export interface FetchCommentsOpts {
     keepGoing(): boolean;
     fetchActivityPub(url: string): Promise<Record<string, unknown> | undefined>;
     warn(comment: Comment, url: string, message: string): void;
+    // deno-lint-ignore no-explicit-any
+    readonly obj?: any;
 }
 
 export interface FetchCommentsResult {
@@ -31,11 +33,30 @@ export function computeCommentCount(comment: Comment): number {
 
 async function fetchCommentsForUrl_(url: string, opts: FetchCommentsOpts): Promise<Comment | undefined> {
     const { fetchActivityPub } = opts;
-    const obj = await fetchActivityPub(url); if (!obj) return undefined;
+    const obj = opts.obj || await fetchActivityPub(url); if (!obj) return undefined;
+    if (obj.type === 'OrderedCollection') {
+        const emptyComment: Comment = { content: '(OrderedCollection)', replies: [], attachments: [] };
+        const orderedCollection = obj as unknown as OrderedCollection; // TODO validate
+        await collectCommentsFromOrderedCollection(orderedCollection, emptyComment, opts, new Set());
+        return emptyComment;
+    }
     const noteOrPodcastEpisode = obj as unknown as Note | PodcastEpisode; // TODO validate
     const rootComment = initCommentFromObjectOrLink(noteOrPodcastEpisode);
     await collectComments(noteOrPodcastEpisode, rootComment, opts, url);
     return rootComment;
+}
+
+async function collectCommentsFromOrderedCollection(orderedCollection: OrderedCollection, comment: Comment, opts: FetchCommentsOpts, fetched: Set<string>) {
+    if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
+        throw new Error(`TODO: orderedCollection.items/orderedItems not implemented ${JSON.stringify(orderedCollection)}`);
+    }
+    if (orderedCollection.first === undefined && orderedCollection.totalItems === 0) {
+        // fine, empty
+    } else if (typeof orderedCollection.first === 'string') {
+        await fetchPages(orderedCollection.first, comment, opts, fetched);
+    } else {
+        throw new Error(`TODO: orderedCollection.first not implemented ${JSON.stringify(orderedCollection)}`);
+    }
 }
 
 async function collectComments(note: Note | PodcastEpisode, comment: Comment, opts: FetchCommentsOpts, url: string): Promise<void> {
@@ -51,16 +72,7 @@ async function collectComments(note: Note | PodcastEpisode, comment: Comment, op
             console.log(JSON.stringify(obj, undefined, 2));
             if (obj.type === 'OrderedCollection') {
                 const orderedCollection = obj as unknown as OrderedCollection;
-                if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
-                    throw new Error(`TODO: orderedCollection.items/orderedItems not implemented ${JSON.stringify(obj)}`);
-                }
-                if (orderedCollection.first === undefined && orderedCollection.totalItems === 0) {
-                    // fine, empty
-                } else if (typeof orderedCollection.first === 'string') {
-                    await fetchPages(orderedCollection.first, comment, opts, fetched);
-                } else {
-                    throw new Error(`TODO: orderedCollection.first not implemented ${JSON.stringify(obj)}`);
-                }
+                await collectCommentsFromOrderedCollection(orderedCollection, comment, opts, fetched);
             } else {
                 throw new Error(`TODO: obj.type not implemented ${JSON.stringify(obj)}`);
             }
@@ -235,7 +247,7 @@ function computeFqUsername(url: string, preferredUsername: string | undefined): 
 }
 
 function collectAttributedTos(comment: Comment, attributedTos: Set<string>) {
-    attributedTos.add(comment.attributedTo);
+    if (comment.attributedTo) attributedTos.add(comment.attributedTo);
     for (const reply of comment.replies) {
         collectAttributedTos(reply, attributedTos);
     }

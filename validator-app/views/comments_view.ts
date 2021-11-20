@@ -90,7 +90,7 @@ function renderComments(result: FetchCommentsResult | undefined, commentsOutput:
 }
 
 function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>, containerElement: HTMLElement, level: number) {
-    const commenter = commenters.get(comment.attributedTo);
+    const commenter = comment.attributedTo ? commenters.get(comment.attributedTo) : undefined;
     
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
@@ -116,11 +116,11 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
         a.textContent = commenter.name + ' ' + commenter.fqUsername;
         attributedToDiv.appendChild(a);
     } else {
-        attributedToDiv.appendChild(document.createTextNode(comment.attributedTo));
+        attributedToDiv.appendChild(document.createTextNode(comment.attributedTo || '<unknown>'));
     }
     headerDiv.appendChild(attributedToDiv);
 
-    const ageText = document.createTextNode(computeAge(new Date(comment.published)));
+    const ageText = document.createTextNode(comment.published ? computeAge(new Date(comment.published)) : '');
     if (comment.url) {
         const ageAnchor = document.createElement('a');
         ageAnchor.classList.add('url');

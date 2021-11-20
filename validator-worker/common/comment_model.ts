@@ -1,8 +1,8 @@
 export interface Comment {
     readonly url?: string;
-    readonly attributedTo: string;
+    readonly attributedTo?: string;
     readonly content: string;
-    readonly published: string;
+    readonly published?: string;
     readonly replies: Comment[];
     readonly attachments: Attachment[];
 }

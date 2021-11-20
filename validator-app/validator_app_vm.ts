@@ -86,7 +86,8 @@ export class ValidatorAppVM {
             this.onChange();
         };
 
-        let activityPub: { url: string, subject: string } | undefined;
+        // deno-lint-ignore no-explicit-any
+        let activityPub: { url: string, subject: string, obj?: any } | undefined;
         const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
         const jobStart = Date.now();
@@ -116,6 +117,12 @@ export class ValidatorAppVM {
                     addMessage('info', 'Found html, will try again as ActivityPub');
                     validateFeed = false;
                     activityPub = { url: input, subject: 'input url' };
+                }
+                if (contentType && contentType.startsWith('application/activity+json')) {
+                    addMessage('info', 'Found ActivityPub json');
+                    const obj = await response.json();
+                    validateFeed = false;
+                    activityPub = { url: input, subject: 'input url', obj };
                 }
 
                 if (validateFeed) {
@@ -253,7 +260,7 @@ export class ValidatorAppVM {
                         addMessage('warning', message, { comment, url });
                     };
                     const start = Date.now();
-                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn });
+                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn, obj });
                     if (fetchCommentsResult) {
                         job.times.commentsTime = Date.now() - start;
                         addMessage('info', `Found ${unitString(computeCommentCount(fetchCommentsResult.rootComment), 'comment')} and ${unitString(fetchCommentsResult.commenters.size, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
