@@ -260,7 +260,7 @@ export class ValidatorAppVM {
                         addMessage('warning', message, { comment, url });
                     };
                     const start = Date.now();
-                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn, obj });
+                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn });
                     if (fetchCommentsResult) {
                         job.times.commentsTime = Date.now() - start;
                         addMessage('info', `Found ${unitString(computeCommentCount(fetchCommentsResult.rootComment), 'comment')} and ${unitString(fetchCommentsResult.commenters.size, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
