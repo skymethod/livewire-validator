@@ -88,7 +88,7 @@ async function updateData(name: string, value: string, dataPath: string) {
     console.log(`Updated ${name}`);
 }
 
-async function twitter(args: (string | number)[], options: Record<string, unknown>) {
+async function twitter(args: (string | number)[], _options: Record<string, unknown>) {
     const tweetId = args[0];
     if (typeof tweetId !== 'string') return;
 
@@ -147,7 +147,7 @@ async function mastodon(args: (string | number)[]) {
         const res = await instanceInformation(apiBase);
         console.log(JSON.stringify(res, undefined, 2));
     }
-    
+
     if (action === 'create-app') {
         const res = await appsCreateApplication(apiBase, { 
             client_name: clientName, 
