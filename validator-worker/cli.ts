@@ -1,5 +1,5 @@
 import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags } from './deps_cli.ts';
-import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, oauthObtainToken } from './mastodon_api.ts';
+import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, oauthObtainToken } from './mastodon_api.ts';
 
 const args = parseFlags(Deno.args, { string: '_' }); // don't auto coersce to number, twitter ids are rounded
 
@@ -136,12 +136,18 @@ async function mastodon(args: (string | number)[]) {
     if (typeof args[1] !== 'string') throw new Error(`Pass the path to MastodonSecrets json as the second arg`);
 
     const action = args[0];
+    
     const secrets = JSON.parse(await Deno.readTextFile(computeAbsolutePath(args[1]))) as MastodonSecrets;
     const { apiBase, clientName, redirectUris, redirectUri, scopes, website, clientId, clientSecret, accessToken, code } = secrets;
 
     // read:accounts: for /api/v1/accounts/verify_credentials
     // write:statuses: for creating new comments
 
+    if (action === 'instance-info') {
+        const res = await instanceInformation(apiBase);
+        console.log(JSON.stringify(res, undefined, 2));
+    }
+    
     if (action === 'create-app') {
         const res = await appsCreateApplication(apiBase, { 
             client_name: clientName, 

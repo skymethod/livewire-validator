@@ -173,6 +173,10 @@ export async function accountsVerifyCredentials(apiBase: string, accessToken: st
     return verifyJsonResponse(res, isAccountsVerifyCredentialsResponse);
 }
 
+export interface AccountsVerifyCredentialsResponse extends Account {
+    source: Source;
+}
+
 // deno-lint-ignore no-explicit-any
 function isAccountsVerifyCredentialsResponse(obj: any): obj is AccountsVerifyCredentialsResponse {
     return isObject(obj) 
@@ -180,8 +184,12 @@ function isAccountsVerifyCredentialsResponse(obj: any): obj is AccountsVerifyCre
         && isAccount(obj);
 }
 
-export interface AccountsVerifyCredentialsResponse extends Account {
-    source: Source;
+// https://docs.joinmastodon.org/methods/instance/
+
+/** Information about the server. */
+export async function instanceInformation(apiBase: string): Promise<Instance> {
+    const res = await fetch(`${apiBase}/api/v1/instance`);
+    return verifyJsonResponse(res, isInstance);
 }
 
 // Api Entities
@@ -242,4 +250,42 @@ function isSource(obj: any): obj is Source {
 export interface MastodonErrorResponse {
     readonly error: string;
     readonly error_description?: string;
+}
+
+// https://docs.joinmastodon.org/entities/instance/
+export interface Instance {
+    /** The domain name of the instance. */
+    readonly uri: string;
+
+    /** The title of the website. */
+    readonly title: string;
+
+    /** Admin-defined description of the Mastodon site. */
+    readonly description: string;
+
+    /** A shorter description defined by the admin. */
+    readonly short_description: string;
+
+    /** An email that may be contacted for any inquiries. 
+     * 
+     * Pleroma: optional
+    */
+    readonly email?: string;
+
+    /** The version of Mastodon installed on the instance. */
+    readonly version: string;
+
+    // and others...
+}
+
+// deno-lint-ignore no-explicit-any
+function isInstance(obj: any): obj is Instance {
+    return isObject(obj) 
+        && typeof obj.uri === 'string'
+        && typeof obj.title === 'string'
+        && typeof obj.description === 'string'
+        && (obj.short_description === undefined || typeof obj.short_description === 'string')
+        && typeof obj.email === 'string'
+        && typeof obj.version === 'string'
+        ;
 }
