@@ -1,4 +1,5 @@
 import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags } from './deps_cli.ts';
+import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, oauthObtainToken } from './mastodon_api.ts';
 
 const args = parseFlags(Deno.args, { string: '_' }); // don't auto coersce to number, twitter ids are rounded
 
@@ -15,7 +16,7 @@ Deno.exit(1);
 
 async function validator(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { build, b64, twitter }[command];
+    const fn = { build, b64, twitter, mastodon }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
@@ -121,6 +122,89 @@ async function callTwitterApi(url: string, bearerToken: string ) {
     }
 }
 
+function computeAbsolutePath(path: string): string {
+    if (path.startsWith('~/')) {
+        const home = Deno.env.get('HOME');
+        if (!home) throw new Error(`Expected $HOME`);
+        return home + path.substring(1);
+    }
+    return path;
+}
+
+async function mastodon(args: (string | number)[]) {
+    if (typeof args[0] !== 'string') throw new Error(`Pass the action as the first arg`);
+    if (typeof args[1] !== 'string') throw new Error(`Pass the path to MastodonSecrets json as the second arg`);
+
+    const action = args[0];
+    const secrets = JSON.parse(await Deno.readTextFile(computeAbsolutePath(args[1]))) as MastodonSecrets;
+    const { apiBase, clientName, redirectUris, redirectUri, scopes, website, clientId, clientSecret, accessToken, code } = secrets;
+
+    // read:accounts: for /api/v1/accounts/verify_credentials
+    // write:statuses: for creating new comments
+
+    if (action === 'create-app') {
+        const res = await appsCreateApplication(apiBase, { 
+            client_name: clientName, 
+            redirect_uris: redirectUris,
+            scopes,
+            website,
+        });
+        console.log(JSON.stringify(res, undefined, 2));
+    }
+
+    if (action === 'oauth-authorize-url') {
+        if (!clientId) throw new Error(`clientId is required`);
+
+        const url = computeOauthUserAuthorizationUrl(apiBase, { 
+            response_type: 'code',
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            scope: scopes,
+            force_login: true,
+        });
+        console.log(url);
+    }
+
+    if (action === 'oauth-obtain-token') {
+        if (!clientId) throw new Error(`clientId is required`);
+        if (!clientSecret) throw new Error(`clientSecret is required`);
+        if (!code) throw new Error(`code is required`);
+
+        const res = await oauthObtainToken(apiBase, {
+            grant_type: 'authorization_code',
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            code,
+            scope: scopes,
+        });
+        console.log(JSON.stringify(res, undefined, 2));
+    }
+
+    if (action === 'verify-credentials') {
+        if (!accessToken) throw new Error(`accessToken is required`);
+
+        const res = await accountsVerifyCredentials(apiBase, accessToken);
+        console.log(JSON.stringify(res, undefined, 2));
+    }
+}
+
+//
+
+interface MastodonSecrets {
+    readonly apiBase: string;
+    readonly clientName: string;
+    readonly redirectUris: string;
+    readonly redirectUri: string;
+    readonly scopes: string;
+    readonly website?: string;
+    readonly clientId?: string;
+    readonly clientSecret?: string;
+    readonly accessToken?: string;
+    readonly code?: string;
+}
+
+//
 
 function dumpHelp() {
     const lines = [
