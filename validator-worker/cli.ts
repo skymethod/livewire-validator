@@ -138,7 +138,7 @@ async function mastodon(args: (string | number)[]) {
     const action = args[0];
     
     const secrets = JSON.parse(await Deno.readTextFile(computeAbsolutePath(args[1]))) as MastodonSecrets;
-    const { apiBase, clientName, redirectUris, redirectUri, scopes, website, clientId, clientSecret, accessToken, code } = secrets;
+    const { apiBase, clientName, redirectUris, redirectUri, scopes, website, clientId, clientSecret, accessToken, code, comment } = secrets;
 
     // read:accounts: for /api/v1/accounts/verify_credentials
     // write:statuses: for creating new comments
@@ -193,9 +193,35 @@ async function mastodon(args: (string | number)[]) {
         const res = await accountsVerifyCredentials(apiBase, accessToken);
         console.log(JSON.stringify(res, undefined, 2));
     }
+
+    if (action === 'post-comment') {
+        if (!accessToken) throw new Error(`accessToken is required`);
+        if (!comment) throw new Error(`comment is required`);
+
+        const account = await accountsVerifyCredentials(apiBase, accessToken);
+        console.log('account url: ' + account.url);
+        const res = await fetch(account.url, { headers: { 'Accept': 'application/activity+json'} });
+        if (res.status !== 200) throw new Error(`${res.status} ${await res.text()}`);
+        const person = await res.json() as ActivityPubPerson;
+        // console.log(JSON.stringify(person, undefined, 2));
+        console.log(`Outbox url: ${person.outbox}`);
+
+        // https://www.w3.org/TR/activitypub/#client-to-server-interactions
+        const res2 = await fetch(person.outbox, { 
+            method: 'POST', 
+            body: JSON.stringify(comment), 
+            headers: { 'Content-Type': 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"', 'Authorization': `Bearer ${accessToken}`}, 
+        });
+        console.log(res2);
+        console.log(await res2.text());
+    }
 }
 
 //
+
+interface ActivityPubPerson {
+    readonly outbox: string;
+}
 
 interface MastodonSecrets {
     readonly apiBase: string;
@@ -208,6 +234,7 @@ interface MastodonSecrets {
     readonly clientSecret?: string;
     readonly accessToken?: string;
     readonly code?: string;
+    readonly comment?: Record<string, unknown>;
 }
 
 //

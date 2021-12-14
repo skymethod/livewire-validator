@@ -8,7 +8,7 @@ export interface Comment {
 }
 
 export interface Commenter {
-    readonly icon: Icon;
+    readonly icon?: Icon; // new users don't have icons
     readonly name: string;
     readonly url: string;
     readonly fqUsername: string; // e.g. @user@example.com

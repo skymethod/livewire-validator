@@ -98,7 +98,7 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
 
     const iconImg = document.createElement('img');
     iconImg.classList.add('icon');
-    iconImg.src = commenter ? commenter.icon.url : '#';
+    iconImg.src = commenter && commenter.icon ? commenter.icon.url : '#';
     commentDiv.appendChild(iconImg);
 
     const rhsDiv = document.createElement('div');

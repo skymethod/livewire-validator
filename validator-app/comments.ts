@@ -91,6 +91,11 @@ async function collectComments(note: Note | PodcastEpisode, comment: Comment, op
             } else {
                 throw new Error(`TODO: first type not implemented ${podcastEpisodeComments.first}`);
             }
+        } else if (Array.isArray(podcastEpisodeComments)) {
+            // Pleroma: found invalid  "replies": [], "replies_count": 0, on an object resulting from an AP c2s Create Activity
+            if (podcastEpisodeComments.length > 0) {
+                throw new Error(`TODO: non-standard podcastEpisodeComments array not empty`);
+            }
         } else {
             throw new Error(`TODO: first not found, implement items`);
         }
@@ -156,7 +161,8 @@ async function collectItems(items: readonly (string | Link | Object_)[], comment
 
 function initCommentFromObjectOrLink(object: Object_ | Link): Comment {
     if (object.type === 'Note') {
-        const { attributedTo, content, published, url } = object;
+        const { attributedTo, content, published } = object;
+        const url = object.url === null ? undefined : object.url;
         if (typeof attributedTo !== 'string') throw new Error(`TODO: Note.attributedTo type not implemented ${JSON.stringify(object)}`);
         if (typeof content !== 'string') throw new Error(`TODO: Note.content type not implemented ${typeof content} ${JSON.stringify(object)}`);
         if (typeof published !== 'string') throw new Error(`TODO: Note.published type not implemented ${JSON.stringify(object)}`);
@@ -221,8 +227,11 @@ async function fetchCommenter(url: string, opts: FetchCommentsOpts): Promise<Com
 }
 
 function computeCommenter(person: Person): Commenter {
-    if (typeof person.icon !== 'object' || isReadonlyArray(person.icon) || person.icon.type !== 'Image') throw new Error(`TODO person.icon not implemented: ${person.icon}`);
-    const icon = computeIcon(person.icon);
+    let icon: Icon | undefined;
+    if (person.icon) {
+        if (typeof person.icon !== 'object' || isReadonlyArray(person.icon) || person.icon.type !== 'Image') throw new Error(`TODO person.icon not implemented: ${JSON.stringify(person.icon)}`);
+        icon = computeIcon(person.icon);
+    }
     const { name, url } = person;
     if (typeof name !== 'string') throw new Error(`TODO person.name not implemented: ${name}`);
     if (typeof url !== 'string') throw new Error(`TODO person.url not implemented: ${url}`);
