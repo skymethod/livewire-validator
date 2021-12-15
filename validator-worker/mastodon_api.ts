@@ -222,6 +222,48 @@ export async function instanceInformation(apiBase: string): Promise<Instance> {
     return verifyJsonResponse(res, isInstance);
 }
 
+// https://docs.joinmastodon.org/methods/statuses/
+
+/** Publish a new status */
+export interface StatusesPublishOpts {
+    /** Prevent duplicate submissions of the same status. 
+     * 
+     * Idempotency keys are stored for up to 1 hour, and can be any arbitrary string. 
+     * 
+     * Consider using a hash or UUID generated client-side. */
+    readonly idempotencyKey?: string;
+
+    /** Text content of the status.
+     * 
+     * If media_ids is provided, this becomes optional. Attaching a poll is optional while status is provided. */
+    readonly status: string;
+
+    /** ID of the status being replied to, if status is a reply */
+    readonly in_reply_to_id: string;
+}
+
+export async function statusesPublish(apiBase: string, accessToken: string, opts: StatusesPublishOpts): Promise<Status> {
+    const { idempotencyKey, status, in_reply_to_id } = opts;
+
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${accessToken}`);
+    if (idempotencyKey) headers.set('Idempotency-Key', idempotencyKey);
+    const data = new FormData();
+    data.set('status', status);
+    if (in_reply_to_id) data.set('in_reply_to_id', in_reply_to_id);
+    
+    const res = await fetch(`${apiBase}/api/v1/statuses`, { method: 'POST', body: data, headers });
+    return verifyJsonResponse(res, isStatus);
+}
+
+export async function statusesViewById(apiBase: string, accessToken: string, id: string): Promise<Status> {
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${accessToken}`);
+    
+    const res = await fetch(`${apiBase}/api/v1/statuses/${id}`, { headers });
+    return verifyJsonResponse(res, isStatus);
+}
+
 // Api Entities
 
 // https://docs.joinmastodon.org/entities/account/
@@ -317,5 +359,52 @@ function isInstance(obj: any): obj is Instance {
         && (obj.short_description === undefined || typeof obj.short_description === 'string')
         && typeof obj.email === 'string'
         && typeof obj.version === 'string'
+        ;
+}
+
+// https://docs.joinmastodon.org/entities/status/
+export interface Status {
+    /** ID of the status in the database. */
+    readonly id: string;
+
+    /** URI of the status used for federation. */
+    readonly uri: string;
+
+    /** The date when this status was created. */
+    readonly created_at: string;
+
+    // account: Account
+
+    /** HTML-encoded status content. */
+    readonly content: string;
+
+    /** Visibility of this status.
+     * 
+     * public = Visible to everyone, shown in public timelines.
+     * unlisted = Visible to public, but not included in public timelines.
+     * private = Visible to followers only, and to any mentioned users.
+     * direct = Visible only to mentioned users.
+     */
+    readonly visibility: string;
+
+    // readonly application: Application;
+
+    /** A link to the status's HTML representation. */
+    readonly url?: string;
+
+    /** A link to the status's HTML representation. */
+    readonly in_reply_to_id?: string;
+}
+
+// deno-lint-ignore no-explicit-any
+function isStatus(obj: any): obj is Status {
+    return isObject(obj) 
+        && typeof obj.id === 'string'
+        && typeof obj.uri === 'string'
+        && typeof obj.created_at === 'string'
+        && typeof obj.content === 'string'
+        && typeof obj.visibility === 'string'
+        && (obj.url === undefined || typeof obj.url === 'string')
+        && (obj.in_reply_to_id === undefined || typeof obj.in_reply_to_id === 'string')
         ;
 }

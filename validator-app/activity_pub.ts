@@ -111,6 +111,13 @@ export interface Object_ {
 
     /** found on Document objects representing image attachments */
     readonly height?: number;
+
+    /**
+     * Indicates one or more entities for which this object is considered a response.
+     * 
+     * https://www.w3.org/TR/activitystreams-vocabulary/#dfn-inreplyto
+     */
+    readonly inReplyTo?: Object_ | string | Link;
 }
 
 /**

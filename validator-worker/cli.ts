@@ -1,5 +1,5 @@
-import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags } from './deps_cli.ts';
-import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, oauthObtainToken } from './mastodon_api.ts';
+import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags, parseJsonc } from './deps_cli.ts';
+import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, oauthObtainToken, statusesPublish, statusesViewById } from './mastodon_api.ts';
 
 const args = parseFlags(Deno.args, { string: '_' }); // don't auto coersce to number, twitter ids are rounded
 
@@ -137,8 +137,8 @@ async function mastodon(args: (string | number)[]) {
 
     const action = args[0];
     
-    const secrets = JSON.parse(await Deno.readTextFile(computeAbsolutePath(args[1]))) as MastodonSecrets;
-    const { apiBase, clientName, redirectUris, redirectUri, scopes, website, clientId, clientSecret, accessToken, code, comment } = secrets;
+    const secrets = parseJsonc(await Deno.readTextFile(computeAbsolutePath(args[1]))) as MastodonSecrets;
+    const { apiBase, clientName, redirectUris, redirectUri, scopes, website, clientId, clientSecret, accessToken, code, comment, status, statusId } = secrets;
 
     // read:accounts: for /api/v1/accounts/verify_credentials
     // write:statuses: for creating new comments
@@ -197,6 +197,7 @@ async function mastodon(args: (string | number)[]) {
     if (action === 'post-comment') {
         if (!accessToken) throw new Error(`accessToken is required`);
         if (!comment) throw new Error(`comment is required`);
+        console.log(JSON.stringify(comment, undefined, 2));
 
         const account = await accountsVerifyCredentials(apiBase, accessToken);
         console.log('account url: ' + account.url);
@@ -214,6 +215,27 @@ async function mastodon(args: (string | number)[]) {
         });
         console.log(res2);
         console.log(await res2.text());
+    }
+
+    if (action === 'post-status') {
+        if (!accessToken) throw new Error(`accessToken is required`);
+        if (!status) throw new Error(`status is required`);
+        const { idempotencyKey, content, inReplyToId } = status;
+        console.log(JSON.stringify(status, undefined, 2));
+
+        await accountsVerifyCredentials(apiBase, accessToken); // just checking
+       
+        const res = await statusesPublish(apiBase, accessToken, { status: content, idempotencyKey, in_reply_to_id: inReplyToId });
+        console.log(JSON.stringify(res, undefined, 2));
+    }
+
+    if (action === 'view-status') {
+        if (!accessToken) throw new Error(`accessToken is required`);
+        if (!statusId) throw new Error(`statusId is required`);
+
+        await accountsVerifyCredentials(apiBase, accessToken); // just checking
+        const res = await statusesViewById(apiBase, accessToken, statusId);
+        console.log(JSON.stringify(res, undefined, 2));
     }
 }
 
@@ -235,6 +257,14 @@ interface MastodonSecrets {
     readonly accessToken?: string;
     readonly code?: string;
     readonly comment?: Record<string, unknown>;
+    readonly status?: MastodonReplyStatus;
+    readonly statusId?: string;
+}
+
+interface MastodonReplyStatus {
+    readonly idempotencyKey: string;
+    readonly content: string;
+    readonly inReplyToId: string;
 }
 
 //
