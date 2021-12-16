@@ -1,5 +1,7 @@
 # Display public comments for a given episode
 
+_A client-to-server (or c2s) ActivityPub interaction_
+
 Read the feed: http://mp3s.nashownotes.com/pc20rss.xml
 
 Find the item’s `podcast:socialInteract` tag and discover the ActivityStream object URL:

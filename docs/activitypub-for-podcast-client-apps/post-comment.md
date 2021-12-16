@@ -1,36 +1,31 @@
 # Post a reply comment as a user on the episode's comment server
 
+_A client-to-server (or c2s) ActivityPub interaction_
+
 In this scenario, the podcast client app facilitates logging in as an authenticated user of the ActivityPub server specified in the RSS feed.
 
-In general, this is possible as long as you can login (via oauth) as a known user (actor) on the ActivityPub instance, and POST to the /outbox of that user (see [Create Activity](https://www.w3.org/TR/activitypub/#create-activity-outbox))
+In general, this involves the following steps:
+1. Fetch the root comment url specified in the RSS item `<podcast:socialInteract>` tag
+2. Identify the server implementation (Mastodon/Pleroma etc)
+3. Have the user log into the server using an OAuth flow
+4. If server supports c2s posting, post a reply comment using the logged-in user's ActivityPub outbox url and ActivityPub standard c2s [Create Activity](https://www.w3.org/TR/activitypub/#create-activity-outbox) (if supported)
+5. Else post the reply comment using the server-specific API (e.g. [Publish new status in the Mastodon REST API](https://docs.joinmastodon.org/methods/statuses/))
 
-You’ll need to have a few things besides the comment content itself before posting the comment:
-
-1. The id of the comment you are replying to.
-   * e.g. Fetch the root comment node as described above in “List public comments for a given episode”, and identify the id. 
-   * `"id": "https://podcastindex.social/users/dave/statuses/107185918284627417",`
-
-2. The user actor url you are posting on behalf of (e.g. https://podcastindex.social/@the-user)
-   * Obtain this from the service’s login/signup url? TODO
-
-3. The outbox url of the user you are posting on behalf of (included in the standard ActivityPub json response to step 2)
-   * `"outbox": "https://podcastindex.social/users/the-user/outbox",`
-
-4. An oauth bearer token for the user you are posting on behalf of, with an appropriate oauth scope to write.
-   * For Mastodon, the process for obtaining a token is described [here](https://docs.joinmastodon.org/client/token/)
-   * TODO: figure out other popular ActivityPub instance mechanisms.  It looks like Pleroma uses the same API as Mastodon.
-
+## Mastodon example
+* Fetch the root comment url specific in the item's `podcast:socialInteract` tag (or a subcomment url) using the ActivityPub Accept header
+   * The Mastodon status id encoded as the last path token in the `"id"` url of the response will be needed later
+* Determine if this is Mastodon instance using [Fetch instance](https://docs.joinmastodon.org/methods/instance/)
+   * It's Mastodon if the response succeeds, returns an [instance](https://docs.joinmastodon.org/entities/instance/) payload as json, and the `"version"` does not contain `Pleroma`
+* Register your client app with the Mastodon server using [Create an application](https://docs.joinmastodon.org/methods/apps/)
+   * Use a minimal OAuth scope such as: `read:accounts write:statuses`
+   * Only needs to be done once per server
+* Compute the OAuth login url using [Authorize a user](https://docs.joinmastodon.org/methods/apps/oauth/#authorize-a-user)
+   * After logging in, the user will be redirected to the callback you specified
+* Use the `code` returned to [Obtain an Access Token](https://docs.joinmastodon.org/methods/apps/oauth/#obtain-a-token)
+* Verify the Access Token using [Verify account credentials](https://docs.joinmastodon.org/methods/accounts/)
+   * If valid, you'll receive an [Account](https://docs.joinmastodon.org/entities/account/) payload
+   * You can now publish statuses on behalf of the logged-in user
+* Post the reply comment with [Publish new status](https://docs.joinmastodon.org/methods/statuses/)
+   * Set `content` to the reply comment content from your UI
+   * Set `in_reply_to_id` to the Mastodon root comment (or subcomment) obtained earlier
   
-To create a new reply to a root comment (or subcomment), use the ActivityPub standard [Create Activity API](https://www.w3.org/TR/activitypub/#create-activity-outbox)
-```
-POST https://podcastindex.social/users/the-user/outbox
-Authorization: Bearer <token-obtained-above>
-
-{
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "type": "Note",
-  "content": "This is a reply!",
-  "published": "2021-11-10T15:04:55Z",
-  "inReplyTo": "https://podcastindex.social/users/dave/statuses/107185918284627417"
-}
-```
