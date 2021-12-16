@@ -27,5 +27,5 @@ In general, this involves the following steps:
    * You can now publish statuses on behalf of the logged-in user
 * Post the reply comment with [Publish new status](https://docs.joinmastodon.org/methods/statuses/)
    * Set `content` to the reply comment content from your UI
-   * Set `in_reply_to_id` to the Mastodon root comment (or subcomment) obtained earlier
+   * Set `in_reply_to_id` to the Mastodon root comment (or subcomment) status id obtained earlier
   

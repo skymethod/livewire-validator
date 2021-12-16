@@ -34,8 +34,8 @@ However, it's more complicated, involves hosting UGC on your own server infrastr
 _TODO: create a minimal proof of concept service that can serve as an ActivityPub-based host simply for commenting on other server's posts._
 
 ## Podcast client app scenarios
-Walkthroughs on scenarios of specific interest to podcast apps
-* [Display comments for an episode (c2s)](display-comments.md)
+Walkthroughs of specific examples relevant to podcast apps
+* [Display public comments for an episode (c2s)](display-comments.md)
 * Post a reply comment...
   * [...as a user of the episode's comment server (c2s)](post-comment.md)
   * [...as a user of another federated ActivityPub server, not the episode's comment server (c2s)](post-comment-federated.md)
