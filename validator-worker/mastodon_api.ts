@@ -38,16 +38,20 @@ export interface OauthUserAuthorizationOpts {
 
     /** Added in 2.6.0. Forces the user to re-login, which is necessary for authorizing with multiple accounts from the same instance. */
     readonly force_login?: boolean;
+
+    // standard oauth
+    readonly state?: string;
 }
 
 export function computeOauthUserAuthorizationUrl(apiBase: string, opts: OauthUserAuthorizationOpts): string {
-    const { response_type, client_id, redirect_uri, scope, force_login } = opts;
+    const { response_type, client_id, redirect_uri, scope, force_login, state } = opts;
     const url = new URL(`${apiBase}/oauth/authorize`);
     url.searchParams.set('response_type', response_type);
     url.searchParams.set('client_id', client_id);
     url.searchParams.set('redirect_uri', redirect_uri);
     if (scope) url.searchParams.set('scope', scope);
     if (typeof force_login === 'boolean') url.searchParams.set('force_login', `${force_login}`);
+    if (state) url.searchParams.set('state', state);
     return url.toString();
 }
 
@@ -88,7 +92,7 @@ export async function oauthObtainToken(apiBase: string, opts: OauthObtainTokenOp
     data.set('redirect_uri', redirect_uri);
     if (code) data.set('code', code);
     if (scope) data.set('scope', scope);
-    const res = await fetch(`${apiBase}/oauth/token`, { method: 'POST', body: data });
+    const res = await fetch(new Request(`${apiBase}/oauth/token`, { method: 'POST', body: data }));
     return verifyJsonResponse(res, isOauthObtainTokenResponse);
 }
 
@@ -158,6 +162,14 @@ export interface AppsCreateApplicationOpts {
     readonly website?: string;
 }
 
+export function eqAppsCreateApplicationOpts(lhs: AppsCreateApplicationOpts, rhs: AppsCreateApplicationOpts): boolean {
+    return lhs.client_name === rhs.client_name
+        && lhs.redirect_uris === rhs.redirect_uris
+        && lhs.scopes === rhs.scopes
+        && lhs.website === rhs.website
+        ;
+}
+
 export async function appsCreateApplication(apiBase: string, opts: AppsCreateApplicationOpts): Promise<AppsCreateApplicationResponse> {
     const { client_name, redirect_uris, scopes, website } = opts;
     const data = new FormData();
@@ -165,7 +177,7 @@ export async function appsCreateApplication(apiBase: string, opts: AppsCreateApp
     data.set('redirect_uris', redirect_uris);
     if (scopes) data.set('scopes', scopes);
     if (website) data.set('website', website);
-    const res = await fetch(`${apiBase}/api/v1/apps`, { method: 'POST', body: data });
+    const res = await fetch(new Request(`${apiBase}/api/v1/apps`, { method: 'POST', body: data }));
     return verifyJsonResponse(res, isAppsCreateApplicationResponse);
 }
 

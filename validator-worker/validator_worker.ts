@@ -1,4 +1,4 @@
-import { Bytes, IncomingRequestCf } from './deps_worker.ts';
+import { Bytes, DurableObjectNamespace, IncomingRequestCf } from './deps_worker.ts';
 import { VALIDATOR_APP_B64, VALIDATOR_APP_HASH } from './validator_data.ts';
 import { VALIDATOR_APP_MAP_B64, VALIDATOR_APP_MAP_HASH } from './validator_local_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
@@ -7,6 +7,9 @@ import { AppManifest } from './app_manifest.d.ts';
 import { ValidatorWorkerEnv } from './validator_worker_env.d.ts';
 import { Theme } from './common/theme.ts';
 import { PodcastIndexCredentials, search } from './search.ts';
+import { computeLogin } from './login.ts';
+import { Storage } from './storage.ts';
+export { StorageDO } from './storage_do.ts';
 
 export default {
 
@@ -42,6 +45,17 @@ export default {
             return await computeFetch(request);
         } else if (pathname === '/s') {
             return await computeSearch(request, computePodcastIndexCredentials(env.piCredentials));
+        } else if (pathname === '/login') {
+            const { mastodonClientName, mastodonClientUrl, storageNamespace, origin } = env;
+            if (mastodonClientName && mastodonClientUrl && storageNamespace && origin) {
+                const storage = makeStorage(storageNamespace, 'oauth');
+                return await computeLogin(request, url, storage, { applicationOpts: { 
+                    client_name: mastodonClientName,
+                    redirect_uris: `${origin}/login`,
+                    scopes: 'read:accounts write:statuses',
+                    website: mastodonClientUrl,
+                }});
+            }
         }
         
         const headers = computeHeaders('text/html; charset=utf-8');
@@ -58,6 +72,28 @@ const FAVICON_ICO_PATHNAME = `/favicon.${FAVICON_VERSION}.ico`;
 const MANIFEST_PATHNAME = `/app.${MANIFEST_VERSION}.webmanifest`;
 const TWITTER_IMAGE_PNG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.png`;
 const SVG_MIME_TYPE = 'image/svg+xml';
+
+function makeStorage(storageNamespace: DurableObjectNamespace, durableObjectName: string): Storage {
+    const fetchFromStorageDO = async (url: URL) => {
+        return await storageNamespace.get(storageNamespace.idFromName(durableObjectName)).fetch(url.toString(), { headers: { 'do-name': durableObjectName }});
+    };
+
+    return {
+        get: async key => {
+            const url = new URL('https://do/get')
+            url.searchParams.set('key', key);
+            const response = await fetchFromStorageDO(url);
+            return response.status === 200 ? await response.text() : undefined;
+        },
+        set: async (key, value) => {
+            const url = new URL('https://do/set')
+            url.searchParams.set('key', key);
+            url.searchParams.set('value', value);
+            const response = await fetchFromStorageDO(url);
+            if (response.status !== 200) throw new Error(`Unexpected status ${response.status}, expected 200 from DO set operation. body=${await response.text()}`);
+        }
+    }
+}
 
 async function computeFetch(request: Request): Promise<Response> {
     try {
