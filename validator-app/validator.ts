@@ -1,4 +1,5 @@
 import { checkTrue } from './check.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isIso8601, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid } from './deps_app.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './xml_parser.ts';
 
@@ -126,6 +127,14 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:value
     checkPodcastValue('channel', channel, callbacks);
 
+    // podcast:medium
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium'), ...Qnames.PodcastIndex.medium)
+        .checkValue(isPodcastMedium)
+        .checkRemainingAttributes();
+
+    // podcast:images
+    checkPodcastImages('channel', channel, callbacks);
+
     // PROPOSALS
 
     // podcast:social
@@ -167,11 +176,6 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
                 .checkRemainingAttributes();
         }
     }
-
-    // podcast:medium
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/README.md#podcastmedium---discuss'), ...Qnames.PodcastIndex.medium)
-        .checkValue(isPodcastMedium)
-        .checkRemainingAttributes();
 
     checkPodcastTagUsage(channel, callbacks);
 
@@ -243,6 +247,12 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
     }
 }
 
+function checkPodcastImages(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#images'), ...Qnames.PodcastIndex.images)
+        .checkRequiredAttribute('srcset', isPodcastImagesSrcSet)
+        .checkRemainingAttributes();
+}
+
 function checkPodcastTagUsage(node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     const known = new Set<string>();
     const unknown = new Set<string>();
@@ -275,91 +285,6 @@ function checkText(node: ExtendedXmlNode | undefined, test: (trimmedText: string
         return trimmedText;
     }
     return undefined;
-}
-
-function isNotEmpty(trimmedText: string): boolean {
-    return trimmedText.length > 0;
-}
-
-function isUrl(trimmedText: string): boolean {
-    const u = tryParseUrl(trimmedText);
-    return u && u.protocol === 'https:' || u?.protocol === 'http:';
-}
-
-function isUri(trimmedText: string): boolean {
-    return tryParseUrl(trimmedText) !== undefined;
-}
-
-function tryParseUrl(str: string): URL | undefined {
-    try {
-        return new URL(str);
-    } catch {
-        return undefined;
-    }
-}
-
-function isMimeType(trimmedText: string): boolean {
-    return /^\w+\/[-+.\w]+$/.test(trimmedText);
-}
-
-function isUuid(trimmedText: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(trimmedText);
-}
-
-function isEmailAddress(trimmedText: string): boolean {
-    return /^[^@\s]+@[^@\s]+$/.test(trimmedText);
-}
-
-function isAtMostCharacters(maxCharacters: number): (trimmedText: string) => boolean {
-    return trimmedText => trimmedText.length <= maxCharacters;
-}
-
-function isSeconds(trimmedText: string): boolean {
-    return /^\d+(\.\d+)?$/.test(trimmedText);
-}
-
-function isGeoLatLon(trimmedText: string): boolean {
-    return /^geo:-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/.test(trimmedText);
-}
-
-function isOpenStreetMapIdentifier(trimmedText: string): boolean {
-    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#osm-recommended
-    return /^[NWR]\d+(#\d+)?$/.test(trimmedText);
-}
-
-function isNonNegativeInteger(trimmedText: string): boolean {
-    return /^\d+$/.test(trimmedText) 
-        && parseInt(trimmedText) >= 0 
-        && parseInt(trimmedText).toString() === trimmedText;
-}
-
-function isDecimal(trimmedText: string): boolean {
-    return /^\d+(\.\d+)?$/.test(trimmedText);
-}
-
-function isRfc2822(trimmedText: string): boolean {
-    // https://datatracker.ietf.org/doc/html/rfc2822
-    // 01 Jun 2016 14:31:46 -0700
-    // Thu, 01 Apr 2021 08:00:00 EST
-    return /^[0-9A-Za-z: -]+$/.test(trimmedText);
-}
-
-function isIso8601(trimmedText: string): boolean {
-    // 2021-04-14T10:25:42Z
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(trimmedText);
-}
-
-function isBoolean(trimmedText: string): boolean {
-    return /^(true|false)$/.test(trimmedText);
-}
-
-function isPodcastValueTypeSlug(trimmedText: string): boolean {
-    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/value/valueslugs.txt
-    return /^[a-z]+$/.test(trimmedText);
-}
-
-function isPodcastMedium(trimmedText: string): boolean {
-    return /^[a-z]+$/.test(trimmedText);
 }
 
 function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: ValidationCallbacks, opts: MessageOptions = {}): ExtendedXmlNode | undefined {
@@ -496,6 +421,9 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
 
     // podcast:value
     checkPodcastValue('item', item, callbacks);
+
+    // podcast:images
+    checkPodcastImages('item', item, callbacks);
 
     // PROPOSALS
 

@@ -37,6 +37,7 @@ export class Qnames {
         funding: _podcastIndex('funding'),
         guid: _podcastIndex('guid'),
         hiveAccount: _podcastIndex('hiveAccount'),
+        images: _podcastIndex('images'),
         integrity: _podcastIndex('integrity'),
         license: _podcastIndex('license'),
         location: _podcastIndex('location'),
