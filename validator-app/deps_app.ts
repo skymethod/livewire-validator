@@ -1,6 +1,10 @@
 export { css, html, LitElement, svg, SVGTemplateResult, CSSResult, TemplateResult, unsafeCSS } from 'https://cdn.skypack.dev/lit-element@2.5.1';
-export { getTraversalObj } from 'https://cdn.skypack.dev/fast-xml-parser@3.21.1?dts';
 export type { Comment, Commenter, Attachment, Icon } from '../validator-worker/common/comment_model.ts';
 export { setIntersect } from '../validator-worker/common/sets.ts';
 export { Theme } from '../validator-worker/common/theme.ts';
 export * from '../validator-worker/common/validation_functions.ts';
+export * from '../validator-worker/common/check.ts';
+export * from '../validator-worker/common/validator.ts';
+export * from '../validator-worker/common/qnames.ts';
+export { computeAttributeMap, parseXml, qnameEq, qnamesInclude } from '../validator-worker/common/xml_parser.ts';
+export type { ExtendedXmlNode } from '../validator-worker/common/xml_parser.ts';

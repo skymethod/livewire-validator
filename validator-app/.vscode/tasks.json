@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "deno",
+			"command": "bundle",
+			"problemMatcher": [
+				"$deno"
+			],
+			"args": [
+				"--config",
+				"deno.jsonc",
+				"--watch",
+				"validator_app.ts"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"label": "deno: bundle validator_app.ts"
+		}
+	]
+}

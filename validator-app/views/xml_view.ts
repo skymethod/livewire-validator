@@ -1,7 +1,5 @@
-import { html, css, unsafeCSS, Theme } from '../deps_app.ts';
-import { Qnames } from '../qnames.ts';
+import { html, css, unsafeCSS, Theme, Qnames, qnameEq, ExtendedXmlNode, qnamesInclude } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
-import { qnameEq, ExtendedXmlNode, qnamesInclude } from '../xml_parser.ts';
 import { externalizeAnchor } from './util.ts';
 
 export const XML_HTML = html`

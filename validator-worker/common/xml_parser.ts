@@ -1,5 +1,5 @@
 import { checkEqual } from './check.ts';
-import { getTraversalObj } from './deps_app.ts';
+import { getTraversalObj } from './deps_xml.ts';
 
 export function parseXml(xml: string): ExtendedXmlNode {
     const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;

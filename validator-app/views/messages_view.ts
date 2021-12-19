@@ -1,5 +1,4 @@
-import { html, LitElement, css, unsafeCSS, Theme } from '../deps_app.ts';
-import { RuleReference } from '../validator.ts';
+import { html, LitElement, css, unsafeCSS, Theme, RuleReference } from '../deps_app.ts';
 import { Message, MessageType, ValidatorAppVM } from '../validator_app_vm.ts';
 import { CHECK_ICON, ERROR_ICON, INFO_ICON, WARNING_ICON } from './icons.ts';
 

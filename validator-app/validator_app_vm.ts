@@ -1,10 +1,6 @@
-import { checkEqual, checkMatches } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, computeCommentCount } from './comments.ts';
-import { MessageOptions, podcastIndexReference, RuleReference, validateFeedXml, ValidationCallbacks } from './validator.ts';
-import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
 import { isReadonlyArray } from './util.ts';
-import { Qnames } from './qnames.ts';
-import { setIntersect, Comment } from './deps_app.ts';
+import { Qnames, setIntersect, Comment, checkEqual, checkMatches, computeAttributeMap, ExtendedXmlNode, parseXml, MessageOptions, podcastIndexReference, RuleReference, validateFeedXml, ValidationCallbacks } from './deps_app.ts';
 
 export class ValidatorAppVM {
 

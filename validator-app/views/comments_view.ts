@@ -209,7 +209,7 @@ function computeAge(date: Date): string {
     return `${Math.floor(days)}d`;
 }
 
-function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivElement, replyToUrl: string, vm: ValidatorAppVM) {
+function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivElement, replyToUrl: string, _vm: ValidatorAppVM) {
     if (anchor.textContent?.startsWith('Reply')) {
         anchor.textContent = 'Cancel ⅹ';
         LitElement.render(REPLY_BOX, fieldsetContainer);
@@ -236,7 +236,7 @@ function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivEle
             }
         };
 
-        let loggedIn = false; // TODO
+        const loggedIn = false; // TODO
         const update = () => {
             a.style.display = loggedIn ? 'none' : 'block';
             textarea.style.display = button.style.display = loggedIn ? 'block': 'none';
