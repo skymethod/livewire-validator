@@ -1,6 +1,3 @@
-/// <reference lib="dom" />
-/// <reference lib="dom.iterable" />
-
 import { css, html, LitElement, unsafeCSS, Theme } from './deps_app.ts';
 import { StaticData } from './static_data.ts';
 import { ValidatorAppVM } from './validator_app_vm.ts';

@@ -144,8 +144,9 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     for (const social of socials) {
         ElementValidation.forElement('channel', social, callbacks, socialReference)
             .checkRequiredAttribute('platform', isNotEmpty)
-            .checkRequiredAttribute('podcastAccountId', isNotEmpty)
-            .checkRequiredAttribute('podcastAccountUrl', isUrl)
+            .checkRequiredAttribute('protocol', isNotEmpty)
+            .checkRequiredAttribute('accountId', isNotEmpty)
+            .checkRequiredAttribute('accountUrl', isUrl)
             .checkOptionalAttribute('priority', isNonNegativeInteger)
             .checkRemainingAttributes();
             
@@ -433,7 +434,8 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     for (const socialInteract of socialInteracts) {
         ElementValidation.forElement('item', socialInteract, callbacks, socialInteractReference)
             .checkRequiredAttribute('platform', isNotEmpty)
-            .checkRequiredAttribute('podcastAccountId', isNotEmpty)
+            .checkRequiredAttribute('protocol', isNotEmpty)
+            .checkRequiredAttribute('accountId', isNotEmpty)
             .checkOptionalAttribute('pubDate', isIso8601)
             .checkOptionalAttribute('priority', isNonNegativeInteger)
             .checkValue(isUri)

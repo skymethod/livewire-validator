@@ -6,4 +6,5 @@
         "https://cdn.skypack.dev": false
     },
     "deno.config": "deno.jsonc",
+    "deno.suggest.completeFunctionCalls": true,
 }

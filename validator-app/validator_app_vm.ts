@@ -1,6 +1,6 @@
 import { fetchCommentsForUrl, FetchCommentsResult, computeCommentCount } from './comments.ts';
 import { isReadonlyArray } from './util.ts';
-import { Qnames, setIntersect, Comment, checkEqual, checkMatches, computeAttributeMap, ExtendedXmlNode, parseXml, MessageOptions, podcastIndexReference, RuleReference, validateFeedXml, ValidationCallbacks } from './deps_app.ts';
+import { Qnames, setIntersect, Comment, checkEqual, checkMatches, computeAttributeMap, ExtendedXmlNode, parseXml, MessageOptions, podcastIndexReference, RuleReference, validateFeedXml, ValidationCallbacks, formatTime, computeJobTimesStringSuffix, ValidationJobTimes } from './deps_app.ts';
 
 export class ValidatorAppVM {
 
@@ -291,7 +291,7 @@ export class ValidatorAppVM {
             console.error(e);
             addMessage('error', e.message);
         } finally {
-            addMessage('info', `${job.search ? 'Search took' : 'Took'} ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job)}`);
+            addMessage('info', `${job.search ? 'Search took' : 'Took'} ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job.times)}`);
             if (continueWithUrl) {
                 this.continueWith(continueWithUrl);
             } else {
@@ -351,19 +351,6 @@ function formatBytes(bytes: number): string {
     if (amount < 1024) return `${Math.round(amount * 100) / 100}kb`;
     amount = amount / 1024;
     return `${Math.round(amount * 100) / 100}mb`;
-}
-
-function formatTime(millis: number): string {
-    if (millis < 1000) return `${millis}ms`;
-    return `${Math.round(millis / 1000 * 100) / 100}s`;
-}
-
-function computeJobTimesStringSuffix(job: ValidationJob): string {
-    const rt = [['fetch', job.times.fetchTime],['read', job.times.readTime],['parse', job.times.parseTime],['validate', job.times.validateTime],['comments', job.times.commentsTime]]
-        .filter(v => v[1] !== undefined)
-        .map(v => `${v[0]}=${formatTime(v[1] as number)}`)
-        .join(', ');
-    return rt === '' ? '' : ` (${rt})`;
 }
 
 function unitString(amount: number, unit: string): string {
@@ -456,14 +443,6 @@ interface ValidationJob {
     xml?: ExtendedXmlNode;
     xmlSummaryText?: string;
     fetchCommentsResult?: FetchCommentsResult;
-}
-
-interface ValidationJobTimes {
-    fetchTime?: number;
-    readTime?: number;
-    parseTime?: number;
-    validateTime?: number;
-    commentsTime?: number;
 }
 
 interface SearchResult {

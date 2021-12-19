@@ -6,5 +6,6 @@ export * from '../validator-worker/common/validation_functions.ts';
 export * from '../validator-worker/common/check.ts';
 export * from '../validator-worker/common/validator.ts';
 export * from '../validator-worker/common/qnames.ts';
+export * from '../validator-worker/common/validation_job_times.ts';
 export { computeAttributeMap, parseXml, qnameEq, qnamesInclude } from '../validator-worker/common/xml_parser.ts';
 export type { ExtendedXmlNode } from '../validator-worker/common/xml_parser.ts';
