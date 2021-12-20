@@ -1,6 +1,6 @@
 import { css, html, LitElement, unsafeCSS, Theme } from './deps_app.ts';
 import { StaticData } from './static_data.ts';
-import { ValidatorAppVM } from './validator_app_vm.ts';
+import { Fetcher, PISearchFetcher, ValidatorAppVM } from './validator_app_vm.ts';
 import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { COMMENTS_CSS, COMMENTS_HTML, initComments } from './views/comments_view.ts';
 import { FORM_CSS, FORM_HTML, initForm } from './views/form_view.ts';
@@ -91,7 +91,11 @@ function parseStaticData(): StaticData {
 
 const staticData = parseStaticData();
 
-const vm = new ValidatorAppVM();
+const localFetcher: Fetcher = (url, headers) => fetch(url, { headers });
+const remoteFetcher: Fetcher = (url, headers) => fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers }) });
+const piSearchFetcher: PISearchFetcher = (input, headers) => fetch(`/s`, { method: 'POST', body: JSON.stringify({ input, headers }) });
+
+const vm = new ValidatorAppVM({ localFetcher, remoteFetcher, piSearchFetcher });
 const updateForm = initForm(document, vm, staticData);
 const updateMessages = initMessages(document, vm);
 const updateSearchResults = initSearchResults(document, vm);

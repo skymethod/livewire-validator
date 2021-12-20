@@ -4,8 +4,13 @@ import { Qnames, setIntersect, Comment, checkEqual, checkMatches, computeAttribu
 
 export class ValidatorAppVM {
 
+    private readonly fetchers: Fetchers;
+    private readonly piSearchFetcher: PISearchFetcher;
+
     private nextJobId = 1;
     private currentJob: ValidationJob | undefined;
+
+    //
 
     get validating(): boolean { return this.currentJob !== undefined && !this.currentJob.done; }
 
@@ -20,6 +25,12 @@ export class ValidatorAppVM {
     get xmlSummaryText(): string | undefined { return this.currentJob?.xmlSummaryText; }
 
     get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
+
+    constructor(opts: { localFetcher: Fetcher, remoteFetcher: Fetcher, piSearchFetcher: PISearchFetcher }) {
+        const { localFetcher, remoteFetcher, piSearchFetcher } = opts;
+        this.fetchers = { localFetcher, remoteFetcher };
+        this.piSearchFetcher = piSearchFetcher;
+    }
 
     onChange: () => void = () => {};
 
@@ -87,6 +98,7 @@ export class ValidatorAppVM {
         const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
         const jobStart = Date.now();
+        const { fetchers, piSearchFetcher } = this;
         try {
             input = input.trim();
             if (input === '') throw new Error(`No input`);
@@ -99,7 +111,7 @@ export class ValidatorAppVM {
 
                 inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
 
-                const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { headers }); if (job.done) return;
+                const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
                 job.times.fetchTime = fetchTime;
 
                 if (side === 'local') {
@@ -230,14 +242,14 @@ export class ValidatorAppVM {
                     };
                     let activityPubCalls = 0;
                     const fetchActivityPub = async (url: string) => {
-                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                         console.log(JSON.stringify(obj, undefined, 2));
                         if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
                             // https://docs.joinmastodon.org/methods/statuses/
                             // https://docs.joinmastodon.org/entities/status/
                             // uri = URI of the status used for federation (i.e. the AP url)
                             url = obj.uri;
-                            const res = await localOrRemoteFetchFetchActivityPub(url, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                            const res = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
                             obj = res.obj;
                             side = res.side;
                             console.log(JSON.stringify(obj, undefined, 2));
@@ -268,7 +280,7 @@ export class ValidatorAppVM {
                 // not an url, do a search instead
                 job.search = true;
                 setStatus('Searching');
-                const searchResponse = await fetch(`/s`, { method: 'POST', body: JSON.stringify({ input, headers }) });
+                const searchResponse = await piSearchFetcher(input, headers);
                 checkEqual('searchResponse.status', searchResponse.status, 200);
                 const searchResult = await searchResponse.json() as SearchResult;
                 if (searchResult.piSearchResult) {
@@ -342,6 +354,9 @@ export interface PIFeedInfo {
     readonly artwork?: string;
 }
 
+export type Fetcher = (url: string, headers?: Record<string, string>) => Promise<Response>;
+export type PISearchFetcher = (input: string, headers: Record<string, string>) => Promise<Response>;
+
 //
 
 function formatBytes(bytes: number): string {
@@ -376,9 +391,9 @@ function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function localOrRemoteFetchFetchActivityPub(url: string, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ obj: Record<string, unknown>, side: FetchSide }> {
+async function localOrRemoteFetchFetchActivityPub(url: string, fetchers: Fetchers, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ obj: Record<string, unknown>, side: FetchSide }> {
     if (sleepMillisBetweenCalls > 0) await sleep(sleepMillisBetweenCalls);
-    const { response, side } = await localOrRemoteFetch(url, { headers: { 'Accept': 'application/activity+json' }, useSide });
+    const { response, side } = await localOrRemoteFetch(url, { fetchers, headers: { 'Accept': 'application/activity+json' }, useSide });
     checkEqual('res.status', response.status, 200);
     console.log([...response.headers].map(v => v.join(': ')));
     const contentType = response.headers.get('Content-Type');
@@ -389,13 +404,13 @@ async function localOrRemoteFetchFetchActivityPub(url: string, useSide: FetchSid
     return { obj, side };
 }
 
-async function localOrRemoteFetch(url: string, opts: { headers?: Record<string, string>, useSide?: FetchSide } = {}): Promise<FetchResult> {
-    const { headers, useSide } = opts;
+async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, headers?: Record<string, string>, useSide?: FetchSide }): Promise<FetchResult> {
+    const { fetchers, headers, useSide } = opts;
     if (useSide !== 'remote') {
         try {
             console.log(`local fetch: ${url}`);
             const start = Date.now();
-            const response = await fetch(url, { headers });
+            const response = await fetchers.localFetcher(url, headers);
             return { fetchTime: Date.now() - start, side: 'local', response };
         } catch (e) {
             console.log('Failed to local fetch, trying remote', e);
@@ -403,7 +418,7 @@ async function localOrRemoteFetch(url: string, opts: { headers?: Record<string, 
     }
     console.log(`remote fetch: ${url}`);
     const start = Date.now();
-    const response = await fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers }) });
+    const response = await fetchers.remoteFetcher(url, headers);
     return { fetchTime: Date.now() - start, side: 'remote', response };
 }
 
@@ -456,4 +471,9 @@ interface PISearchResponse {
 
 interface PIIdResponse {
     readonly feed: PIFeedInfo | readonly PIFeedInfo[]; // empty array when not found
+}
+
+interface Fetchers {
+    readonly localFetcher: Fetcher;
+    readonly remoteFetcher: Fetcher;
 }
