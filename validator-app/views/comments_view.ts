@@ -1,6 +1,5 @@
-import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement } from '../deps_app.ts';
+import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement, FetchCommentsResult } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
-import { FetchCommentsResult } from '../comments.ts';
 import { externalizeAnchor } from './util.ts';
 
 export const COMMENTS_HTML = html`

@@ -1,5 +1,5 @@
 import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage, PodcastEpisode } from './activity_pub.ts';
-import { Comment, Commenter, Attachment, Icon } from './deps_app.ts';
+import { Comment, Commenter, Attachment, Icon } from './comment_model.ts';
 import { isReadonlyArray } from './util.ts';
 
 export interface FetchCommentsOpts {

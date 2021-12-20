@@ -9,3 +9,6 @@ export * from '../validator-worker/common/qnames.ts';
 export * from '../validator-worker/common/validation_job_times.ts';
 export { computeAttributeMap, parseXml, qnameEq, qnamesInclude } from '../validator-worker/common/xml_parser.ts';
 export type { ExtendedXmlNode } from '../validator-worker/common/xml_parser.ts';
+export type { ValidationJobVMOpts, Message, PIFeedInfo, ValidationOptions, Fetcher, PISearchFetcher, MessageType } from '../validator-worker/common/validation_job_vm.ts';
+export { ValidationJobVM } from '../validator-worker/common/validation_job_vm.ts';
+export type { FetchCommentsResult } from '../validator-worker/common/comments.ts';
