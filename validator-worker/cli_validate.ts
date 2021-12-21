@@ -1,50 +1,39 @@
-import { checkEqual } from './common/check.ts';
-import { computeJobTimesStringSuffix, formatTime, ValidationJobTimes } from './common/validation_job_times.ts';
-import { MessageOptions, validateFeedXml, ValidationCallbacks } from './common/validator.ts';
-import { ExtendedXmlNode, parseXml } from './common/xml_parser.ts';
+import { isUrl } from './common/validation_functions.ts';
+import { Fetcher, MessageType, PISearchFetcher, ValidationJobVM } from './common/validation_job_vm.ts';
+import { Theme } from './common/theme.ts';
 
 export async function validate(args: (string | number)[], _options: Record<string, unknown>) {
     const feedUrl = args[0];
     if (typeof feedUrl !== 'string') throw new Error('Must provide feedUrl');
+    if (!isUrl(feedUrl)) throw new Error('Must provide an absolute url for feedUrl');
 
-    const jobStart = Date.now();
-    const jobTimes: ValidationJobTimes = {};
+    const localFetcher: Fetcher = (url, headers) => fetch(url, headers); // TODO simulate cors-constrained request
+    const remoteFetcher: Fetcher = (url, headers) => fetch(url, headers);
+    const piSearchFetcher: PISearchFetcher = () => { return Promise.resolve(new Response('{}')) };
+    const vm = new ValidationJobVM({ localFetcher, remoteFetcher, piSearchFetcher });
 
-    let start = Date.now();
-    const res = await fetch(feedUrl);
-    jobTimes.fetchTime = Date.now() - start;
-    checkEqual('res.status', res.status, 200);
-
-    start = Date.now();
-    const text = await res.text();
-    jobTimes.readTime = Date.now() - start;
-
-    start = Date.now();
-    const xml = parseXml(text);
-    jobTimes.parseTime = Date.now() - start;
-
-    const callbacks: ValidationCallbacks = {
-        onGood: function (_node: ExtendedXmlNode, message: string, opts?: MessageOptions): void {
-            console.log('onGood', message, opts);
-        },
-        onInfo: function (_node: ExtendedXmlNode, message: string, opts?: MessageOptions): void {
-            console.log('onInfo', message, opts);
-        },
-        onError: function (_node: ExtendedXmlNode, message: string, opts?: MessageOptions): void {
-            console.log('onError', message, opts);
-        },
-        onWarning: function (_node: ExtendedXmlNode, message: string, opts?: MessageOptions): void {
-            console.log('onWarning', message, opts);
-        },
-        onPodcastIndexTagNamesFound: function (known: ReadonlySet<string>, unknown: ReadonlySet<string>, namespaceUris: ReadonlySet<string>): void {
-            console.log('onPodcastIndexTagNamesFound', { known, unknown, namespaceUris });
-        },
-        onRssItemsFound: function (itemsCount: number, itemsWithEnclosuresCount: number): void {
-            console.log('onRssItemsFound', {itemsCount, itemsWithEnclosuresCount } );
+    let onResolveValidationDone = (_: unknown) => {};
+    const validationDone = new Promise(resolve => onResolveValidationDone = resolve);
+    vm.onChange = () => {
+        if (vm.done) {
+            onResolveValidationDone(void 0);
         }
     };
-    start = Date.now();
-    validateFeedXml(xml, callbacks);
-    jobTimes.validateTime = Date.now() - start;
-    console.log(`Took ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(jobTimes)}`);
+
+    vm.startValidation(feedUrl, { userAgent: 'foo', validateComments: false });
+    await validationDone;
+    console.log('validationDone');
+    for (const message of vm.messages) {
+        console.log(`%c${message.text}`, `color: ${computeMessageColor(message.type)}`);
+    }
+}
+
+//
+
+function computeMessageColor(type: MessageType): string {
+    // 'error' | 'warning' | 'info' | 'done' | 'running' | 'good';
+    if (type === 'error') return '#b71c1c';
+    if (type === 'warning') return '#e65100';
+    if (type === 'good') return '#43a047';
+    return Theme.textColorSecondaryHex;
 }

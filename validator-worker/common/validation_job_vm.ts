@@ -1,10 +1,9 @@
-import { checkMatches,checkEqual } from './check.ts';
+import { checkMatches, checkEqual } from './check.ts';
 import { fetchCommentsForUrl, FetchCommentsResult, computeCommentCount } from './comments.ts';
 import { Comment } from './comment_model.ts';
 import { Qnames } from './qnames.ts';
 import { isReadonlyArray } from './util.ts';
-import { formatTime,computeJobTimesStringSuffix,ValidationJobTimes } from './validation_job_times.ts';
-import { RuleReference,MessageOptions,ValidationCallbacks,validateFeedXml,podcastIndexReference } from './validator.ts';
+import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
 import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
 import { setIntersect } from './sets.ts';
 
@@ -21,6 +20,7 @@ export class ValidationJobVM {
     //
 
     get validating(): boolean { return this.currentJob !== undefined && !this.currentJob.done; }
+    get done(): boolean { return this.currentJob !== undefined && this.currentJob.done; }
 
     get messages(): readonly Message[] { return this.currentJob ? this.currentJob.messages : []; }
 
@@ -361,7 +361,28 @@ export interface PIFeedInfo {
 export type Fetcher = (url: string, headers?: Record<string, string>) => Promise<Response>;
 export type PISearchFetcher = (input: string, headers: Record<string, string>) => Promise<Response>;
 
+export interface ValidationJobTimes {
+    fetchTime?: number;
+    readTime?: number;
+    parseTime?: number;
+    validateTime?: number;
+    commentsTime?: number;
+}
+
 //
+
+function formatTime(millis: number): string {
+    if (millis < 1000) return `${millis}ms`;
+    return `${Math.round(millis / 1000 * 100) / 100}s`;
+}
+
+function computeJobTimesStringSuffix(times: ValidationJobTimes): string {
+    const rt = [['fetch', times.fetchTime],['read', times.readTime],['parse', times.parseTime],['validate', times.validateTime],['comments', times.commentsTime]]
+        .filter(v => v[1] !== undefined)
+        .map(v => `${v[0]}=${formatTime(v[1] as number)}`)
+        .join(', ');
+    return rt === '' ? '' : ` (${rt})`;
+}
 
 function formatBytes(bytes: number): string {
     let amount = bytes;
