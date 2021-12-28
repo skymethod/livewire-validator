@@ -91,7 +91,13 @@ function makeStorage(storageNamespace: DurableObjectNamespace, durableObjectName
             url.searchParams.set('value', value);
             const response = await fetchFromStorageDO(url);
             if (response.status !== 200) throw new Error(`Unexpected status ${response.status}, expected 200 from DO set operation. body=${await response.text()}`);
-        }
+        },
+        delete: async key => {
+            const url = new URL('https://do/delete')
+            url.searchParams.set('key', key);
+            const response = await fetchFromStorageDO(url);
+            if (response.status !== 200) throw new Error(`Unexpected status ${response.status}, expected 200 from DO set operation. body=${await response.text()}`);
+        },
     }
 }
 

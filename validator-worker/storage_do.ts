@@ -32,6 +32,10 @@ export class StorageDO {
             await this.state.storage.put(key, value);
             return new Response('ok');
         }
+        if (pathname === '/delete' && key) {
+            await this.state.storage.delete(key);
+            return new Response('ok');
+        }
 
         return new Response('Not found', { status: 404 });
     }

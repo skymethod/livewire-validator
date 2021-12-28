@@ -41,10 +41,16 @@ export interface OauthUserAuthorizationOpts {
 
     // standard oauth
     readonly state?: string;
+
+    // oauth PKCE: base64url(SHA256(code verifier))
+    readonly code_challenge?: string;
+
+    // oauth PKCE: whether the challenge is the plain code verifier string or the SHA256 hash of the string.
+    readonly code_challenge_method?: 'S256' | 'plain';
 }
 
 export function computeOauthUserAuthorizationUrl(apiBase: string, opts: OauthUserAuthorizationOpts): string {
-    const { response_type, client_id, redirect_uri, scope, force_login, state } = opts;
+    const { response_type, client_id, redirect_uri, scope, force_login, state, code_challenge, code_challenge_method } = opts;
     const url = new URL(`${apiBase}/oauth/authorize`);
     url.searchParams.set('response_type', response_type);
     url.searchParams.set('client_id', client_id);
@@ -52,6 +58,8 @@ export function computeOauthUserAuthorizationUrl(apiBase: string, opts: OauthUse
     if (scope) url.searchParams.set('scope', scope);
     if (typeof force_login === 'boolean') url.searchParams.set('force_login', `${force_login}`);
     if (state) url.searchParams.set('state', state);
+    if (code_challenge) url.searchParams.set('code_challenge', code_challenge);
+    if (code_challenge_method) url.searchParams.set('code_challenge_method', code_challenge_method);
     return url.toString();
 }
 
@@ -81,10 +89,13 @@ export interface OauthObtainTokenOpts {
 
     /** A user authorization code, obtained via /oauth/authorize */
     readonly code?: string;
+
+    /** Oauth PKCE: The code verifier for the request, that the app originally generated before the authorization request. */
+    readonly code_verifier?: string;
 }
 
 export async function oauthObtainToken(apiBase: string, opts: OauthObtainTokenOpts): Promise<OauthObtainTokenResponse> {
-    const { grant_type, client_id, client_secret, redirect_uri, scope, code } = opts;
+    const { grant_type, client_id, client_secret, redirect_uri, scope, code, code_verifier } = opts;
     const data = new FormData();
     data.set('grant_type', grant_type);
     data.set('client_id', client_id);
@@ -92,6 +103,7 @@ export async function oauthObtainToken(apiBase: string, opts: OauthObtainTokenOp
     data.set('redirect_uri', redirect_uri);
     if (code) data.set('code', code);
     if (scope) data.set('scope', scope);
+    if (code_verifier) data.set('code_verifier', code_verifier);
     const res = await fetch(new Request(`${apiBase}/oauth/token`, { method: 'POST', body: data }));
     return verifyJsonResponse(res, isOauthObtainTokenResponse);
 }
