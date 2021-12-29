@@ -1,4 +1,4 @@
-import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement, FetchCommentsResult, isOauthObtainTokenResponse, statusesPublish } from '../deps_app.ts';
+import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement, FetchCommentsResult, isOauthObtainTokenResponse } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { externalizeAnchor } from './util.ts';
 
@@ -72,6 +72,7 @@ export const COMMENTS_CSS = css`
     width: 100%;
     color: ${unsafeCSS(Theme.textColorHex)};
     background-color: ${unsafeCSS(Theme.backgroundColorHex)};
+    margin-top: 0.5rem;
 }
 
 .reply button {
@@ -213,43 +214,61 @@ function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivEle
         anchor.textContent = 'Cancel ⅹ';
         LitElement.render(REPLY_BOX, fieldsetContainer);
 
-        const a = fieldsetContainer.getElementsByTagName('a')[0] as HTMLAnchorElement;
+        const loginAnchor = fieldsetContainer.getElementsByTagName('a')[0] as HTMLAnchorElement;
         const textarea = fieldsetContainer.getElementsByTagName('textarea')[0] as HTMLTextAreaElement;
         const button = fieldsetContainer.getElementsByTagName('button')[0] as HTMLButtonElement;
+        const output = fieldsetContainer.getElementsByTagName('output')[0] as HTMLOutputElement;
+        const outputAnchor = output.getElementsByTagName('a')[0] as HTMLAnchorElement;
 
         const origin = new URL(replyToUrl).origin;
+        outputAnchor.textContent = origin;
+
+        let sent = false;
+        let newReplyUrl: string | undefined;
 
         const update = () => {
             const loggedIn = vm.isLoggedIn(origin);
-            a.style.display = loggedIn ? 'none' : 'block';
-            textarea.style.display = button.style.display = loggedIn ? 'block': 'none';
+            loginAnchor.textContent = loggedIn ? `Sign out of ${origin}` : `Sign in at ${origin}...`;
+            loginAnchor.style.display = !sent ? 'block' : 'none';
+            textarea.style.display = button.style.display = loggedIn && !sent ? 'block': 'none';
+            output.style.display = sent ? 'block' : 'none';
+            outputAnchor.href = newReplyUrl || origin;
         }
 
-        a.textContent = `Login at ${origin}...`
-        a.onclick = e => {
+        loginAnchor.onclick = e => {
             e.preventDefault();
             
-            const w = window.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
-            if (w) {
-                globalThis.onmessage = e => {
-                    const { data } = e;
-                    console.log('onmessage', data);
-                    if (typeof data.origin === 'string' && isOauthObtainTokenResponse(data.tokenResponse)) {
-                        vm.acceptLogin(data.origin, data.tokenResponse);
-                        update();
-                        w.close();
+            const loggedIn = vm.isLoggedIn(origin);
+            if (loggedIn) {
+                vm.expireLogin(origin);
+                update();
+            } else {
+                // start login flow in a another tab, listen for a message to close it
+                const w = window.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
+                if (w) {
+                    globalThis.onmessage = e => {
+                        const { data } = e;
+                        console.log('onmessage', data);
+                        if (typeof data.origin === 'string' && isOauthObtainTokenResponse(data.tokenResponse)) {
+                            vm.acceptLogin(data.origin, data.tokenResponse);
+                            update();
+                            w.close();
+                        }
                     }
                 }
             }
         };
 
-        button.onclick = e => {
+        button.onclick = async e => {
             e.preventDefault();
-            vm.sendReply(textarea.value.trim(), replyToUrl);
+            newReplyUrl = await vm.sendReply(textarea.value.trim(), replyToUrl);
+            sent = true;
+            anchor.textContent = 'Close ⅹ';
+            update();
         };
 
         update();
-
+        textarea.focus();
     } else {
         LitElement.render(undefined, fieldsetContainer);
         anchor.textContent = "Reply →";
@@ -263,5 +282,6 @@ const REPLY_BOX = html`
     <a href="#">Login to ...</a>
     <textarea type="text" name="content" rows="4" placeholder="Your reply..."></textarea>
     <button type="submit">Send</button>
+    <output>Reply sent! It may take a while to appear here, but you can view it over at <a href="#" target="_blank" rel="noreferrer noopener nofollow">(origin)</a></output>
 </fieldset>
 `;

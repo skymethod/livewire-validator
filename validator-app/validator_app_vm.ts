@@ -54,7 +54,11 @@ export class ValidatorAppVM {
         saveLoginInfo({ origin, tokenResponse });
     }
 
-    async sendReply(reply: string, replyToUrl: string): Promise<void> {
+    expireLogin(origin: string) {
+        deleteLoginInfo(origin);
+    }
+
+    async sendReply(reply: string, replyToUrl: string): Promise<string | undefined> {
         reply = reply.trim();
         if (reply === '') throw new Error('Bad reply: <empty>');
         const { origin } = new URL(replyToUrl);
@@ -64,7 +68,8 @@ export class ValidatorAppVM {
         console.log(`replyToUrl`, replyToUrl);
         const mastodonId = computeMastodonIdForUrl(replyToUrl);
         console.log(`mastodonId`, mastodonId);
-        await statusesPublish(origin, info.tokenResponse.access_token, { status: reply, in_reply_to_id: mastodonId });
+        const { url } = await statusesPublish(origin, info.tokenResponse.access_token, { status: reply, in_reply_to_id: mastodonId });
+        return url;
     }
 
 }
@@ -88,6 +93,10 @@ function loadLoginInfo(origin: string): LoginInfo | undefined{
 function saveLoginInfo(info: LoginInfo) {
     const { origin } = info;
     localStorage.setItem(computeLoginInfoLocalStorageKey(origin), JSON.stringify(info));
+}
+
+function deleteLoginInfo(origin: string) {
+    localStorage.removeItem(computeLoginInfoLocalStorageKey(origin));
 }
 
 function computeMastodonIdForUrl(replyToUrl: string): string {
