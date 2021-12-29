@@ -1,6 +1,6 @@
 import { checkMatchesReturnMatcher } from './common/check.ts';
 import { Bytes } from './deps_worker.ts';
-import { appsCreateApplication, AppsCreateApplicationOpts, AppsCreateApplicationResponse, computeOauthUserAuthorizationUrl, eqAppsCreateApplicationOpts, instanceInformation, oauthObtainToken } from './mastodon_api.ts';
+import { appsCreateApplication, AppsCreateApplicationOpts, AppsCreateApplicationResponse, computeOauthUserAuthorizationUrl, eqAppsCreateApplicationOpts, instanceInformation, oauthObtainToken } from './common/mastodon_api.ts';
 import { Storage } from './storage.ts';
 
 export async function computeLogin(_request: Request, url: URL, storage: Storage, config: LoginConfig): Promise<Response> {
@@ -61,7 +61,7 @@ export async function computeLogin(_request: Request, url: URL, storage: Storage
                 redirect_uri: info.applicationResponse.redirect_uri,
                 code,
                 scope: info.applicationOpts.scopes,
-                // code_verifier: codeVerifier + 'bad',
+                code_verifier: codeVerifier,
             });
            
             const html = `<html><head><script>window.opener.postMessage({"origin": "${origin}", "tokenResponse":${JSON.stringify(tokenResponse)}}, "${url.origin}");</script></head></html>`;
@@ -143,12 +143,15 @@ function computeOauthRequestInfoKey(id: OauthRequestId): string {
 async function registerClientAppIfNecessary(origin: string, applicationOpts: AppsCreateApplicationOpts, storage: Storage): Promise<ClientAppInfo> {
     const existing = await loadClientAppInfo(origin, storage);
     if (existing) {
-        if (eqAppsCreateApplicationOpts(existing.applicationOpts, applicationOpts)) return existing;
+        if (eqAppsCreateApplicationOpts(existing.applicationOpts, applicationOpts)) {
+            console.log(`registerClientAppIfNecessary: found existing client for ${origin}`);
+            return existing;
+        }
     }
 
-    console.log(`registerClientAppIfNecessary: creating new client at ${origin}...`);
+    console.log(`registerClientAppIfNecessary: creating new client for ${origin}...`);
     const applicationResponse = await appsCreateApplication(origin, applicationOpts);
-    console.log(`registerClientAppIfNecessary: created new client at ${origin}`, JSON.stringify(applicationResponse, undefined, 2));
+    console.log(`registerClientAppIfNecessary: created new client for ${origin}`, JSON.stringify(applicationResponse, undefined, 2));
     const rt: ClientAppInfo = { applicationOpts, applicationResponse, origin };
     saveClientAppInfo(origin, storage, rt);
     return rt;

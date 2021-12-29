@@ -1,4 +1,4 @@
-import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement, FetchCommentsResult } from '../deps_app.ts';
+import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement, FetchCommentsResult, isOauthObtainTokenResponse, statusesPublish } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { externalizeAnchor } from './util.ts';
 
@@ -208,7 +208,7 @@ function computeAge(date: Date): string {
     return `${Math.floor(days)}d`;
 }
 
-function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivElement, replyToUrl: string, _vm: ValidatorAppVM) {
+function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivElement, replyToUrl: string, vm: ValidatorAppVM) {
     if (anchor.textContent?.startsWith('Reply')) {
         anchor.textContent = 'Cancel ⅹ';
         LitElement.render(REPLY_BOX, fieldsetContainer);
@@ -218,6 +218,13 @@ function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivEle
         const button = fieldsetContainer.getElementsByTagName('button')[0] as HTMLButtonElement;
 
         const origin = new URL(replyToUrl).origin;
+
+        const update = () => {
+            const loggedIn = vm.isLoggedIn(origin);
+            a.style.display = loggedIn ? 'none' : 'block';
+            textarea.style.display = button.style.display = loggedIn ? 'block': 'none';
+        }
+
         a.textContent = `Login at ${origin}...`
         a.onclick = e => {
             e.preventDefault();
@@ -226,20 +233,21 @@ function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivEle
             if (w) {
                 globalThis.onmessage = e => {
                     const { data } = e;
-                    console.log('onmessage', data);                    
-                    if (data.origin && data.tokenResponse) {
-                        // TODO save token locally to log in
+                    console.log('onmessage', data);
+                    if (typeof data.origin === 'string' && isOauthObtainTokenResponse(data.tokenResponse)) {
+                        vm.acceptLogin(data.origin, data.tokenResponse);
+                        update();
                         w.close();
                     }
                 }
             }
         };
 
-        const loggedIn = false; // TODO
-        const update = () => {
-            a.style.display = loggedIn ? 'none' : 'block';
-            textarea.style.display = button.style.display = loggedIn ? 'block': 'none';
-        }
+        button.onclick = e => {
+            e.preventDefault();
+            vm.sendReply(textarea.value.trim(), replyToUrl);
+        };
+
         update();
 
     } else {

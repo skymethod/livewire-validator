@@ -16,3 +16,9 @@ export function checkEqual<T>(name: string, value: T, expected: T) {
 export function checkTrue<T>(name: string, value: T, test: boolean) {
     if (!test) throw new Error(`Bad ${name}: ${value}`);
 }
+
+// deno-lint-ignore no-explicit-any
+export function isObject(obj: any): boolean {
+    return typeof obj === 'object' && !Array.isArray(obj) && obj !== null;
+}
+
