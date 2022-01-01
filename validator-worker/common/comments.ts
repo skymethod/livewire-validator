@@ -96,8 +96,11 @@ async function collectComments(note: Note | PodcastEpisode, comment: Comment, op
             if (podcastEpisodeComments.length > 0) {
                 throw new Error(`TODO: non-standard podcastEpisodeComments array not empty`);
             }
+        } else if (Array.isArray(podcastEpisodeComments.items)) {
+            // Pleroma: items: [ 'url' ]
+            await collectItems(podcastEpisodeComments.items, comment, opts, url); if (!keepGoing()) return;
         } else {
-            throw new Error(`TODO: first not found, implement items`);
+            throw new Error(`TODO: first or items array not found`);
         }
     }
 }
@@ -161,8 +164,8 @@ async function collectItems(items: readonly (string | Link | Object_)[], comment
 
 function initCommentFromObjectOrLink(object: Object_ | Link): Comment {
     if (object.type === 'Note') {
-        const { attributedTo, content, published } = object;
-        const url = object.url === null ? undefined : object.url;
+        const { attributedTo, content, published, id } = object;
+        const url = (object.url === null ? undefined : object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
         if (typeof attributedTo !== 'string') throw new Error(`TODO: Note.attributedTo type not implemented ${JSON.stringify(object)}`);
         if (typeof content !== 'string') throw new Error(`TODO: Note.content type not implemented ${typeof content} ${JSON.stringify(object)}`);
         if (typeof published !== 'string') throw new Error(`TODO: Note.published type not implemented ${JSON.stringify(object)}`);

@@ -81,6 +81,12 @@ export class ValidationJobVM {
         }
     }
 
+    async fetch(url: string, opts: { headers?: Record<string, string> }): Promise<FetchResult> {
+        const { headers } = opts;
+        const { fetchers } = this;
+        return await localOrRemoteFetch(url, { fetchers, headers });
+    }
+
     //
 
     private async validateAsync(input: string, job: ValidationJob): Promise<void> {
@@ -369,6 +375,14 @@ export interface ValidationJobTimes {
     commentsTime?: number;
 }
 
+export type FetchSide = 'local' | 'remote';
+
+export interface FetchResult {
+    readonly fetchTime: number;
+    readonly side: FetchSide;
+    readonly response: Response;
+}
+
 //
 
 function formatTime(millis: number): string {
@@ -462,14 +476,6 @@ function findEpisodeTitle(socialInteract: ExtendedXmlNode): string | undefined {
 }
 
 //
-
-type FetchSide = 'local' | 'remote';
-
-interface FetchResult {
-    readonly fetchTime: number;
-    readonly side: FetchSide;
-    readonly response: Response;
-}
 
 interface ValidationJob {
     readonly id: number;

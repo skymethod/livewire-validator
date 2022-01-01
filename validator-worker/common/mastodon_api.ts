@@ -381,6 +381,6 @@ function isStatus(obj: any): obj is Status {
         && typeof obj.content === 'string'
         && typeof obj.visibility === 'string'
         && (obj.url === undefined || typeof obj.url === 'string')
-        && (obj.in_reply_to_id === undefined || typeof obj.in_reply_to_id === 'string')
+        && (obj.in_reply_to_id === undefined || obj.in_reply_to_id === null || typeof obj.in_reply_to_id === 'string')
         ;
 }

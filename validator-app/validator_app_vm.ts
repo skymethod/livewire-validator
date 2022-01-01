@@ -66,7 +66,10 @@ export class ValidatorAppVM {
         if (!info) throw new Error(`No login for ${origin}`);
         if (computeExpired(info.tokenResponse)) throw new Error(`Login expired for ${origin}`);
         console.log(`replyToUrl`, replyToUrl);
-        const mastodonId = computeMastodonIdForUrl(replyToUrl);
+        const mastodonId = await computeMastodonIdForUrl(replyToUrl, async (url, headers) => {
+            const { response } = await this.job.fetch(url, { headers });
+            return response;
+        });
         console.log(`mastodonId`, mastodonId);
         const { url } = await statusesPublish(origin, info.tokenResponse.access_token, { status: reply, in_reply_to_id: mastodonId });
         return url;
@@ -99,11 +102,23 @@ function deleteLoginInfo(origin: string) {
     localStorage.removeItem(computeLoginInfoLocalStorageKey(origin));
 }
 
-function computeMastodonIdForUrl(replyToUrl: string): string {
-    // https://example.com/@user/123123123123123123
-    const end = new URL(replyToUrl).pathname.split('/').pop() || '';
-    checkTrue('mastodon replyToUrl', replyToUrl, /^\d+$/.test(end));
-    return end;
+async function computeMastodonIdForUrl(replyToUrl: string, fetcher: (url: string, headers: Record<string, string>) => Promise<Response>): Promise<string> {
+    const { pathname } = new URL(replyToUrl);
+    // mastodon: https://example.com/@user/123123123123123123
+    const m = /^\/.*?\/(\d+)$/.exec(pathname);
+    if (m) return m[1];
+
+    // pleroma: https://example.com/objects/cf862eb4-344f-44e9-be66-b67a298e5dc2
+    if (/^.*?\/objects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(new URL(replyToUrl).pathname)) {
+        // the guid is not a valid mastodon id
+        // fetching the html version will redirect to a path ending in the real mastodon id
+        const res = await fetcher(replyToUrl, { accept: 'text/html' });
+        if (res.status !== 200) throw new Error(`Bad status ${res.status}, expected 200 for ${replyToUrl}`);
+        // e.g. https://example.com/notice/AF0ickpJ9llU2kau2a
+        const m2 = /^\/.*?\/([a-zA-Z0-9]+)$/.exec(new URL(res.url).pathname);
+        if (m2) return m2[1];
+    }
+    throw new Error(`computeMastodonIdForUrl: unable to compute for ${replyToUrl}`);
 }
 
 //
