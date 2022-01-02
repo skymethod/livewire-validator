@@ -165,9 +165,12 @@ export class ValidationJobVM {
                         const onMessage = (type: MessageType, node: ExtendedXmlNode, message: string, opts: MessageOptions | undefined) => {
                             addMessage(type, message, opts);
                             if (opts?.tag === 'social-interact') {
-                                if (node.val && node.val !== '' && computeAttributeMap(node.attrsMap).get('platform') === 'activitypub') {
-                                    const episodeTitle = findEpisodeTitle(node)
-                                    activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                if (node.val && node.val !== '') {
+                                    const attributes = computeAttributeMap(node.attrsMap);
+                                    if (attributes.get('platform') === 'activitypub' || attributes.get('protocol') === 'activitypub') {
+                                        const episodeTitle = findEpisodeTitle(node)
+                                        activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                    }
                                 }
                             }
                         };
