@@ -85,7 +85,7 @@ export function isRfc2822(trimmedText: string): boolean {
     // https://datatracker.ietf.org/doc/html/rfc2822
     // 01 Jun 2016 14:31:46 -0700
     // Thu, 01 Apr 2021 08:00:00 EST
-    return /^[0-9A-Za-z: -]+$/.test(trimmedText);
+    return /^[0-9A-Za-z, ]+ \d{2}:\d{2}(:\d{2})? (-?[0-9]+|[A-Z]{3,})$/.test(trimmedText);
 }
 
 export function isIso8601(trimmedText: string): boolean {

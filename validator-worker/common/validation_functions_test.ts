@@ -1,5 +1,5 @@
 import { assert } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
-import { isPodcastImagesSrcSet } from './validation_functions.ts';
+import { isPodcastImagesSrcSet, isRfc2822 } from './validation_functions.ts';
 
 Deno.test('isPodcastImagesSrcSet', () => {
     const good = [
@@ -24,7 +24,6 @@ https://example.com/images/ep1/pci_avatar-tiny.jpg 150w`, // from pi spec\
         'https://example.com 234w, https://example.com 234w', // no width dups
         'https://example.com 2.30x, https://example.com 2.3x', // no density dups
         'https://example.com 1.00x, https://example.com', // no density dups, implied 1x
-
     ];
 
     for (const srcset of good) {
@@ -33,6 +32,28 @@ https://example.com/images/ep1/pci_avatar-tiny.jpg 150w`, // from pi spec\
 
     for (const srcset of bad) {
         assert(!isPodcastImagesSrcSet(srcset), `expected bad: ${srcset}`);
+    }
+
+});
+
+Deno.test('isRfc2822', () => {
+    const good = [
+        '01 Jun 2016 14:31:46 -0700',
+        'Thu, 01 Apr 2021 08:00:00 EST',
+        'Tue, 15 Sep 2015 14:00:00 UTC',
+    ];
+
+    const bad = [
+        '', 'a', 'thursday',
+        new Date().toISOString(),
+    ];
+
+    for (const date of good) {
+        assert(isRfc2822(date), `expected good: ${date}`);
+    }
+
+    for (const date of bad) {
+        assert(!isRfc2822(date), `expected bad: ${date}`);
     }
 
 });
