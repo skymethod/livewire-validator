@@ -155,7 +155,10 @@ export class ValidationJobVM {
                         xml = parseXml(text);
                         console.log(xml);
                     } catch (e) {
-                        addMessage('error', `Xml parse failed: ${e.message}`);
+                        console.error(e);
+                        const message = typeof e.message === 'string' ? e.message: '';
+                        const knownInvalid = message === `Cannot read properties of undefined (reading 'parent')`; // thrown by getTraversalObj
+                        addMessage('error', `Xml parse failed: ${knownInvalid ? 'Invalid xml' : e.message}`);
                     } finally {
                         job.times.parseTime = Date.now() - start;
                     }
