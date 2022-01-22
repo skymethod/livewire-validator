@@ -1,4 +1,5 @@
 import { CollectionPage, Link, Note, Object_, Person, Image, OrderedCollection, OrderedCollectionPage, PodcastEpisode } from './activity_pub.ts';
+import { isStringRecord } from './check.ts';
 import { Comment, Commenter, Attachment, Icon } from './comment_model.ts';
 import { isReadonlyArray } from './util.ts';
 
@@ -162,14 +163,28 @@ async function collectItems(items: readonly (string | Link | Object_)[], comment
     }
 }
 
+
+function computeNoteContent(note: Object_): string {
+    const { content, contentMap } = note;
+    if (content !== undefined && typeof content !== 'string') throw new Error(`TODO: Note.content type not implemented ${typeof content} ${JSON.stringify(note)}`);
+    if (contentMap !== undefined && !isStringRecord(contentMap)) throw new Error(`TODO: Note.contentMap type not implemented ${typeof contentMap} ${JSON.stringify(note)}`);
+    if (content === undefined && contentMap === undefined) throw new Error(`TODO: Note.content and contentMap undefined ${JSON.stringify(note)}`);
+    if (content) return content;
+    for (const [ _name, value ] of Object.entries(contentMap || {})) {
+        // just take the first one for now
+        return value;
+    }
+    throw new Error(`TODO: Note.contentMap empty ${JSON.stringify(note)}`);
+}
+
 function initCommentFromObjectOrLink(object: Object_ | Link): Comment {
     if (object.type === 'Note') {
-        const { attributedTo, content, published, id } = object;
+        const { attributedTo, published, id } = object;
         const url = (object.url === null ? undefined : object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
         if (typeof attributedTo !== 'string') throw new Error(`TODO: Note.attributedTo type not implemented ${JSON.stringify(object)}`);
-        if (typeof content !== 'string') throw new Error(`TODO: Note.content type not implemented ${typeof content} ${JSON.stringify(object)}`);
         if (typeof published !== 'string') throw new Error(`TODO: Note.published type not implemented ${JSON.stringify(object)}`);
         if (url !== undefined && typeof url !== 'string') throw new Error(`TODO: Note.url type not implemented ${JSON.stringify(object)}`);
+        const content = computeNoteContent(object);
         const attachments = computeAttachments(object);
         return { url, attributedTo, content, published, replies: [], attachments };
     }
@@ -235,8 +250,10 @@ function computeCommenter(person: Person): Commenter {
         if (typeof person.icon !== 'object' || isReadonlyArray(person.icon) || person.icon.type !== 'Image') throw new Error(`TODO person.icon not implemented: ${JSON.stringify(person.icon)}`);
         icon = computeIcon(person.icon);
     }
-    const { name, url } = person;
+    const { name, url: apUrl, id } = person;
     if (typeof name !== 'string') throw new Error(`TODO person.name not implemented: ${name}`);
+    if (apUrl !== undefined && typeof apUrl !== 'string') throw new Error(`TODO person.url not implemented: ${apUrl}`);
+    const url = apUrl || id;
     if (typeof url !== 'string') throw new Error(`TODO person.url not implemented: ${url}`);
     const fqUsername = computeFqUsername(url, person.preferredUsername);
     return { icon, name, url, fqUsername };

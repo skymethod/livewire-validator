@@ -1,4 +1,4 @@
-import { isObject } from './check.ts';
+import { isStringRecord } from './check.ts';
 
 // https://datatracker.ietf.org/doc/html/rfc6749#section-4.2.2
 export interface OauthObtainTokenResponse {
@@ -38,7 +38,7 @@ export interface OauthObtainTokenResponse {
 
 // deno-lint-ignore no-explicit-any
 export function isOauthObtainTokenResponse(obj: any): obj is OauthObtainTokenResponse {
-    return isObject(obj) 
+    return isStringRecord(obj) 
         && typeof obj.access_token === 'string'
         && typeof obj.token_type === 'string'
         && typeof obj.scope === 'string'

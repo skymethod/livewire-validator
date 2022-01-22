@@ -1,4 +1,4 @@
-import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, oauthObtainToken, statusesPublish, statusesViewById } from './mastodon_api.ts';
+import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, oauthObtainToken, statusesPublish, statusesViewById } from './common/mastodon_api.ts';
 import { parseJsonc } from './deps_cli.ts';
 
 export async function mastodon(args: (string | number)[]) {

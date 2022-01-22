@@ -1,6 +1,6 @@
 // deno-lint-ignore-file camelcase
 
-import { isObject } from './check.ts';
+import { isStringRecord } from './check.ts';
 import { isOauthObtainTokenResponse, OauthObtainTokenResponse } from './oauth.ts';
 
 const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
@@ -157,7 +157,7 @@ export interface AppsCreateApplicationResponse {
 
 // deno-lint-ignore no-explicit-any
 function isAppsCreateApplicationResponse(obj: any): obj is AppsCreateApplicationResponse {
-    return isObject(obj) 
+    return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.name === 'string'
         && (obj.website === undefined || typeof obj.website === 'string')
@@ -185,7 +185,7 @@ export interface AccountsVerifyCredentialsResponse extends Account {
 
 // deno-lint-ignore no-explicit-any
 function isAccountsVerifyCredentialsResponse(obj: any): obj is AccountsVerifyCredentialsResponse {
-    return isObject(obj) 
+    return isStringRecord(obj) 
         && isSource(obj.source)
         && isAccount(obj);
 }
@@ -263,7 +263,7 @@ export interface Account {
 
 // deno-lint-ignore no-explicit-any
 function isAccount(obj: any): obj is Account {
-    return isObject(obj) 
+    return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.username === 'string'
         && typeof obj.display_name === 'string'
@@ -289,7 +289,7 @@ export interface Source {
 
 // deno-lint-ignore no-explicit-any
 function isSource(obj: any): obj is Source {
-    return isObject(obj)
+    return isStringRecord(obj)
         && typeof obj.note === 'string'
         ;
 }
@@ -328,7 +328,7 @@ export interface Instance {
 
 // deno-lint-ignore no-explicit-any
 function isInstance(obj: any): obj is Instance {
-    return isObject(obj) 
+    return isStringRecord(obj) 
         && typeof obj.uri === 'string'
         && typeof obj.title === 'string'
         && typeof obj.description === 'string'
@@ -374,7 +374,7 @@ export interface Status {
 
 // deno-lint-ignore no-explicit-any
 function isStatus(obj: any): obj is Status {
-    return isObject(obj) 
+    return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.uri === 'string'
         && typeof obj.created_at === 'string'

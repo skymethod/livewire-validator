@@ -10,5 +10,5 @@ export { ValidationJobVM } from '../validator-worker/common/validation_job_vm.ts
 export type { FetchCommentsResult } from '../validator-worker/common/comments.ts';
 export { isOauthObtainTokenResponse } from '../validator-worker/common/oauth.ts';
 export type { OauthObtainTokenResponse } from '../validator-worker/common/oauth.ts';
-export { isObject, checkEqual, checkTrue } from '../validator-worker/common/check.ts';
+export { isStringRecord, checkEqual, checkTrue } from '../validator-worker/common/check.ts';
 export { statusesPublish } from '../validator-worker/common/mastodon_api.ts';

@@ -1,4 +1,4 @@
-import { ValidationJobVM, ValidationJobVMOpts, Message, ExtendedXmlNode, FetchCommentsResult, PIFeedInfo, ValidationOptions, OauthObtainTokenResponse, isObject, isOauthObtainTokenResponse, checkEqual, checkTrue, statusesPublish  } from './deps_app.ts';
+import { ValidationJobVM, ValidationJobVMOpts, Message, ExtendedXmlNode, FetchCommentsResult, PIFeedInfo, ValidationOptions, OauthObtainTokenResponse, isStringRecord, isOauthObtainTokenResponse, checkEqual, checkTrue, statusesPublish  } from './deps_app.ts';
 
 export class ValidatorAppVM {
 
@@ -130,7 +130,7 @@ interface LoginInfo {
 
 // deno-lint-ignore no-explicit-any
 function isLoginInfo(obj: any): obj is LoginInfo {
-    return isObject(obj)
+    return isStringRecord(obj)
         && typeof obj.origin === 'string'
         && isOauthObtainTokenResponse(obj.tokenResponse)
         ;
