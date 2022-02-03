@@ -94,8 +94,9 @@ const staticData = parseStaticData();
 const localFetcher: Fetcher = (url, headers) => fetch(url, { headers });
 const remoteFetcher: Fetcher = (url, headers) => fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers }) });
 const piSearchFetcher: PISearchFetcher = (input, headers) => fetch(`/s`, { method: 'POST', body: JSON.stringify({ input, headers }) });
+const threadcapUserAgent = navigator.userAgent;
 
-const vm = new ValidatorAppVM({ localFetcher, remoteFetcher, piSearchFetcher });
+const vm = new ValidatorAppVM({ threadcapUserAgent, localFetcher, remoteFetcher, piSearchFetcher });
 const updateForm = initForm(document, vm, staticData);
 const updateMessages = initMessages(document, vm);
 const updateSearchResults = initSearchResults(document, vm);

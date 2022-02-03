@@ -12,7 +12,8 @@ export async function validate(args: (string | number)[], options: Record<string
     const localFetcher: Fetcher = fetchWithCorsConstraints;
     const remoteFetcher: Fetcher = (url, headers) => fetch(url, { headers });
     const piSearchFetcher: PISearchFetcher = () => { return Promise.resolve(new Response('{}')) };
-    const vm = new ValidationJobVM({ localFetcher, remoteFetcher, piSearchFetcher });
+    const threadcapUserAgent = 'validator cli';
+    const vm = new ValidationJobVM({ localFetcher, remoteFetcher, piSearchFetcher, threadcapUserAgent });
 
     let onResolveValidationDone = (_: unknown) => {};
     const validationDone = new Promise(resolve => onResolveValidationDone = resolve);

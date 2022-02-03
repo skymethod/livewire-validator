@@ -4,14 +4,15 @@ import { isReadonlyArray } from './util.ts';
 import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
 import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
 import { setIntersect } from './sets.ts';
-import { Cache, Callbacks, Comment, Instant, makeRateLimitedFetcher, makeThreadcap, Threadcap, updateThreadcap } from './deps_comments.ts';
+import { InMemoryCache, Callbacks, Comment, makeRateLimitedFetcher, makeThreadcap, Threadcap, updateThreadcap } from './deps_comments.ts';
 
-export type ValidationJobVMOpts = { localFetcher: Fetcher, remoteFetcher: Fetcher, piSearchFetcher: PISearchFetcher };
+export type ValidationJobVMOpts = { localFetcher: Fetcher, remoteFetcher: Fetcher, piSearchFetcher: PISearchFetcher, threadcapUserAgent: string };
 
 export class ValidationJobVM {
 
     private readonly fetchers: Fetchers;
     private readonly piSearchFetcher: PISearchFetcher;
+    private readonly threadcapUserAgent: string;
 
     private nextJobId = 1;
     private currentJob: ValidationJob | undefined;
@@ -34,9 +35,10 @@ export class ValidationJobVM {
     get commentsResult(): CommentsResult | undefined { return this.currentJob?.commentsResult; }
 
     constructor(opts: ValidationJobVMOpts) {
-        const { localFetcher, remoteFetcher, piSearchFetcher } = opts;
+        const { localFetcher, remoteFetcher, piSearchFetcher, threadcapUserAgent } = opts;
         this.fetchers = { localFetcher, remoteFetcher };
         this.piSearchFetcher = piSearchFetcher;
+        this.threadcapUserAgent = threadcapUserAgent;
     }
 
     onChange: () => void = () => {};
@@ -287,6 +289,9 @@ export class ValidationJobVM {
                             if (event.kind === 'warning') {
                                 const { message, url} = event;
                                 addMessage('warning', message, { url });
+                            } else if (event.kind === 'node-processed') {
+                                job.commentsResult = { threadcap, subject: activityPub!.subject };
+                                this.onChange();
                             } else {
                                 console.log('callbacks.event', event);
                             }
@@ -294,11 +299,14 @@ export class ValidationJobVM {
                     };
                     const fetcher = makeRateLimitedFetcher(fetchActivityPub, { callbacks });
                     const cache = new InMemoryCache();
+                    const userAgent = this.threadcapUserAgent;
                 
-                    const threadcap = await makeThreadcap(activityPub.url, { fetcher, cache });
+                    const threadcap = await makeThreadcap(activityPub.url, { userAgent, fetcher, cache });
+                    job.commentsResult = { threadcap, subject: activityPub.subject };
+                    this.onChange();
                     
                     const updateTime = new Date().toISOString();
-                    await updateThreadcap(threadcap, { updateTime, keepGoing, fetcher, cache, callbacks });
+                    await updateThreadcap(threadcap, { updateTime, keepGoing, userAgent, fetcher, cache, callbacks });
                     // console.log(JSON.stringify(threadcap, undefined, 2));
                     job.times.commentsTime = Date.now() - start;
                     addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter(v => v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
@@ -531,19 +539,4 @@ interface PIIdResponse {
 interface Fetchers {
     readonly localFetcher: Fetcher;
     readonly remoteFetcher: Fetcher;
-}
-
-class InMemoryCache implements Cache {
-    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
-
-    get(id: string, after: Instant): Promise<Response | undefined> {
-        const { response, fetched } = this.map.get(id) || {};
-        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
-    }
-
-    put(id: string, fetched: Instant, response: Response): Promise<void> {
-        this.map.set(id, { response, fetched });
-        return Promise.resolve();
-    }
-
 }

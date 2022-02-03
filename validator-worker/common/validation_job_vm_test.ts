@@ -5,7 +5,8 @@ Deno.test('ValidationJobVM calls search ', () => {
     const localFetcher: Fetcher = () => { throw new Error(); };
     const remoteFetcher: Fetcher = () => { throw new Error(); };
     const piSearchFetcher: PISearchFetcher = () => { return Promise.resolve(new Response('{}')) };
-    const vm = new ValidationJobVM({ localFetcher, remoteFetcher, piSearchFetcher });
+    const threadcapUserAgent = 'test.ts';
+    const vm = new ValidationJobVM({ threadcapUserAgent, localFetcher, remoteFetcher, piSearchFetcher });
     assert(vm.validating === false);
     assertEquals(vm.isSearch, false);
     vm.startValidation('asdf', { userAgent: 'foo', validateComments: false });
