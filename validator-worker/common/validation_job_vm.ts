@@ -171,7 +171,7 @@ export class ValidationJobVM {
                             if (opts?.tag === 'social-interact') {
                                 if (node.val && node.val !== '') {
                                     const attributes = computeAttributeMap(node.attrsMap);
-                                    if (attributes.get('platform') === 'activitypub' || attributes.get('protocol') === 'activitypub') {
+                                    if (attributes.get('platform')?.toLowerCase() === 'activitypub' || attributes.get('protocol')?.toLowerCase() === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
