@@ -8,4 +8,6 @@ export class Theme {
     static readonly textColorSecondaryHex = '#888888';
     static sansSerifFontFamily = '-apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif';
     static monospaceFontFamily = 'Menlo, "SF Mono", "Andale Mono", "Roboto Mono", Monaco, monospace';
+
+    static readonly textColorErrorHex = '#b71c1c';
 }

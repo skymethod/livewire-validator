@@ -1,5 +1,6 @@
 import { html, css, unsafeCSS, Theme, LitElement, isOauthObtainTokenResponse, Threadcap, CommentsResult } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
+import { ERROR_ICON, PERSON_ICON } from './icons.ts';
 import { externalizeAnchor } from './util.ts';
 
 export const COMMENTS_HTML = html`
@@ -33,6 +34,25 @@ export const COMMENTS_CSS = css`
     margin: 0.75em 1em 1em 0;
 }
 
+.comment div.icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.comment div.icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.comment div.error.icon svg {
+    fill: ${unsafeCSS(Theme.textColorErrorHex)};
+}
+
+.comment div.default.icon svg {
+    fill: ${unsafeCSS(Theme.textColorSecondaryHex)};
+}
+
 .comment .rhs {
     display: flex;
     flex-direction: column;
@@ -60,6 +80,10 @@ export const COMMENTS_CSS = css`
     max-width: 80ch;
     width: auto;
     height: auto;
+}
+
+details.error {
+    color: ${unsafeCSS(Theme.textColorErrorHex)};
 }
 
 .reply fieldset {
@@ -109,90 +133,116 @@ function renderComments(result: CommentsResult | undefined, commentsOutput: HTML
 
 function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTMLElement, level: number, vm: ValidatorAppVM) {
     const node = threadcap.nodes[nodeId];
-    if (!node || !node.comment) return;
+    if (!node) return;
     
-    const { comment } = node;
-    const commenter = threadcap.commenters[comment.attributedTo];
+    const { comment, commentError } = node;
     
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
     if (level > 0) commentDiv.style.marginLeft = `${level * 4}em`;
 
-    const iconImg = document.createElement('img');
-    iconImg.classList.add('icon');
-    iconImg.src = commenter && commenter.icon ? commenter.icon.url : '#';
-    commentDiv.appendChild(iconImg);
+    const commenter = comment ? threadcap.commenters[comment.attributedTo] : undefined;
 
+    if (comment && commenter?.icon?.url) {
+        const iconImg = document.createElement('img');
+        iconImg.classList.add('icon');
+        iconImg.src = commenter.icon.url;
+        commentDiv.appendChild(iconImg);
+    } else {
+       const iconDiv = document.createElement('div');
+       iconDiv.classList.add('icon', commentError ? 'error' : 'default');
+       iconDiv.innerHTML = (commentError ? ERROR_ICON : PERSON_ICON).getHTML();
+       commentDiv.appendChild(iconDiv);
+    }
+    
     const rhsDiv = document.createElement('div');
     rhsDiv.classList.add('rhs');
-    
+
     const headerDiv = document.createElement('div');
     headerDiv.classList.add('header');
 
-    const attributedToDiv = document.createElement('div');
-    attributedToDiv.classList.add('attributed-to');
-    if (commenter) {
-        const a = document.createElement('a');
-        a.href = commenter.url;
-        a.target = '_blank';
-        a.textContent = commenter.name + ' ' + commenter.fqUsername;
-        attributedToDiv.appendChild(a);
-    } else {
-        attributedToDiv.appendChild(document.createTextNode(comment.attributedTo || '<unknown>'));
-    }
-    headerDiv.appendChild(attributedToDiv);
+    if (comment) {
+        const attributedToDiv = document.createElement('div');
+        attributedToDiv.classList.add('attributed-to');
+        if (commenter) {
+            const a = document.createElement('a');
+            a.href = commenter.url;
+            a.target = '_blank';
+            a.textContent = commenter.name + ' ' + commenter.fqUsername;
+            attributedToDiv.appendChild(a);
+        } else {
+            attributedToDiv.appendChild(document.createTextNode(comment.attributedTo || '<unknown>'));
+        }
+        headerDiv.appendChild(attributedToDiv);
 
-    const ageText = document.createTextNode(comment.published ? computeAge(new Date(comment.published)) : '');
-    if (comment.url) {
-        const ageAnchor = document.createElement('a');
-        ageAnchor.classList.add('url');
-        ageAnchor.href = comment.url;
-        externalizeAnchor(ageAnchor);
-        ageAnchor.appendChild(ageText);
-        headerDiv.appendChild(ageAnchor);
-    } else {
-        headerDiv.appendChild(ageText);
+        const ageText = document.createTextNode(comment.published ? computeAge(new Date(comment.published)) : '');
+        if (comment.url) {
+            const ageAnchor = document.createElement('a');
+            ageAnchor.classList.add('url');
+            ageAnchor.href = comment.url;
+            externalizeAnchor(ageAnchor);
+            ageAnchor.appendChild(ageText);
+            headerDiv.appendChild(ageAnchor);
+        } else {
+            headerDiv.appendChild(ageText);
+        }
+    } else if (commentError) {
+        const nodeAnchor = document.createElement('a');
+        nodeAnchor.href = nodeId;
+        nodeAnchor.innerText = nodeId;
+        externalizeAnchor(nodeAnchor);
+        headerDiv.appendChild(nodeAnchor);
     }
-    
     rhsDiv.appendChild(headerDiv);
 
-    const contentDiv = document.createElement('div');
-    contentDiv.innerHTML = Object.values(comment.content)[0];
-    contentDiv.querySelectorAll('a').forEach(externalizeAnchor);
-    rhsDiv.appendChild(contentDiv);
+    if (comment) {
+        const contentDiv = document.createElement('div');
+        contentDiv.innerHTML = Object.values(comment.content)[0];
+        contentDiv.querySelectorAll('a').forEach(externalizeAnchor);
+        rhsDiv.appendChild(contentDiv);
 
-    for (const attachment of comment.attachments) {
-        const attachmentDetails = document.createElement('details');
-        const summary =  document.createElement('summary');
-        summary.textContent = `Attachment (${attachment.mediaType})`;
-        attachmentDetails.appendChild(summary);
-        const img = document.createElement('img');
-        img.src = attachment.url;
-        if (attachment.width && attachment.height) {
-            img.width = attachment.width;
-            img.height = attachment.height;
+        for (const attachment of comment.attachments) {
+            const attachmentDetails = document.createElement('details');
+            const summary =  document.createElement('summary');
+            summary.textContent = `Attachment (${attachment.mediaType})`;
+            attachmentDetails.appendChild(summary);
+            const img = document.createElement('img');
+            img.src = attachment.url;
+            if (attachment.width && attachment.height) {
+                img.width = attachment.width;
+                img.height = attachment.height;
+            }
+            attachmentDetails.appendChild(img);
+            rhsDiv.appendChild(attachmentDetails);
         }
-        attachmentDetails.appendChild(img);
-        rhsDiv.appendChild(attachmentDetails);
-    }
 
-    if (comment.url) {
-        const replyToUrl = comment.url;
-        const replyDiv = document.createElement('div');
-        replyDiv.className = 'reply';
-        const replyAnchor = document.createElement('a');
-        replyAnchor.textContent = "Reply →";
-        replyAnchor.href = '#';
-        replyDiv.appendChild(replyAnchor);
-        const replyFieldsetContainer = document.createElement('div');
-        replyDiv.appendChild(replyFieldsetContainer);
-        replyAnchor.onclick = e => {
-            e.preventDefault();
-            toggleReplyBox(replyAnchor, replyFieldsetContainer, replyToUrl, vm);
-        };
-        rhsDiv.appendChild(replyDiv);
+        if (comment.url) {
+            const replyToUrl = comment.url;
+            const replyDiv = document.createElement('div');
+            replyDiv.className = 'reply';
+            const replyAnchor = document.createElement('a');
+            replyAnchor.textContent = "Reply →";
+            replyAnchor.href = '#';
+            replyDiv.appendChild(replyAnchor);
+            const replyFieldsetContainer = document.createElement('div');
+            replyDiv.appendChild(replyFieldsetContainer);
+            replyAnchor.onclick = e => {
+                e.preventDefault();
+                toggleReplyBox(replyAnchor, replyFieldsetContainer, replyToUrl, vm);
+            };
+            rhsDiv.appendChild(replyDiv);
+        }
+    } else if (commentError) {
+        const lines = commentError.split('\n');
+        const summary = lines[0];
+        const errorDetails = document.createElement('details');
+        errorDetails.classList.add('error');
+        const errorSummary = document.createElement('summary');
+        errorSummary.textContent = summary;
+        errorDetails.appendChild(errorSummary);
+        errorDetails.append(document.createTextNode(lines.slice(1).join('\n')))
+        rhsDiv.appendChild(errorDetails);
     }
-
     commentDiv.appendChild(rhsDiv);
 
     containerElement.appendChild(commentDiv);

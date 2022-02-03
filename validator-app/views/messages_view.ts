@@ -37,7 +37,7 @@ export const MESSAGES_CSS = css`
 }
 
 #messages > div.error {
-    color: #b71c1c;
+    color: ${unsafeCSS(Theme.textColorErrorHex)};
 }
 
 #messages > div.running, #messages > div.done {
