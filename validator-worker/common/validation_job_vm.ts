@@ -1,11 +1,10 @@
 import { checkMatches, checkEqual } from './check.ts';
-import { fetchCommentsForUrl, FetchCommentsResult, computeCommentCount } from './comments.ts';
-import { Comment } from './comment_model.ts';
 import { Qnames } from './qnames.ts';
 import { isReadonlyArray } from './util.ts';
 import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
 import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
 import { setIntersect } from './sets.ts';
+import { Cache, Callbacks, Comment, Instant, makeRateLimitedFetcher, makeThreadcap, Threadcap, updateThreadcap } from './deps_comments.ts';
 
 export type ValidationJobVMOpts = { localFetcher: Fetcher, remoteFetcher: Fetcher, piSearchFetcher: PISearchFetcher };
 
@@ -32,7 +31,7 @@ export class ValidationJobVM {
 
     get xmlSummaryText(): string | undefined { return this.currentJob?.xmlSummaryText; }
 
-    get fetchCommentsResult(): FetchCommentsResult | undefined { return this.currentJob?.fetchCommentsResult; }
+    get commentsResult(): CommentsResult | undefined { return this.currentJob?.commentsResult; }
 
     constructor(opts: ValidationJobVMOpts) {
         const { localFetcher, remoteFetcher, piSearchFetcher } = opts;
@@ -258,16 +257,18 @@ export class ValidationJobVM {
                     };
                     let activityPubCalls = 0;
                     const fetchActivityPub = async (url: string) => {
-                        let { obj, side } = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
+                        let { response, side } = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
+                        let obj = await response.clone().json();
                         console.log(JSON.stringify(obj, undefined, 2));
                         if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
                             // https://docs.joinmastodon.org/methods/statuses/
                             // https://docs.joinmastodon.org/entities/status/
                             // uri = URI of the status used for federation (i.e. the AP url)
                             url = obj.uri;
-                            const res = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); if (!keepGoing()) return undefined;
-                            obj = res.obj;
-                            side = res.side;
+                            const { response: response2, side: side2 } = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
+                            response = response2.clone();
+                            obj = await response2.json();
+                            side = side2;
                             console.log(JSON.stringify(obj, undefined, 2));
                         }
                         if (side === 'remote') {
@@ -278,18 +279,31 @@ export class ValidationJobVM {
                             }
                         }
                         activityPubCalls++;
-                        return obj;
-                    };
-                    const warn = (comment: Comment, url: string, message: string) => {
-                        addMessage('warning', message, { comment, url });
+                        return response;
                     };
                     const start = Date.now();
-                    const fetchCommentsResult = await fetchCommentsForUrl(activityPub.url, activityPub.subject, { keepGoing, fetchActivityPub, warn });
-                    if (fetchCommentsResult) {
-                        job.times.commentsTime = Date.now() - start;
-                        addMessage('info', `Found ${unitString(computeCommentCount(fetchCommentsResult.rootComment), 'comment')} and ${unitString(fetchCommentsResult.commenters.size, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
-                    }
-                    job.fetchCommentsResult = fetchCommentsResult;
+                    const callbacks: Callbacks = {
+                        onEvent: event => {
+                            if (event.kind === 'warning') {
+                                const { message, url} = event;
+                                addMessage('warning', message, { url });
+                            } else {
+                                console.log('callbacks.event', event);
+                            }
+                        }
+                    };
+                    const fetcher = makeRateLimitedFetcher(fetchActivityPub, { callbacks });
+                    const cache = new InMemoryCache();
+                
+                    const threadcap = await makeThreadcap(activityPub.url, { fetcher, cache });
+                    
+                    const updateTime = new Date().toISOString();
+                    await updateThreadcap(threadcap, { updateTime, keepGoing, fetcher, cache, callbacks });
+                    // console.log(JSON.stringify(threadcap, undefined, 2));
+                    job.times.commentsTime = Date.now() - start;
+                    addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter(v => v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
+
+                    job.commentsResult = { threadcap, subject: activityPub.subject };
                     this.onChange();
                 }
             } else {
@@ -389,6 +403,11 @@ export interface FetchResult {
     readonly response: Response;
 }
 
+export interface CommentsResult {
+    readonly threadcap: Threadcap;
+    readonly subject: string;
+}
+
 //
 
 function formatTime(millis: number): string {
@@ -436,7 +455,7 @@ function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function localOrRemoteFetchFetchActivityPub(url: string, fetchers: Fetchers, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ obj: Record<string, unknown>, side: FetchSide }> {
+async function localOrRemoteFetchFetchActivityPub(url: string, fetchers: Fetchers, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ response: Response, side: FetchSide }> {
     if (sleepMillisBetweenCalls > 0) await sleep(sleepMillisBetweenCalls);
     const { response, side } = await localOrRemoteFetch(url, { fetchers, headers: { 'Accept': 'application/activity+json' }, useSide });
     checkEqual('res.status', response.status, 200);
@@ -445,8 +464,7 @@ async function localOrRemoteFetchFetchActivityPub(url: string, fetchers: Fetcher
     if (!(contentType || '').includes('json')) { // application/activity+json; charset=utf-8, application/json
         throw new Error('Found html, not ActivityPub');
     }
-    const obj = await response.json();
-    return { obj, side };
+    return { response, side };
 }
 
 async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, headers?: Record<string, string>, useSide?: FetchSide }): Promise<FetchResult> {
@@ -494,7 +512,7 @@ interface ValidationJob {
     cancelled: boolean;
     xml?: ExtendedXmlNode;
     xmlSummaryText?: string;
-    fetchCommentsResult?: FetchCommentsResult;
+    commentsResult?: CommentsResult;
 }
 
 interface SearchResult {
@@ -513,4 +531,19 @@ interface PIIdResponse {
 interface Fetchers {
     readonly localFetcher: Fetcher;
     readonly remoteFetcher: Fetcher;
+}
+
+class InMemoryCache implements Cache {
+    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
+
+    get(id: string, after: Instant): Promise<Response | undefined> {
+        const { response, fetched } = this.map.get(id) || {};
+        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
+    }
+
+    put(id: string, fetched: Instant, response: Response): Promise<void> {
+        this.map.set(id, { response, fetched });
+        return Promise.resolve();
+    }
+
 }

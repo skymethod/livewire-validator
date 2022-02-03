@@ -1,4 +1,4 @@
-import { html, css, unsafeCSS, Comment, Commenter, Theme, LitElement, FetchCommentsResult, isOauthObtainTokenResponse } from '../deps_app.ts';
+import { html, css, unsafeCSS, Theme, LitElement, isOauthObtainTokenResponse, Threadcap, CommentsResult } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { externalizeAnchor } from './util.ts';
 
@@ -88,7 +88,7 @@ export function initComments(document: Document, vm: ValidatorAppVM): () => void
     const commentsSubjectSpan = document.getElementById('comments-subject') as HTMLSpanElement;
     const commentsOutput = document.getElementById('comments') as HTMLOutputElement;
     return () => {
-        const result = vm.fetchCommentsResult;
+        const result = vm.commentsResult;
         commentsDetails.style.display = result ? 'block' : 'none';
         commentsSubjectSpan.textContent = result?.subject || 'subject';
         if (result !== _renderedResult) {
@@ -100,15 +100,19 @@ export function initComments(document: Document, vm: ValidatorAppVM): () => void
 
 //
 
-let _renderedResult: FetchCommentsResult | undefined;
+let _renderedResult: CommentsResult | undefined;
 
-function renderComments(result: FetchCommentsResult | undefined, commentsOutput: HTMLOutputElement, vm: ValidatorAppVM) {
+function renderComments(result: CommentsResult | undefined, commentsOutput: HTMLOutputElement, vm: ValidatorAppVM) {
     while (commentsOutput.firstChild) commentsOutput.removeChild(commentsOutput.firstChild);
-    if (result) renderNode(result.rootComment, result.commenters, commentsOutput, 0, vm);
+    if (result) renderNode(result.threadcap.root, result.threadcap, commentsOutput, 0, vm);
 }
 
-function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>, containerElement: HTMLElement, level: number, vm: ValidatorAppVM) {
-    const commenter = comment.attributedTo ? commenters.get(comment.attributedTo) : undefined;
+function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTMLElement, level: number, vm: ValidatorAppVM) {
+    const node = threadcap.nodes[nodeId];
+    if (!node || !node.comment) return;
+    
+    const { comment } = node;
+    const commenter = threadcap.commenters[comment.attributedTo];
     
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
@@ -153,7 +157,7 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
     rhsDiv.appendChild(headerDiv);
 
     const contentDiv = document.createElement('div');
-    contentDiv.innerHTML = comment.content;
+    contentDiv.innerHTML = Object.values(comment.content)[0];
     contentDiv.querySelectorAll('a').forEach(externalizeAnchor);
     rhsDiv.appendChild(contentDiv);
 
@@ -193,8 +197,8 @@ function renderNode(comment: Comment, commenters: ReadonlyMap<string, Commenter>
 
     containerElement.appendChild(commentDiv);
 
-    for (const reply of comment.replies) {
-        renderNode(reply, commenters, containerElement, level + 1, vm);
+    for (const reply of node.replies || []) {
+        renderNode(reply, threadcap, containerElement, level + 1, vm);
     }
 }
 

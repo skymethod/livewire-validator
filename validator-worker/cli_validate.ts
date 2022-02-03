@@ -2,10 +2,12 @@ import { isUrl } from './common/validation_functions.ts';
 import { Fetcher, MessageType, PISearchFetcher, ValidationJobVM } from './common/validation_job_vm.ts';
 import { Theme } from './common/theme.ts';
 
-export async function validate(args: (string | number)[], _options: Record<string, unknown>) {
+export async function validate(args: (string | number)[], options: Record<string, unknown>) {
     const feedUrl = args[0];
     if (typeof feedUrl !== 'string') throw new Error('Must provide feedUrl');
     if (!isUrl(feedUrl)) throw new Error('Must provide an absolute url for feedUrl');
+
+    const validateComments = !!options.comments;
 
     const localFetcher: Fetcher = fetchWithCorsConstraints;
     const remoteFetcher: Fetcher = (url, headers) => fetch(url, { headers });
@@ -20,7 +22,7 @@ export async function validate(args: (string | number)[], _options: Record<strin
         }
     };
 
-    vm.startValidation(feedUrl, { userAgent: 'foo', validateComments: false });
+    vm.startValidation(feedUrl, { userAgent: 'foo', validateComments });
     await validationDone;
     console.log('validationDone');
     for (const message of vm.messages) {

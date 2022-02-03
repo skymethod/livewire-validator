@@ -1,4 +1,5 @@
-import { ValidationJobVM, ValidationJobVMOpts, Message, ExtendedXmlNode, FetchCommentsResult, PIFeedInfo, ValidationOptions, OauthObtainTokenResponse, isStringRecord, isOauthObtainTokenResponse, checkEqual, checkTrue, statusesPublish  } from './deps_app.ts';
+import { CommentsResult } from '../validator-worker/common/validation_job_vm.ts';
+import { ValidationJobVM, ValidationJobVMOpts, Message, ExtendedXmlNode, PIFeedInfo, ValidationOptions, OauthObtainTokenResponse, isStringRecord, isOauthObtainTokenResponse, checkEqual, checkTrue, statusesPublish  } from './deps_app.ts';
 
 export class ValidatorAppVM {
 
@@ -18,7 +19,7 @@ export class ValidatorAppVM {
 
     get xmlSummaryText(): string | undefined { return this.job.xmlSummaryText; }
 
-    get fetchCommentsResult(): FetchCommentsResult | undefined { return this.job.fetchCommentsResult; }
+    get commentsResult(): CommentsResult | undefined { return this.job.commentsResult; }
 
     constructor(opts: ValidationJobVMOpts) {
         this.job = new ValidationJobVM(opts);
