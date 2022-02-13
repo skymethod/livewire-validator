@@ -49,6 +49,21 @@ export function findElementRecursive(root: ExtendedXmlNode, test: (node: Extende
     return undefined;
 }
 
+export function findElementsRecursive(root: ExtendedXmlNode, test: (node: ExtendedXmlNode) => boolean): readonly ExtendedXmlNode[] {
+    const rt: ExtendedXmlNode[] = [];
+    const collectElements = (node: ExtendedXmlNode) => {
+        if (test(node)) rt.push(node);
+        for (const value of Object.values(node.child)) {
+            for (const child of value) {
+                const extChild = child as ExtendedXmlNode;
+                collectElements(extChild);
+            }
+        }
+    }
+    collectElements(root);
+    return rt;
+}
+
 export function qnameEq(lhs: Qname, rhs: Qname): boolean {
     return lhs.name === rhs.name && lhs.namespaceUri === rhs.namespaceUri;
 }
