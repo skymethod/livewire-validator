@@ -214,12 +214,15 @@ export interface StatusesPublishOpts {
      * If media_ids is provided, this becomes optional. Attaching a poll is optional while status is provided. */
     readonly status: string;
 
-    /** ID of the status being replied to, if status is a reply */
+    /** ID of the status being replied to, if status is a reply. */
     readonly in_reply_to_id: string;
+
+    /** Visibility of the posted status. */
+    readonly visibility?: 'public' | 'unlisted' | 'private' | 'direct';
 }
 
 export async function statusesPublish(apiBase: string, accessToken: string, opts: StatusesPublishOpts): Promise<Status> {
-    const { idempotencyKey, status, in_reply_to_id } = opts;
+    const { idempotencyKey, status, in_reply_to_id, visibility } = opts;
 
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${accessToken}`);
@@ -227,6 +230,7 @@ export async function statusesPublish(apiBase: string, accessToken: string, opts
     const data = new FormData();
     data.set('status', status);
     if (in_reply_to_id) data.set('in_reply_to_id', in_reply_to_id);
+    if (visibility) data.set('visibility', visibility);
     
     const res = await fetch(`${apiBase}/api/v1/statuses`, { method: 'POST', body: data, headers });
     return verifyJsonResponse(res, isStatus);
