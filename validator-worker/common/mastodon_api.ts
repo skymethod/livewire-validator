@@ -215,7 +215,7 @@ export interface StatusesPublishOpts {
     readonly status: string;
 
     /** ID of the status being replied to, if status is a reply. */
-    readonly in_reply_to_id: string;
+    readonly in_reply_to_id?: string;
 
     /** Visibility of the posted status. */
     readonly visibility?: 'public' | 'unlisted' | 'private' | 'direct';
