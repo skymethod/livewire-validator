@@ -19,7 +19,7 @@ export class ValidatorAppVM {
 
     get xmlSummaryText(): string | undefined { return this.job.xmlSummaryText; }
 
-    get commentsResult(): CommentsResult | undefined { return this.job.commentsResult; }
+    get commentsResults(): CommentsResult[] | undefined { return this.job.commentsResults; }
 
     constructor(opts: ValidationJobVMOpts) {
         this.job = new ValidationJobVM(opts);

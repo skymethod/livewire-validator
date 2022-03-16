@@ -42,7 +42,8 @@ export default {
             const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
         } else if (/^\/f(\/.*)?$/.test(pathname)) {
-            return await computeFetch(request);
+            const { twitterCredentials } = env;
+            return await computeFetch(request, twitterCredentials);
         } else if (pathname === '/s') {
             return await computeSearch(request, computePodcastIndexCredentials(env.piCredentials));
         } else if (pathname === '/login') {
@@ -101,11 +102,14 @@ function makeStorage(storageNamespace: DurableObjectNamespace, durableObjectName
     }
 }
 
-async function computeFetch(request: Request): Promise<Response> {
+async function computeFetch(request: Request, twitterCredentials: string | undefined): Promise<Response> {
     try {
         if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
         const { url, headers } = await request.json();
         console.log(`Fetching ${url}`, headers);
+        if (new URL(url).hostname === 'api.twitter.com' && twitterCredentials) {
+            headers.authorization = `Bearer ${twitterCredentials.split(':')[1]}`;
+        }
         const rt = await fetch(new URL(url).toString(), { headers });
         if (rt.status !== 200) {
             console.log(`Response ${rt.status}`, [...rt.headers.entries()].map(v => v.join(':')).join(', '));

@@ -1,6 +1,6 @@
 import { html, css, unsafeCSS, Theme, LitElement, isOauthObtainTokenResponse, Threadcap, CommentsResult } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
-import { ERROR_ICON, PERSON_ICON } from './icons.ts';
+import { BOLT_ICON, ERROR_ICON, PERSON_ICON } from './icons.ts';
 import { externalizeAnchor } from './util.ts';
 
 export const COMMENTS_HTML = html`
@@ -112,23 +112,29 @@ export function initComments(document: Document, vm: ValidatorAppVM): () => void
     const commentsSubjectSpan = document.getElementById('comments-subject') as HTMLSpanElement;
     const commentsOutput = document.getElementById('comments') as HTMLOutputElement;
     return () => {
-        const result = vm.commentsResult;
-        commentsDetails.style.display = result ? 'block' : 'none';
-        commentsSubjectSpan.textContent = result?.subject || 'subject';
-        if (result !== _renderedResult) {
-            renderComments(result, commentsOutput, vm);
-            _renderedResult = result;
+        const results = vm.commentsResults;
+        commentsDetails.style.display = results ? 'block' : 'none';
+        commentsSubjectSpan.textContent = results && results[0] ? results && results[0].subject : 'subject';
+        if (results !== _renderedResults) {
+            renderComments(results, commentsOutput, vm);
+            _renderedResults = results;
         }
     };
 }
 
 //
 
-let _renderedResult: CommentsResult | undefined;
+let _renderedResults: CommentsResult[] | undefined;
 
-function renderComments(result: CommentsResult | undefined, commentsOutput: HTMLOutputElement, vm: ValidatorAppVM) {
+function renderComments(results: CommentsResult[] | undefined, commentsOutput: HTMLOutputElement, vm: ValidatorAppVM) {
     while (commentsOutput.firstChild) commentsOutput.removeChild(commentsOutput.firstChild);
-    if (result) renderNode(result.threadcap.root, result.threadcap, commentsOutput, 0, vm);
+    if (results) {
+        for (const result of results) {
+            for (const root of result.threadcap.roots) {
+                renderNode(root, result.threadcap, commentsOutput, 0, vm);
+            }
+        }
+    }
 }
 
 function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTMLElement, level: number, vm: ValidatorAppVM) {
@@ -151,7 +157,7 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
     } else {
        const iconDiv = document.createElement('div');
        iconDiv.classList.add('icon', commentError ? 'error' : 'default');
-       iconDiv.innerHTML = (commentError ? ERROR_ICON : PERSON_ICON).getHTML();
+       iconDiv.innerHTML = (commentError ? ERROR_ICON : threadcap.protocol === 'lightningcomments' ? BOLT_ICON : PERSON_ICON).getHTML();
        commentDiv.appendChild(iconDiv);
     }
     
@@ -165,11 +171,18 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
         const attributedToDiv = document.createElement('div');
         attributedToDiv.classList.add('attributed-to');
         if (commenter) {
-            const a = document.createElement('a');
-            a.href = commenter.url;
-            a.target = '_blank';
-            a.textContent = commenter.name + ' ' + commenter.fqUsername;
-            attributedToDiv.appendChild(a);
+            let name = commenter.name;
+            if (commenter.fqUsername) name += ' ' + commenter.fqUsername;
+            if (commenter.url) {
+                const a = document.createElement('a');
+                a.href = commenter.url || '#';
+                a.target = '_blank';
+                a.textContent = name;
+                attributedToDiv.appendChild(a);
+            } else {
+                attributedToDiv.appendChild(document.createTextNode(name));
+            }
+           
         } else {
             attributedToDiv.appendChild(document.createTextNode(comment.attributedTo || '<unknown>'));
         }
@@ -216,7 +229,7 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
             rhsDiv.appendChild(attachmentDetails);
         }
 
-        if (comment.url) {
+        if (comment.url && threadcap.protocol === 'activitypub') {
             const replyToUrl = comment.url;
             const replyDiv = document.createElement('div');
             replyDiv.className = 'reply';
