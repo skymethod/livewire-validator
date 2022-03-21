@@ -135,9 +135,15 @@ export class ValidationJobVM {
 
                 let validateFeed = true;
                 if (contentType && contentType.includes('/html')) {
-                    addMessage('info', 'Found html, will try again as ActivityPub');
-                    validateFeed = false;
-                    activityPub = { url: input, subject: 'input url' };
+                    if (inputUrl.hostname.endsWith('twitter.com')) {
+                        addMessage('info', 'Found html, will try again as Twitter');
+                        validateFeed = false;
+                        twitter = { url: input, subject: 'input url' };
+                    } else {
+                        addMessage('info', 'Found html, will try again as ActivityPub');
+                        validateFeed = false;
+                        activityPub = { url: input, subject: 'input url' };
+                    }
                 }
                 if (contentType && contentType.startsWith('application/activity+json')) {
                     addMessage('info', 'Found ActivityPub json');
