@@ -4,7 +4,7 @@ import { isReadonlyArray } from './util.ts';
 import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
 import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
 import { setIntersect } from './sets.ts';
-import { InMemoryCache, Callbacks, Comment, makeRateLimitedFetcher, makeThreadcap, Threadcap, updateThreadcap } from './deps_comments.ts';
+import { InMemoryCache, Callbacks, Comment, makeRateLimitedFetcher, makeThreadcap, Threadcap, updateThreadcap, Fetcher as ThreadcapFetcher } from './deps_comments.ts';
 
 export type ValidationJobVMOpts = { localFetcher: Fetcher, remoteFetcher: Fetcher, piSearchFetcher: PISearchFetcher, threadcapUserAgent: string };
 
@@ -277,8 +277,10 @@ export class ValidationJobVM {
                             return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
                         };
                         let activityPubCalls = 0;
-                        const fetchActivityPub = async (url: string) => {
-                            let { response, side } = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
+                        const fetchActivityPubOrMastodon: ThreadcapFetcher = async (url, opts) => {
+                            const { headers } = opts || {};
+                            const localOrRemoteFetchFunction = headers && headers.accept === 'application/json' ? localOrRemoteFetchJson : localOrRemoteFetchActivityPub;
+                            let { response, side } = await localOrRemoteFetchFunction(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
                             let obj = await response.clone().json();
                             console.log(JSON.stringify(obj, undefined, 2));
                             if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
@@ -286,7 +288,7 @@ export class ValidationJobVM {
                                 // https://docs.joinmastodon.org/entities/status/
                                 // uri = URI of the status used for federation (i.e. the AP url)
                                 url = obj.uri;
-                                const { response: response2, side: side2 } = await localOrRemoteFetchFetchActivityPub(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
+                                const { response: response2, side: side2 } = await localOrRemoteFetchFunction(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
                                 response = response2.clone();
                                 obj = await response2.json();
                                 side = side2;
@@ -295,7 +297,7 @@ export class ValidationJobVM {
                             if (side === 'remote') {
                                 const origin = new URL(url).origin;
                                 if (!remoteOnlyOrigins.has(origin)) {
-                                    addMessage('warning', `Local ActivityPub fetch failed (CORS disabled?)`, { url, tag: 'cors' });
+                                    addMessage('warning', `Local fetch failed (CORS disabled?)`, { url, tag: 'cors' });
                                     remoteOnlyOrigins.add(origin);
                                 }
                             }
@@ -316,7 +318,7 @@ export class ValidationJobVM {
                                 }
                             }
                         };
-                        const fetcher = makeRateLimitedFetcher(fetchActivityPub, { callbacks });
+                        const fetcher = makeRateLimitedFetcher(fetchActivityPubOrMastodon, { callbacks });
                         const cache = new InMemoryCache();
                         const userAgent = this.threadcapUserAgent;
                     
@@ -586,7 +588,7 @@ function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function localOrRemoteFetchFetchActivityPub(url: string, fetchers: Fetchers, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ response: Response, side: FetchSide }> {
+async function localOrRemoteFetchActivityPub(url: string, fetchers: Fetchers, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ response: Response, side: FetchSide }> {
     if (sleepMillisBetweenCalls > 0) await sleep(sleepMillisBetweenCalls);
     const { response, side } = await localOrRemoteFetch(url, { fetchers, headers: { 'Accept': 'application/activity+json' }, useSide });
     checkEqual('res.status', response.status, 200);
