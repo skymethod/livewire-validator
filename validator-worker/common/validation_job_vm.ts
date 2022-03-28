@@ -177,19 +177,20 @@ export class ValidationJobVM {
                         const onMessage = (type: MessageType, node: ExtendedXmlNode, message: string, opts: MessageOptions | undefined) => {
                             addMessage(type, message, opts);
                             if (opts?.tag === 'social-interact') {
-                                if (node.val && node.val !== '') {
-                                    const attributes = computeAttributeMap(node.attrsMap);
+                                const attributes = computeAttributeMap(node.attrsMap);
+                                const uri = attributes.get('uri') || node.val;
+                                if (uri) {
                                     if (attributes.get('platform')?.toLowerCase() === 'activitypub' || attributes.get('protocol')?.toLowerCase() === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node)
-                                        activityPub = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                        activityPub = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
                                     if (attributes.get('protocol')?.toLowerCase() === 'lightningcomments') {
                                         const episodeTitle = findEpisodeTitle(node)
-                                        lightningComments = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                        lightningComments = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
                                         const episodeTitle = findEpisodeTitle(node)
-                                        twitter = { url: node.val, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                        twitter = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
                                 }
                             }
