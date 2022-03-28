@@ -97,6 +97,10 @@ export function isBoolean(trimmedText: string): boolean {
     return /^(true|false)$/.test(trimmedText);
 }
 
+export function isYesNo(trimmedText: string): boolean {
+    return /^(yes|no)$/.test(trimmedText);
+}
+
 export function isPodcastValueTypeSlug(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/value/valueslugs.txt
     return /^[a-z]+$/.test(trimmedText);
@@ -105,6 +109,21 @@ export function isPodcastValueTypeSlug(trimmedText: string): boolean {
 export function isPodcastMedium(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium
     return /^[a-z]+$/.test(trimmedText);
+}
+
+export function isPodcastSocialInteractProtocol(trimmedText: string): boolean {
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/socialprotocols.txt
+    return /^(disabled|activitypub|twitter|lightning)$/.test(trimmedText);
+}
+
+export function isPodcastBlockExcludeList(trimmedText: string): boolean {
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/serviceslugs.txt
+    return /^[a-z]{2,}(,[a-z]{2,})*$/.test(trimmedText);
+}
+
+export function isPodcastLiveItemStatus(trimmedText: string): boolean {
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/socialprotocols.txt
+    return /^(pending|live|ended)$/.test(trimmedText);
 }
 
 //

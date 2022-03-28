@@ -199,6 +199,7 @@ export class ValidationJobVM {
                         const unknownPiTags = new Set<string>();
                         const piNamespaceUris = new Set<string>();
                         let rssItemInfo: { itemsCount: number, itemsWithEnclosuresCount: number } | undefined;
+                        let piLiveItemsCount = 0;
                         const callbacks: ValidationCallbacks = {
                             onGood: (node, message, opts) => {
                                 console.info(message);
@@ -224,6 +225,9 @@ export class ValidationJobVM {
                             onRssItemsFound: (itemsCount, itemsWithEnclosuresCount) => {
                                 rssItemInfo = { itemsCount, itemsWithEnclosuresCount};
                             },
+                            onPodcastIndexLiveItemsFound: (liveItemsCount) => {
+                                piLiveItemsCount = liveItemsCount;
+                            },
                         };
                         let xmlSummaryText = 'Xml structure';
                         validateFeedXml(xml, callbacks);
@@ -234,6 +238,7 @@ export class ValidationJobVM {
                             const itemsWithoutEnclosuresCount = itemsCount - itemsWithEnclosuresCount;
                             const pieces = [ `Found ${unitString(itemsWithEnclosuresCount, 'episode')}` ];
                             if (itemsWithoutEnclosuresCount > 0) pieces.push(`and ${unitString(itemsWithoutEnclosuresCount, 'item')} without enclosures`);
+                            if (piLiveItemsCount > 0) pieces.push(`and ${unitString(piLiveItemsCount, 'liveItem')}`);
                             pieces.push(`in a ${formatBytes(text.length)} feed`);
                             addMessage('info', pieces.join(' '));
                             xmlSummaryText = `${itemsWithEnclosuresCount > 1 ? 'Podcast feed' : 'Feed'} structure`;
