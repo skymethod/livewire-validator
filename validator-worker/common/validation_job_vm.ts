@@ -122,7 +122,10 @@ export class ValidationJobVM {
                 if (!inputUrl) throw new Error(`Bad url: ${input}`);
                 checkMatches('inputUrl.protocol', inputUrl.protocol, /^https?:$/);
 
-                inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
+                // https://feed.podbean.com/<slug>/feed.xml => 405 method not allowed for any query param
+                if (inputUrl.hostname !== 'feed.podbean.com') {
+                    inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
+                }
 
                 const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
                 job.times.fetchTime = fetchTime;
