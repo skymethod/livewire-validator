@@ -110,7 +110,14 @@ async function computeFetch(request: Request, twitterCredentials: string | undef
         if (new URL(url).hostname === 'api.twitter.com' && twitterCredentials) {
             headers.authorization = `Bearer ${twitterCredentials.split(':')[1]}`;
         }
-        const rt = await fetch(new URL(url).toString(), { headers });
+        let rt = await fetch(new URL(url).toString(), { headers });
+        if (rt.url !== url) {
+            console.log(`${url} -> ${rt.url}`);
+            const headers = new Headers(rt.headers);
+            headers.set('x-response-url', rt.url);
+            const { status } = rt;
+            rt = new Response(await rt.text(), { status, headers });
+        }
         if (rt.status !== 200) {
             console.log(`Response ${rt.status}`, [...rt.headers.entries()].map(v => v.join(':')).join(', '));
         }

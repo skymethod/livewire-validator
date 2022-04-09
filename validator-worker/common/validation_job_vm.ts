@@ -108,13 +108,29 @@ export class ValidationJobVM {
         let activityPub: { url: string, subject: string, obj?: any } | undefined;
         let lightningComments: { url: string, subject: string } | undefined;
         let twitter: { url: string, subject: string } | undefined;
-        const headers = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
+        const headers: Record<string, string> = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
         const jobStart = Date.now();
         const { fetchers, piSearchFetcher } = this;
         try {
             input = input.trim();
             if (input === '') throw new Error(`No input`);
+
+            // resolve t.co links first
+            if (input.startsWith('https://t.co/')) {
+                 // t.co does not server-side redirect if user-agent is set
+                 const tcoHeaders = { ...headers };
+                 delete tcoHeaders['User-Agent'];
+                 const { response } = await localOrRemoteFetch(input, { fetchers, headers: tcoHeaders, useSide: 'remote' }); if (job.done) return;
+                 if (response.status === 200) {
+                    const xResponseUrl = response.headers.get('x-response-url');
+                    if (xResponseUrl) {
+                        input = xResponseUrl;
+                        input = normalizeInput(input);
+                    }
+                 }
+            }
+
             if (/^https?:\/\/.+/i.test(input)) {
                 // we have an url, validate it
 
@@ -126,7 +142,6 @@ export class ValidationJobVM {
                 if (inputUrl.hostname !== 'feed.podbean.com') {
                     inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
                 }
-
                 const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
                 job.times.fetchTime = fetchTime;
 
@@ -580,7 +595,7 @@ function unitString(amount: number, unit: string): string {
 
 function normalizeInput(input: string): string {
     input = input.trim();
-    const m = /^https:\/\/podcasts\.apple\.com\/.*?(id\d+)$/.exec(input);
+    const m = /^https:\/\/podcasts\.apple\.com\/.*?(id\d+)(\?.*)?$/.exec(input);
     if (m) return m[1];
     return input;
 }

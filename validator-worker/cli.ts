@@ -19,12 +19,16 @@ Deno.exit(1);
 
 async function validator(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { build, b64, twitter, mastodon, validate }[command];
+    const fn = { build, b64, twitter, mastodon, validate, tmp }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
     }
     await fn(args.slice(1), options);
+}
+
+async function tmp() {
+    // stuff
 }
 
 async function b64(args: (string | number)[], _options: Record<string, unknown>) {
