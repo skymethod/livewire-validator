@@ -1,5 +1,5 @@
 import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601 } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601, isIso8601AllowTimezone } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './xml_parser.ts';
 
@@ -146,8 +146,8 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 
             ElementValidation.forElement('channel', liveItem, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#live-item'))
                 .checkRequiredAttribute('status', isPodcastLiveItemStatus)
-                .checkRequiredAttribute('start', isIso8601)
-                .checkRequiredAttribute('end', isIso8601)
+                .checkRequiredAttribute('start', isIso8601AllowTimezone)
+                .checkRequiredAttribute('end', isIso8601AllowTimezone)
                 .checkRemainingAttributes();
             
             liveItemsValidated++;

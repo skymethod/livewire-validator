@@ -88,9 +88,18 @@ export function isRfc2822(trimmedText: string): boolean {
     return /^[0-9A-Za-z, ]+ \d{2}:\d{2}(:\d{2})? (-?[0-9]+|[A-Z]{3,})$/.test(trimmedText);
 }
 
-export function isIso8601(trimmedText: string): boolean {
+export function isIso8601AllowTimezone(trimmedText: string): boolean {
+    return isIso8601(trimmedText, { allowTimezone: true });
+}
+
+export function isIso8601(trimmedText: string, opts: { allowTimezone?: boolean } = {}): boolean {
+    const { allowTimezone } = opts;
     // 2021-04-14T10:25:42Z
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(trimmedText);
+    // 2022-04-25T01:30:00.000-0600
+    const m =  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-](\d{2}|\d{4}|\d{2}:\d{2}))$/.exec(trimmedText);
+    if (!m) return false;
+    const tz = m[2];
+    return allowTimezone || tz === 'Z';
 }
 
 export function isBoolean(trimmedText: string): boolean {

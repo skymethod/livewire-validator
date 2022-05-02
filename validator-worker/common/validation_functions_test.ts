@@ -1,5 +1,5 @@
 import { assert } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
-import { isPodcastImagesSrcSet, isRfc2822 } from './validation_functions.ts';
+import { isIso8601, isPodcastImagesSrcSet, isRfc2822 } from './validation_functions.ts';
 
 Deno.test('isPodcastImagesSrcSet', () => {
     const good = [
@@ -54,6 +54,46 @@ Deno.test('isRfc2822', () => {
 
     for (const date of bad) {
         assert(!isRfc2822(date), `expected bad: ${date}`);
+    }
+
+});
+
+Deno.test('isIso8601', () => {
+    const good = [
+        '2021-04-14T10:25:42Z',
+        '2021-04-14T10:25:42.123Z',
+    ];
+
+    const bad = [
+        '', 'a', 'thursday', '2021-04-14T10:25:42', '2022-04-25T01:30:00.000-0600',
+    ];
+
+    for (const date of good) {
+        assert(isIso8601(date), `expected good: ${date}`);
+    }
+
+    for (const date of bad) {
+        assert(!isIso8601(date), `expected bad: ${date}`);
+    }
+
+    const goodTz = [
+        '2021-04-14T10:25:42Z',
+        '2021-04-14T10:25:42.123Z',
+        '2022-04-25T01:30:00.000-0600',
+        '2022-04-25T01:30:00+06',
+        '2022-04-25T01:30:00.000-12:00',
+    ];
+
+    const badTz = [
+        '', 'a', 'thursday', '2021-04-14T10:25:42', '2022-04-25T01:30:00.000GMT',
+    ];
+
+    for (const date of goodTz) {
+        assert(isIso8601(date, { allowTimezone: true }), `expected good: ${date}`);
+    }
+
+    for (const date of badTz) {
+        assert(!isIso8601(date, { allowTimezone: true }), `expected bad: ${date}`);
     }
 
 });
