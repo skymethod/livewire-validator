@@ -10,5 +10,5 @@ export { isOauthObtainTokenResponse } from '../validator-worker/common/oauth.ts'
 export type { OauthObtainTokenResponse } from '../validator-worker/common/oauth.ts';
 export { isStringRecord, checkEqual, checkTrue } from '../validator-worker/common/check.ts';
 export { statusesPublish } from '../validator-worker/common/mastodon_api.ts';
-export { makeRateLimitedFetcher, makeThreadcap, updateThreadcap } from 'https://raw.githubusercontent.com/skymethod/minipub/57fee4f85231935d82ba9ba89c7cc029e7d1e2dc/src/threadcap/threadcap.ts';
-export type { Comment, Threadcap, Cache, Instant, Callbacks, Commenter } from 'https://raw.githubusercontent.com/skymethod/minipub/57fee4f85231935d82ba9ba89c7cc029e7d1e2dc/src/threadcap/threadcap.ts';
+export { makeRateLimitedFetcher, makeThreadcap, updateThreadcap } from 'https://raw.githubusercontent.com/skymethod/minipub/911db7f87e804a40edf8cb21f2084abcba3a16fe/src/threadcap/threadcap.ts';
+export type { Comment, Threadcap, Cache, Instant, Callbacks, Commenter } from 'https://raw.githubusercontent.com/skymethod/minipub/911db7f87e804a40edf8cb21f2084abcba3a16fe/src/threadcap/threadcap.ts';

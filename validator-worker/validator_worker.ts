@@ -1,6 +1,4 @@
-import { Bytes, DurableObjectNamespace, IncomingRequestCf } from './deps_worker.ts';
-import { VALIDATOR_APP_B64, VALIDATOR_APP_HASH } from './validator_data.ts';
-import { VALIDATOR_APP_MAP_B64, VALIDATOR_APP_MAP_HASH } from './validator_local_data.ts';
+import { Bytes, DurableObjectNamespace, importText, IncomingRequestCf } from './deps_worker.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { AppManifest } from './app_manifest.d.ts';
@@ -10,6 +8,12 @@ import { PodcastIndexCredentials, search } from './search.ts';
 import { computeLogin } from './login.ts';
 import { Storage } from './storage.ts';
 export { StorageDO } from './storage_do.ts';
+
+const appJs = await importText(import.meta.url, './static/app.js');
+const appJsSha1 = await importText(import.meta.url, './static/app.js.sha1');
+
+const appJsMap = await importText(import.meta.url, './static/app.js.map');
+const appJsMapSha1 = await importText(import.meta.url, './static/app.js.map.sha1');
 
 export default {
 
@@ -173,15 +177,15 @@ function computeHeaders(contentType: string, opts: { immutable?: boolean } = {})
 }
 
 function computeAppJsPath(): string {
-    return `/app.${VALIDATOR_APP_HASH}.js`;
+    return `/app.${appJsSha1.trim()}.js`;
 }
 
 function computeAppSourcemapPath(): string | undefined {
-    return VALIDATOR_APP_MAP_HASH === '' ? undefined : `/app.${VALIDATOR_APP_MAP_HASH}.js.map`;
+    return appJsMap === '' ? undefined : `/app.${appJsMapSha1.trim()}.js.map`;
 }
 
 function computeAppResponse(): Response {
-    const scriptBytes = Bytes.ofBase64(VALIDATOR_APP_B64);
+    const scriptBytes = Bytes.ofUtf8(appJs);
     const headers = computeHeaders('text/javascript; charset=utf-8', { immutable: true });
     const appSourcemapPath = computeAppSourcemapPath();
     if (appSourcemapPath) {
@@ -195,9 +199,8 @@ function computeAppResponse(): Response {
 }
 
 function computeAppSourcemapResponse(): Response {
-    const array = Bytes.ofBase64(VALIDATOR_APP_MAP_B64).array();
     const headers = computeHeaders('application/json; charset=utf-8', { immutable: true });
-    return new Response(array, { headers });
+    return new Response(appJsMap, { headers });
 }
 
 function encodeHtml(value: string): string {
