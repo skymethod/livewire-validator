@@ -2614,7 +2614,7 @@ function isRssLanguage(trimmedText) {
     return /^[a-zA-Z]+(-[a-zA-Z]+)*$/.test(trimmedText);
 }
 function isItunesDuration(trimmedText) {
-    return isNonNegativeInteger(trimmedText);
+    return /^(\d+:)?\d+:\d+$/.test(trimmedText) || isNonNegativeInteger(trimmedText);
 }
 function tryParseUrl(str, base) {
     try {
@@ -4104,6 +4104,9 @@ class ValidationJobVM {
                 if (inputUrl.hostname !== 'feed.podbean.com') {
                     inputUrl.searchParams.set('_t', Date.now().toString());
                 }
+                if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
+                    delete headers1['User-Agent'];
+                }
                 const { response: response1 , side: side1 , fetchTime  } = await localOrRemoteFetch(inputUrl.toString(), {
                     fetchers,
                     headers: headers1
@@ -4717,7 +4720,7 @@ async function localOrRemoteFetch(url, opts) {
             console.log('Failed to local fetch, trying remote', e);
         }
     }
-    console.log(`remote fetch: ${url}`);
+    console.log(`remote fetch: ${url} ${headers}`);
     const start = Date.now();
     const response = await fetchers.remoteFetcher(url, headers);
     return {

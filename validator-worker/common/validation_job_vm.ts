@@ -142,6 +142,12 @@ export class ValidationJobVM {
                 if (inputUrl.hostname !== 'feed.podbean.com') {
                     inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
                 }
+
+                // https://reason.fm/feeds/<slug>/rss.xml
+                // https://podvine.com/feeds/<slug>>/rss.xml
+                if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
+                    delete headers['User-Agent']; // otherwise always sends html, regardless of Accept
+                }
                 const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
                 job.times.fetchTime = fetchTime;
 
@@ -648,7 +654,7 @@ async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, heade
             console.log('Failed to local fetch, trying remote', e);
         }
     }
-    console.log(`remote fetch: ${url}`);
+    console.log(`remote fetch: ${url} ${headers}`);
     const start = Date.now();
     const response = await fetchers.remoteFetcher(url, headers);
     return { fetchTime: Date.now() - start, side: 'remote', response };

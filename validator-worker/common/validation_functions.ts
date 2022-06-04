@@ -152,7 +152,7 @@ export function isRssLanguage(trimmedText: string): boolean {
 export function isItunesDuration(trimmedText: string): boolean {
     // The duration of an episode.
     // Different duration formats are accepted however it is recommended to convert the length of the episode into seconds.
-    return isNonNegativeInteger(trimmedText);
+    return /^(\d+:)?\d+:\d+$/.test(trimmedText) || isNonNegativeInteger(trimmedText);
 }
 
 //
