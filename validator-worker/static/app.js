@@ -2538,6 +2538,9 @@ function isUuid(trimmedText) {
 function isEmailAddress(trimmedText) {
     return /^[^@\s]+@[^@\s]+$/.test(trimmedText);
 }
+function isEmailAddressWithOptionalName(trimmedText) {
+    return /^[^@\s]+@[^@\s]+(\s+\(.*?\))?$/.test(trimmedText);
+}
 function isAtMostCharacters(maxCharacters) {
     return (trimmedText)=>trimmedText.length <= maxCharacters;
 }
@@ -2553,11 +2556,14 @@ function isOpenStreetMapIdentifier(trimmedText) {
 function isNonNegativeInteger(trimmedText) {
     return /^\d+$/.test(trimmedText) && parseInt(trimmedText) >= 0 && parseInt(trimmedText).toString() === trimmedText;
 }
+function isPositiveInteger(trimmedText) {
+    return /^\d+$/.test(trimmedText) && parseInt(trimmedText) > 0 && parseInt(trimmedText).toString() === trimmedText;
+}
 function isDecimal(trimmedText) {
     return /^\d+(\.\d+)?$/.test(trimmedText);
 }
 function isRfc2822(trimmedText) {
-    return /^[0-9A-Za-z, ]+ \d{2}:\d{2}(:\d{2})? (-?[0-9]+|[A-Z]{3,})$/.test(trimmedText);
+    return /^[0-9A-Za-z, ]+ \d{2}:\d{2}(:\d{2})? ([-+]?[0-9]+|[A-Z]{3,})$/.test(trimmedText);
 }
 function isIso8601AllowTimezone(trimmedText) {
     return isIso8601(trimmedText, {
@@ -2591,6 +2597,9 @@ function isPodcastBlockExcludeList(trimmedText) {
 }
 function isPodcastLiveItemStatus(trimmedText) {
     return /^(pending|live|ended)$/.test(trimmedText);
+}
+function isRssLanguage(trimmedText) {
+    return /^[a-zA-Z]+(-[a-zA-Z]+)*$/.test(trimmedText);
 }
 function tryParseUrl(str, base) {
     try {
@@ -2659,6 +2668,66 @@ function validateChannel(channel, callbacks) {
     checkText(link, isUrl, callbacks, opts);
     const description = getSingleChild(channel, 'description', callbacks, opts);
     checkText(description, isNotEmpty, callbacks, opts);
+    const rssChannelImageReference = {
+        ruleset: 'rss',
+        href: 'https://cyber.harvard.edu/rss/rss.html#ltimagegtSubelementOfLtchannelgt'
+    };
+    const image = ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelImageReference, {
+        name: 'image'
+    }).checkRemainingAttributes().node;
+    if (image) {
+        ElementValidation.forRequiredSingleChild('channel image', image, callbacks, rssChannelImageReference, {
+            name: 'url'
+        }).checkValue(isUrl).checkRemainingAttributes();
+        ElementValidation.forRequiredSingleChild('channel image', image, callbacks, rssChannelImageReference, {
+            name: 'title'
+        }).checkValue(isNotEmpty).checkRemainingAttributes();
+        ElementValidation.forRequiredSingleChild('channel image', image, callbacks, rssChannelImageReference, {
+            name: 'link'
+        }).checkValue(isUrl).checkRemainingAttributes();
+        ElementValidation.forSingleChild('channel image', image, callbacks, rssChannelImageReference, {
+            name: 'width'
+        }).checkValue(isPositiveInteger).checkRemainingAttributes();
+        ElementValidation.forSingleChild('channel image', image, callbacks, rssChannelImageReference, {
+            name: 'height'
+        }).checkValue(isPositiveInteger).checkRemainingAttributes();
+        ElementValidation.forSingleChild('channel image', image, callbacks, rssChannelImageReference, {
+            name: 'description'
+        }).checkValue(isNotEmpty).checkRemainingAttributes();
+    }
+    const rssChannelOptional = {
+        ruleset: 'rss',
+        href: 'https://cyber.harvard.edu/rss/rss.html#optionalChannelElements'
+    };
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'language'
+    }).checkValue(isRssLanguage).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'managingEditor'
+    }).checkValue(isEmailAddressWithOptionalName).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'webMaster'
+    }).checkValue(isEmailAddressWithOptionalName).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'pubDate'
+    }).checkValue(isRfc2822).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'lastBuildDate'
+    }).checkValue(isRfc2822).checkRemainingAttributes();
+    for (const category of findChildElements(channel, {
+        name: 'category '
+    })){
+        ElementValidation.forElement('channel category', category, callbacks, {
+            ruleset: 'rss',
+            href: 'https://cyber.harvard.edu/rss/rss.html#ltcategorygtSubelementOfLtitemgt'
+        }).checkValue(isNotEmpty).checkOptionalAttribute('domain', isNotEmpty).checkRemainingAttributes();
+    }
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'docs'
+    }).checkValue(isUrl).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
+        name: 'ttl'
+    }).checkValue(isNonNegativeInteger).checkRemainingAttributes();
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid'), ...Qnames.PodcastIndex.guid).checkValue(isUuid, (guidText)=>{
         const version = guidText.charAt(14);
         if (version !== '5') {
@@ -2910,6 +2979,26 @@ class ElementValidation {
     }
     static forElement(level, node, callbacks, reference) {
         return new ElementValidation(level, node, callbacks, {
+            reference
+        });
+    }
+    static forRequiredSingleChild(level, parent, callbacks, reference, qname) {
+        const elements = findChildElements(parent, qname);
+        if (elements.length === 1) {
+            return new ElementValidation(level, elements[0], callbacks, {
+                reference
+            });
+        }
+        if (elements.length === 0) {
+            callbacks.onWarning(parent, `Missing ${level} <${qname.name}>`, {
+                reference
+            });
+        } else {
+            callbacks.onWarning(elements[1], `Multiple ${level} <${qname.name}> elements are not allowed`, {
+                reference
+            });
+        }
+        return new ElementValidation(level, undefined, callbacks, {
             reference
         });
     }

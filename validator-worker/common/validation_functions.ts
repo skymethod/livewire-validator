@@ -54,6 +54,10 @@ export function isEmailAddress(trimmedText: string): boolean {
     return /^[^@\s]+@[^@\s]+$/.test(trimmedText);
 }
 
+export function isEmailAddressWithOptionalName(trimmedText: string): boolean {
+    return /^[^@\s]+@[^@\s]+(\s+\(.*?\))?$/.test(trimmedText);
+}
+
 export function isAtMostCharacters(maxCharacters: number): (trimmedText: string) => boolean {
     return trimmedText => trimmedText.length <= maxCharacters;
 }
@@ -77,6 +81,12 @@ export function isNonNegativeInteger(trimmedText: string): boolean {
         && parseInt(trimmedText).toString() === trimmedText;
 }
 
+export function isPositiveInteger(trimmedText: string): boolean {
+    return /^\d+$/.test(trimmedText) 
+        && parseInt(trimmedText) > 0 
+        && parseInt(trimmedText).toString() === trimmedText;
+}
+
 export function isDecimal(trimmedText: string): boolean {
     return /^\d+(\.\d+)?$/.test(trimmedText);
 }
@@ -85,7 +95,7 @@ export function isRfc2822(trimmedText: string): boolean {
     // https://datatracker.ietf.org/doc/html/rfc2822
     // 01 Jun 2016 14:31:46 -0700
     // Thu, 01 Apr 2021 08:00:00 EST
-    return /^[0-9A-Za-z, ]+ \d{2}:\d{2}(:\d{2})? (-?[0-9]+|[A-Z]{3,})$/.test(trimmedText);
+    return /^[0-9A-Za-z, ]+ \d{2}:\d{2}(:\d{2})? ([-+]?[0-9]+|[A-Z]{3,})$/.test(trimmedText);
 }
 
 export function isIso8601AllowTimezone(trimmedText: string): boolean {
@@ -133,6 +143,10 @@ export function isPodcastBlockExcludeList(trimmedText: string): boolean {
 export function isPodcastLiveItemStatus(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/socialprotocols.txt
     return /^(pending|live|ended)$/.test(trimmedText);
+}
+
+export function isRssLanguage(trimmedText: string): boolean {
+    return /^[a-zA-Z]+(-[a-zA-Z]+)*$/.test(trimmedText);
 }
 
 //

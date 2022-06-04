@@ -1,5 +1,5 @@
 import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601AllowTimezone } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
@@ -77,6 +77,83 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkText(link, isUrl, callbacks, opts);
     const description = getSingleChild(channel, 'description', callbacks, opts);
     checkText(description, isNotEmpty, callbacks, opts);
+
+    // rss channel image (optional)
+    const rssChannelImageReference = { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltimagegtSubelementOfLtchannelgt' };
+    const image = ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelImageReference, { name: 'image' })
+        .checkRemainingAttributes()
+        .node;
+    if (image) {
+        // required subelements
+        ElementValidation.forRequiredSingleChild('channel image', image, callbacks, rssChannelImageReference, { name: 'url' })
+            .checkValue(isUrl)
+            .checkRemainingAttributes();
+
+        ElementValidation.forRequiredSingleChild('channel image', image, callbacks, rssChannelImageReference, { name: 'title' })
+            .checkValue(isNotEmpty)
+            .checkRemainingAttributes();
+
+        ElementValidation.forRequiredSingleChild('channel image', image, callbacks, rssChannelImageReference, { name: 'link' })
+            .checkValue(isUrl)
+            .checkRemainingAttributes();
+
+        // optional subelements
+        ElementValidation.forSingleChild('channel image', image, callbacks, rssChannelImageReference, { name: 'width' })
+            .checkValue(isPositiveInteger)
+            .checkRemainingAttributes();
+        
+        ElementValidation.forSingleChild('channel image', image, callbacks, rssChannelImageReference, { name: 'height' })
+            .checkValue(isPositiveInteger)
+            .checkRemainingAttributes();
+
+        ElementValidation.forSingleChild('channel image', image, callbacks, rssChannelImageReference, { name: 'description' })
+            .checkValue(isNotEmpty)
+            .checkRemainingAttributes();
+    }
+
+    // rss channel language (optional)
+    const rssChannelOptional = { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#optionalChannelElements' };
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'language' })
+            .checkValue(isRssLanguage)
+            .checkRemainingAttributes();
+
+    // rss channel managingEditor (optional)
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'managingEditor' })
+            .checkValue(isEmailAddressWithOptionalName)
+            .checkRemainingAttributes();
+
+    // rss channel webMaster (optional)
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'webMaster' })
+            .checkValue(isEmailAddressWithOptionalName)
+            .checkRemainingAttributes();
+
+    // rss channel pubDate (optional)
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'pubDate' })
+        .checkValue(isRfc2822) // close enough
+        .checkRemainingAttributes();
+
+    // rss channel lastBuildDate (optional)
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'lastBuildDate' })
+        .checkValue(isRfc2822) // close enough
+        .checkRemainingAttributes();
+
+    // rss channel category (optional)
+    for (const category of findChildElements(channel, { name: 'category '})) {
+        ElementValidation.forElement('channel category', category, callbacks, { ruleset: 'rss', href: 'https://cyber.harvard.edu/rss/rss.html#ltcategorygtSubelementOfLtitemgt' })
+            .checkValue(isNotEmpty)
+            .checkOptionalAttribute('domain', isNotEmpty)
+            .checkRemainingAttributes();
+    }
+
+    // rss channel docs (optional)
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'docs' })
+        .checkValue(isUrl)
+        .checkRemainingAttributes();
+
+    // rss channel ttl (optional)
+    ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'ttl' })
+        .checkValue(isNonNegativeInteger)
+        .checkRemainingAttributes();
 
     // podcast:guid
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid'), ...Qnames.PodcastIndex.guid)
@@ -521,6 +598,19 @@ class ElementValidation {
 
     static forElement(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks, reference: RuleReference): ElementValidation {
         return new ElementValidation(level, node, callbacks, { reference });
+    }
+
+    static forRequiredSingleChild(level: Level, parent: ExtendedXmlNode, callbacks: ValidationCallbacks, reference: RuleReference, qname: Qname): ElementValidation {
+        const elements = findChildElements(parent, qname);
+        if (elements.length === 1) {
+            return new ElementValidation(level, elements[0], callbacks, { reference });
+        }
+        if (elements.length === 0) {
+            callbacks.onWarning(parent, `Missing ${level} <${qname.name}>`, { reference });
+        } else {
+            callbacks.onWarning(elements[1], `Multiple ${level} <${qname.name}> elements are not allowed`, { reference });
+        }
+        return new ElementValidation(level, undefined, callbacks, { reference });
     }
 
     static forSingleChild(level: Level, parent: ExtendedXmlNode, callbacks: ValidationCallbacks, reference: RuleReference, ...qnames: Qname[]): ElementValidation {
