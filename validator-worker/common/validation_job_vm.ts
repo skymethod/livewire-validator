@@ -131,12 +131,12 @@ export class ValidationJobVM {
                  }
             }
 
-            if (/^https?:\/\/.+/i.test(input)) {
+            if (/^(https?|file):\/\/.+/i.test(input)) {
                 // we have an url, validate it
 
                 const inputUrl = tryParseUrl(input);
                 if (!inputUrl) throw new Error(`Bad url: ${input}`);
-                checkMatches('inputUrl.protocol', inputUrl.protocol, /^https?:$/);
+                checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file):$/);
 
                 // https://feed.podbean.com/<slug>/feed.xml => 405 method not allowed for any query param
                 if (inputUrl.hostname !== 'feed.podbean.com') {

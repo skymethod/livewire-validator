@@ -2536,7 +2536,7 @@ function isNotEmpty(trimmedText) {
 }
 function isUrl(trimmedText) {
     const u = tryParseUrl(trimmedText);
-    return u && u.protocol === 'https:' || u?.protocol === 'http:';
+    return u?.protocol === 'https:' || u?.protocol === 'http:';
 }
 function isUri(trimmedText) {
     return tryParseUrl(trimmedText) !== undefined;
@@ -4097,10 +4097,10 @@ class ValidationJobVM {
                     }
                 }
             }
-            if (/^https?:\/\/.+/i.test(input)) {
+            if (/^(https?|file):\/\/.+/i.test(input)) {
                 const inputUrl = tryParseUrl1(input);
                 if (!inputUrl) throw new Error(`Bad url: ${input}`);
-                checkMatches('inputUrl.protocol', inputUrl.protocol, /^https?:$/);
+                checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file):$/);
                 if (inputUrl.hostname !== 'feed.podbean.com') {
                     inputUrl.searchParams.set('_t', Date.now().toString());
                 }

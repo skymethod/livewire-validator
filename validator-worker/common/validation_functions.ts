@@ -35,7 +35,12 @@ export function isNotEmpty(trimmedText: string): boolean {
 
 export function isUrl(trimmedText: string): boolean {
     const u = tryParseUrl(trimmedText);
-    return u && u.protocol === 'https:' || u?.protocol === 'http:';
+    return u?.protocol === 'https:' || u?.protocol === 'http:';
+}
+
+export function isHttpOrFileUrl(trimmedText: string): boolean {
+    const u = tryParseUrl(trimmedText);
+    return u?.protocol === 'https:' || u?.protocol === 'http:' || u?.protocol === 'file:';
 }
 
 export function isUri(trimmedText: string): boolean {

@@ -1,15 +1,22 @@
-import { isUrl } from './common/validation_functions.ts';
+import { isHttpOrFileUrl } from './common/validation_functions.ts';
 import { Fetcher, MessageType, PISearchFetcher, ValidationJobVM } from './common/validation_job_vm.ts';
 import { Theme } from './common/theme.ts';
+import { fileExists, toFileUrl } from './deps_cli.ts';
 
 export async function validate(args: (string | number)[], options: Record<string, unknown>) {
-    const feedUrl = args[0];
-    if (typeof feedUrl !== 'string') throw new Error('Must provide feedUrl');
-    if (!isUrl(feedUrl)) throw new Error('Must provide an absolute url for feedUrl');
+    const feedArg = args[0];
+    if (typeof feedArg !== 'string') throw new Error('Must provide feed');
+    const feedUrl = await fileExists(feedArg) ? toFileUrl(feedArg).toString() : feedArg;
+    if (!isHttpOrFileUrl(feedUrl)) throw new Error('Must provide an absolute feed url or a local file path to an existing feed file');
 
     const validateComments = !!options.comments;
 
-    const localFetcher: Fetcher = fetchWithCorsConstraints;
+    const localFetcher: Fetcher = (url, headers) => {
+        if (new URL(feedUrl).protocol === 'file:') {
+            return fetch(url, { headers });
+        }
+        return fetchWithCorsConstraints(url, headers);
+    };
     const remoteFetcher: Fetcher = (url, headers) => fetch(url, { headers });
     const piSearchFetcher: PISearchFetcher = () => { return Promise.resolve(new Response('{}')) };
     const threadcapUserAgent = 'validator cli';
