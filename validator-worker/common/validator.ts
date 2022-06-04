@@ -1,5 +1,5 @@
 import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
@@ -59,7 +59,7 @@ function validateRss(rss: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     // itunes required
     const itunesOpts: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
     const hasItunesPrefix = findElementRecursive(rss, v => v.tagname.startsWith('itunes:')) !== undefined;
-    if (hasItunesPrefix) checkAttributeEqual(rss, 'xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd', callbacks, itunesOpts);
+    if (hasItunesPrefix) checkAttributeEqual(rss, 'xmlns:itunes', Qnames.Itunes.NAMESPACE, callbacks, itunesOpts);
     const hasContentPrefix = findElementRecursive(rss, v => v.tagname.startsWith('content:')) !== undefined;
     if (hasContentPrefix) checkAttributeEqual(rss, 'xmlns:content', 'http://purl.org/rss/1.0/modules/content/', callbacks, itunesOpts);
 
@@ -455,6 +455,11 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
         const isPermaLink = guid.atts.get('isPermaLink') || 'true'; // default value is true!
         if (isPermaLink === 'true' && guidText && !isUrl(guidText) && misspellings.length === 0) callbacks.onWarning(guid, `Bad ${itemTagName} <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
     }
+
+    // itunes:duration
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' }, Qnames.Itunes.duration)
+        .checkValue(isItunesDuration)
+        .checkRemainingAttributes();
 
     // podcast:transcript
     const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);

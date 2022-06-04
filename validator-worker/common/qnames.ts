@@ -22,6 +22,12 @@ function _mediaRss(name: string): Qname {
     return { name, namespaceUri: MEDIA_RSS_NAMESPACE };
 }
 
+const ITUNES_NAMESPACE = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
+
+function _itunes(name: string): Qname {
+    return { name, namespaceUri: ITUNES_NAMESPACE };
+}
+
 //
 
 export class Qnames {
@@ -65,6 +71,12 @@ export class Qnames {
         NAMESPACE: MEDIA_RSS_NAMESPACE,
         of: (name: string) => _mediaRss(name),
         content: _mediaRss('content'),
+    }
+
+    static readonly Itunes = {
+        NAMESPACE: ITUNES_NAMESPACE,
+        of: (name: string) => _itunes(name),
+        duration: _itunes('duration'),
     }
 
 }

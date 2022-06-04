@@ -149,6 +149,12 @@ export function isRssLanguage(trimmedText: string): boolean {
     return /^[a-zA-Z]+(-[a-zA-Z]+)*$/.test(trimmedText);
 }
 
+export function isItunesDuration(trimmedText: string): boolean {
+    // The duration of an episode.
+    // Different duration formats are accepted however it is recommended to convert the length of the episode into seconds.
+    return isNonNegativeInteger(trimmedText);
+}
+
 //
 
 function tryParseUrl(str: string, base?: string | URL | undefined): URL | undefined {

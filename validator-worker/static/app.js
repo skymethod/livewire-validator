@@ -1126,6 +1126,13 @@ function _mediaRss(name) {
         namespaceUri: MEDIA_RSS_NAMESPACE
     };
 }
+const ITUNES_NAMESPACE = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
+function _itunes(name) {
+    return {
+        name,
+        namespaceUri: ITUNES_NAMESPACE
+    };
+}
 class Qnames {
     static PodcastIndex = {
         NAMESPACES: PODCAST_INDEX_NAMESPACES,
@@ -1169,6 +1176,11 @@ class Qnames {
         NAMESPACE: MEDIA_RSS_NAMESPACE,
         of: (name)=>_mediaRss(name),
         content: _mediaRss('content')
+    };
+    static Itunes = {
+        NAMESPACE: ITUNES_NAMESPACE,
+        of: (name)=>_itunes(name),
+        duration: _itunes('duration')
     };
 }
 function checkEqual(name, value, expected) {
@@ -2601,6 +2613,9 @@ function isPodcastLiveItemStatus(trimmedText) {
 function isRssLanguage(trimmedText) {
     return /^[a-zA-Z]+(-[a-zA-Z]+)*$/.test(trimmedText);
 }
+function isItunesDuration(trimmedText) {
+    return isNonNegativeInteger(trimmedText);
+}
 function tryParseUrl(str, base) {
     try {
         return new URL(str, base);
@@ -2648,7 +2663,7 @@ function validateRss(rss, callbacks) {
         }
     };
     const hasItunesPrefix = findElementRecursive(rss, (v)=>v.tagname.startsWith('itunes:')) !== undefined;
-    if (hasItunesPrefix) checkAttributeEqual(rss, 'xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd', callbacks, itunesOpts);
+    if (hasItunesPrefix) checkAttributeEqual(rss, 'xmlns:itunes', Qnames.Itunes.NAMESPACE, callbacks, itunesOpts);
     const hasContentPrefix = findElementRecursive(rss, (v)=>v.tagname.startsWith('content:')) !== undefined;
     if (hasContentPrefix) checkAttributeEqual(rss, 'xmlns:content', 'http://purl.org/rss/1.0/modules/content/', callbacks, itunesOpts);
     const channel = getSingleChild(rss, 'channel', callbacks, opts);
@@ -2921,6 +2936,10 @@ function validateItem(item, callbacks, itemTagName) {
         const isPermaLink = guid.atts.get('isPermaLink') || 'true';
         if (isPermaLink === 'true' && guidText && !isUrl(guidText) && misspellings.length === 0) callbacks.onWarning(guid, `Bad ${itemTagName} <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
     }
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, {
+        ruleset: 'itunes',
+        href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390'
+    }, Qnames.Itunes.duration).checkValue(isItunesDuration).checkRemainingAttributes();
     const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);
     for (const transcript of transcripts){
         ElementValidation.forElement(itemTagName, transcript, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript')).checkRequiredAttribute('url', isUrl).checkRequiredAttribute('type', isMimeType).checkOptionalAttribute('language', isNotEmpty).checkOptionalAttribute('rel', isNotEmpty).checkRemainingAttributes();
