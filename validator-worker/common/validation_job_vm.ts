@@ -2,7 +2,7 @@ import { checkMatches, checkEqual } from './check.ts';
 import { Qnames } from './qnames.ts';
 import { isReadonlyArray } from './util.ts';
 import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
-import { computeAttributeMap, ExtendedXmlNode, parseXml } from './xml_parser.ts';
+import { computeAttributeMap, ExtendedXmlNode, parseXml } from './deps_xml.ts';
 import { setIntersect } from './sets.ts';
 import { InMemoryCache, Callbacks, Comment, makeRateLimitedFetcher, makeThreadcap, Threadcap, updateThreadcap, Fetcher as ThreadcapFetcher } from './deps_comments.ts';
 

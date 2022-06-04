@@ -1,7 +1,7 @@
 import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601, isIso8601AllowTimezone } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601AllowTimezone } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
-import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './xml_parser.ts';
+import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
 export function validateFeedXml(xml: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     if (xml.tagname !== '!xml') return callbacks.onError(xml, `Bad xml.tagname: ${xml.tagname}`);

@@ -1,4 +1,4 @@
-import { Qname } from './xml_parser.ts';
+import { Qname } from './deps_xml.ts';
 
 // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md
 

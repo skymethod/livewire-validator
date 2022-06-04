@@ -1171,18 +1171,8 @@ class Qnames {
         content: _mediaRss('content')
     };
 }
-function checkMatches(name, value, pattern) {
-    if (!pattern.test(value)) throw new Error(`Bad ${name}: ${value}`);
-    return value;
-}
 function checkEqual(name, value, expected) {
-    if (value !== expected) throw new Error(`Bad ${name}: ${value}, expected ${expected}`);
-}
-function checkTrue(name, value, test) {
-    if (!test) throw new Error(`Bad ${name}: ${value}`);
-}
-function isStringRecord(obj) {
-    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
+    if (value !== expected) throw new Error(`Bad ${name}: expected ${expected}, found ${value}`);
 }
 const hexRegex = /^[-+]?0x[a-fA-F0-9]+$/;
 const numRegex = /^([\-\+])?(0*)(\.[0-9]+([eE]\-?[0-9]+)?|[0-9]+(\.[0-9]+([eE]\-?[0-9]+)?)?)$/;
@@ -2347,11 +2337,29 @@ parser.j2xParser;
 parser.parse;
 parser.parseToNimn;
 parser.validate;
+function decodeXml(encoded) {
+    return encoded.replaceAll(/&(#(\d+)|[a-z]+);/g, (str, entity, decimal)=>{
+        if (typeof decimal === 'string') return String.fromCharCode(parseInt(decimal));
+        if (typeof entity === 'string') {
+            const rt = ENTITIES_TO_UNENCODED_CHARS[entity];
+            if (rt) return rt;
+        }
+        throw new Error(`Unsupported entity: ${str}`);
+    });
+}
+const ENTITIES_TO_UNENCODED_CHARS = {
+    'lt': '<',
+    'gt': '>',
+    'amp': '&',
+    'apos': `'`,
+    'quot': '"'
+};
 function parseXml(xml) {
     const rt = getTraversalObj$1(xml, {
         ignoreAttributes: false,
         parseAttributeValue: false,
-        parseNodeValue: false
+        parseNodeValue: false,
+        tagValueProcessor: decodeXml
     });
     const namespaces = new XmlNamespaces();
     applyQnames(rt, namespaces);
@@ -2467,6 +2475,19 @@ class XmlNamespaces {
         }
         throw new Error(`getNamespaceUri: prefix not found: ${prefix}`);
     }
+}
+function checkMatches(name, value, pattern) {
+    if (!pattern.test(value)) throw new Error(`Bad ${name}: ${value}`);
+    return value;
+}
+function checkEqual1(name, value, expected) {
+    if (value !== expected) throw new Error(`Bad ${name}: ${value}, expected ${expected}`);
+}
+function checkTrue(name, value, test) {
+    if (!test) throw new Error(`Bad ${name}: ${value}`);
+}
+function isStringRecord(obj) {
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 function isReadonlyArray(arg) {
     return Array.isArray(arg);
@@ -3986,7 +4007,7 @@ class ValidationJobVM {
                         url: input
                     });
                 }
-                checkEqual(`${inputUrl.host} response status`, response1.status, 200);
+                checkEqual1(`${inputUrl.host} response status`, response1.status, 200);
                 const contentType = response1.headers.get('Content-Type');
                 let validateFeed = true;
                 if (contentType && contentType.includes('/html')) {
@@ -4437,7 +4458,7 @@ class ValidationJobVM {
                 job.search = true;
                 setStatus('Searching');
                 const searchResponse = await piSearchFetcher2(input, headers1);
-                checkEqual('searchResponse.status', searchResponse.status, 200);
+                checkEqual1('searchResponse.status', searchResponse.status, 200);
                 const searchResult = await searchResponse.json();
                 if (searchResult.piSearchResult) {
                     if (typeof searchResult.piSearchResult === 'string') {
@@ -4537,7 +4558,7 @@ async function localOrRemoteFetchActivityPub(url, fetchers, useSide, sleepMillis
         },
         useSide
     });
-    checkEqual('res.status', response.status, 200);
+    checkEqual1('res.status', response.status, 200);
     console.log([
         ...response.headers
     ].map((v)=>v.join(': ')));
@@ -4559,7 +4580,7 @@ async function localOrRemoteFetchJson(url, fetchers, useSide, sleepMillisBetween
         },
         useSide
     });
-    checkEqual('res.status', response.status, 200);
+    checkEqual1('res.status', response.status, 200);
     console.log([
         ...response.headers
     ].map((v)=>v.join(': ')));
@@ -4973,7 +4994,7 @@ class ValidatorAppVM {
         return info !== undefined && !computeExpired(info.tokenResponse);
     }
     acceptLogin(origin, tokenResponse) {
-        checkEqual('token_type', tokenResponse.token_type.toLowerCase(), 'bearer');
+        checkEqual1('token_type', tokenResponse.token_type.toLowerCase(), 'bearer');
         checkTrue('created_at, expires_in', [
             tokenResponse.created_at,
             tokenResponse.expires_in

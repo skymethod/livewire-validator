@@ -2,8 +2,8 @@ export { css, html, LitElement, svg, SVGTemplateResult, CSSResult, TemplateResul
 export { Theme } from '../validator-worker/common/theme.ts';
 export type { RuleReference } from '../validator-worker/common/validator.ts';
 export { Qnames } from '../validator-worker/common/qnames.ts';
-export { qnameEq, qnamesInclude } from '../validator-worker/common/xml_parser.ts';
-export type { ExtendedXmlNode } from '../validator-worker/common/xml_parser.ts';
+export { qnameEq, qnamesInclude } from '../validator-worker/common/deps_xml.ts';
+export type { ExtendedXmlNode } from '../validator-worker/common/deps_xml.ts';
 export type { ValidationJobVMOpts, Message, PIFeedInfo, ValidationOptions, Fetcher, PISearchFetcher, MessageType, CommentsResult } from '../validator-worker/common/validation_job_vm.ts';
 export { ValidationJobVM } from '../validator-worker/common/validation_job_vm.ts';
 export { isOauthObtainTokenResponse } from '../validator-worker/common/oauth.ts';
