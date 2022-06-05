@@ -139,7 +139,7 @@ export class ValidationJobVM {
                 checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file):$/);
 
                 // https://feed.podbean.com/<slug>/feed.xml => 405 method not allowed for any query param
-                if (inputUrl.hostname !== 'feed.podbean.com') {
+                if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
                     inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
                 }
 
@@ -152,7 +152,11 @@ export class ValidationJobVM {
                 job.times.fetchTime = fetchTime;
 
                 if (side === 'local') {
-                    addMessage('good', `Local fetch succeeded (CORS enabled)`, { url: input }); 
+                    if (inputUrl.protocol === 'file:') {
+                        addMessage('good', `Local file contents loaded`);
+                    } else {
+                        addMessage('good', `Local fetch succeeded (CORS enabled)`, { url: input });
+                    }
                 }
                 checkEqual(`${inputUrl.host} response status`, response.status, 200);
                 const contentType = response.headers.get('Content-Type');
@@ -651,6 +655,7 @@ async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, heade
             const response = await fetchers.localFetcher(url, headers);
             return { fetchTime: Date.now() - start, side: 'local', response };
         } catch (e) {
+            if (new URL(url).protocol === 'file:') throw e;
             console.log('Failed to local fetch, trying remote', e);
         }
     }

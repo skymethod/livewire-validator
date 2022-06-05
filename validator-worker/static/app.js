@@ -4101,7 +4101,7 @@ class ValidationJobVM {
                 const inputUrl = tryParseUrl1(input);
                 if (!inputUrl) throw new Error(`Bad url: ${input}`);
                 checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file):$/);
-                if (inputUrl.hostname !== 'feed.podbean.com') {
+                if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
                     inputUrl.searchParams.set('_t', Date.now().toString());
                 }
                 if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
@@ -4114,9 +4114,13 @@ class ValidationJobVM {
                 if (job.done) return;
                 job.times.fetchTime = fetchTime;
                 if (side1 === 'local') {
-                    addMessage('good', `Local fetch succeeded (CORS enabled)`, {
-                        url: input
-                    });
+                    if (inputUrl.protocol === 'file:') {
+                        addMessage('good', `Local file contents loaded`);
+                    } else {
+                        addMessage('good', `Local fetch succeeded (CORS enabled)`, {
+                            url: input
+                        });
+                    }
                 }
                 checkEqual1(`${inputUrl.host} response status`, response1.status, 200);
                 const contentType = response1.headers.get('Content-Type');
@@ -4717,6 +4721,7 @@ async function localOrRemoteFetch(url, opts) {
                 response
             };
         } catch (e) {
+            if (new URL(url).protocol === 'file:') throw e;
             console.log('Failed to local fetch, trying remote', e);
         }
     }
@@ -5624,7 +5629,7 @@ const REPLY_BOX = html`
 const FORM_HTML = html`
 <header>${CHECKLIST_ICON}<h1>Livewire Podcast Validator <span id="version">v0.2</span></h1></header>
 <form id="form">
-    <input id="text-input" type="text" placeholder="Podcast feed url, ActivityPub url, Apple Podcasts url, or search text" autocomplete="url" required>
+    <input id="text-input" type="text" spellcheck="false" placeholder="Podcast feed url, ActivityPub url, Apple Podcasts url, search text (or drop a local file onto the page)" autocomplete="url" required>
     <button id="submit" type="submit">Validate</button>
 </form>
 `;
@@ -5720,7 +5725,7 @@ input:-webkit-autofill, input:-webkit-autofill:focus {
 }
 
 `;
-function initForm(document, vm5, staticData1) {
+function initForm(document, vm5, staticData1, droppedFiles1) {
     const form = document.getElementById('form');
     const textInput = document.getElementById('text-input');
     const submitButton = document.getElementById('submit');
@@ -5730,6 +5735,24 @@ function initForm(document, vm5, staticData1) {
         staticData1.pushId
     ].map((v)=>(v || '').trim()).filter((v)=>v.length > 0).join('.');
     versionSpan.textContent = staticData1.version ? `v${version}` : '';
+    document.ondragover = (e)=>e.preventDefault();
+    document.ondrop = async (e)=>{
+        e.preventDefault();
+        try {
+            const { name , text  } = await getDroppedFileContents(e);
+            if (!vm5.validating) {
+                const fileUrl = `file://(dropped)/${name}`;
+                droppedFiles1.set(new URL(fileUrl).toString(), text);
+                textInput.value = fileUrl;
+                vm5.startValidation(textInput.value, {
+                    validateComments: false,
+                    userAgent: navigator.userAgent
+                });
+            }
+        } catch (e1) {
+            console.log('Error in getDroppedFileText', e1);
+        }
+    };
     const { searchParams  } = new URL(document.URL);
     const validate1 = searchParams.get('validate') || undefined;
     const input = searchParams.get('input') || undefined;
@@ -5761,6 +5784,37 @@ function initForm(document, vm5, staticData1) {
         if (wasDisabled && !textInput.disabled) {
             textInput.focus();
         }
+    };
+}
+async function getDroppedFileContents(event) {
+    const files = [];
+    if (event.dataTransfer) {
+        if (event.dataTransfer.items) {
+            for (const item of event.dataTransfer.items){
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file instanceof File) files.push(file);
+                } else {
+                    throw new Error('Bad item.kind: expected file, found ' + item.kind);
+                }
+            }
+        } else {
+            for (const file of event.dataTransfer.files){
+                files.push(file);
+            }
+        }
+    }
+    if (files.length === 0) {
+        throw new Error('Nothing to import');
+    }
+    if (files.length > 1) {
+        throw new Error('Cannot import multiple files');
+    }
+    const text = await files[0].text();
+    const name = files[0].name;
+    return {
+        name,
+        text
     };
 }
 const MESSAGES_HTML = html`
@@ -6143,9 +6197,15 @@ function parseStaticData() {
     };
 }
 const staticData = parseStaticData();
-const localFetcher = (url, headers)=>fetch(url, {
+const droppedFiles = new Map();
+const localFetcher = (url, headers)=>{
+    const droppedFileText = droppedFiles.get(url);
+    if (droppedFileText) return Promise.resolve(new Response(droppedFileText));
+    if (new URL(url).protocol === 'file:') throw new Error('Unknown dropped file, try dropping it again');
+    return fetch(url, {
         headers
     });
+};
 const remoteFetcher = (url, headers)=>fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -6167,7 +6227,7 @@ const vm = new ValidatorAppVM({
     remoteFetcher,
     piSearchFetcher
 });
-const updateForm = initForm(document, vm, staticData);
+const updateForm = initForm(document, vm, staticData, droppedFiles);
 const updateMessages = initMessages(document, vm);
 const updateSearchResults = initSearchResults(document, vm);
 const updateComments = initComments(document, vm);

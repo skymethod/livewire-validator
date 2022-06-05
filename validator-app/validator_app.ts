@@ -91,13 +91,19 @@ function parseStaticData(): StaticData {
 
 const staticData = parseStaticData();
 
-const localFetcher: Fetcher = (url, headers) => fetch(url, { headers });
+const droppedFiles = new Map<string, string>(); // file: url -> text contents
+const localFetcher: Fetcher = (url, headers) => {
+    const droppedFileText = droppedFiles.get(url);
+    if (droppedFileText) return Promise.resolve(new Response(droppedFileText));
+    if (new URL(url).protocol === 'file:') throw new Error('Unknown dropped file, try dropping it again');
+    return fetch(url, { headers });
+};
 const remoteFetcher: Fetcher = (url, headers) => fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers }) });
 const piSearchFetcher: PISearchFetcher = (input, headers) => fetch(`/s`, { method: 'POST', body: JSON.stringify({ input, headers }) });
 const threadcapUserAgent = navigator.userAgent;
 
 const vm = new ValidatorAppVM({ threadcapUserAgent, localFetcher, remoteFetcher, piSearchFetcher });
-const updateForm = initForm(document, vm, staticData);
+const updateForm = initForm(document, vm, staticData, droppedFiles);
 const updateMessages = initMessages(document, vm);
 const updateSearchResults = initSearchResults(document, vm);
 const updateComments = initComments(document, vm);
