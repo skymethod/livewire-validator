@@ -160,7 +160,7 @@ function isAppsCreateApplicationResponse(obj: any): obj is AppsCreateApplication
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.name === 'string'
-        && (obj.website === undefined || typeof obj.website === 'string')
+        && (obj.website === undefined || obj.website === null || typeof obj.website === 'string')
         && typeof obj.redirect_uri === 'string'
         && typeof obj.client_id === 'string'
         && typeof obj.client_secret === 'string'
