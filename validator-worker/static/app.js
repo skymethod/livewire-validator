@@ -3113,7 +3113,8 @@ async function findOrFetchJson(url, after, fetcher, cache, opts) {
     const { status , headers , bodyText  } = response;
     if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
     const contentType = headers['content-type'] || '<none>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
+    const foundJson = contentType.toLowerCase().includes('json') || contentType === '<none>' && bodyText.startsWith('{"');
+    if (!foundJson) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
     return JSON.parse(bodyText);
 }
 async function findOrFetchTextResponse(url, after, fetcher, cache, opts) {
@@ -3199,7 +3200,7 @@ async function fetchActivityPubReplies(id, opts) {
     const { fetcher , cache , updateTime , callbacks , debug  } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
-    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies;
+    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies ?? object.comments;
     if (replies === undefined) {
         let message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
         const tryPleromaWorkaround = id.includes('/objects/');
@@ -3227,7 +3228,7 @@ async function fetchActivityPubReplies(id, opts) {
     const fetched = new Set();
     if (typeof replies === 'string') {
         const obj = await findOrFetchActivityPubObject(replies, updateTime, fetcher, cache);
-        if (obj.type === 'OrderedCollection') {
+        if (obj.type === 'OrderedCollection' || obj.type === 'OrderedCollectionPage') {
             return await collectRepliesFromOrderedCollection(obj, updateTime, id, fetcher, cache, callbacks, fetched);
         } else {
             throw new Error(`Expected 'replies' to point to an OrderedCollection, found ${JSON.stringify(obj)}`);
