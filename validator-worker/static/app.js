@@ -2972,7 +2972,7 @@ function validateItem(item, callbacks, itemTagName) {
         }
     }
     const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
-    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastsocialinteract---discuss');
+    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#social-interact');
     for (const socialInteract of socialInteracts){
         ElementValidation.forElement(itemTagName, socialInteract, callbacks, socialInteractReference).checkRequiredAttribute('uri', isUri, socialInteract.atts.get('protocol') !== 'disabled').checkRequiredAttribute('protocol', isPodcastSocialInteractProtocol).checkOptionalAttribute('accountId', isNotEmpty).checkOptionalAttribute('accountUrl', isUrl).checkOptionalAttribute('priority', isNonNegativeInteger).checkRemainingAttributes();
         callbacks.onGood(socialInteract, `Found ${itemTagName} <podcast:socialInteract>, nice!`, {
