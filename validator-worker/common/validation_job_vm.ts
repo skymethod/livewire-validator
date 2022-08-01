@@ -105,7 +105,7 @@ export class ValidationJobVM {
         };
 
         // deno-lint-ignore no-explicit-any
-        let activityPub: { url: string, subject: string, obj?: any } | undefined;
+        const activityPubs: { url: string, subject: string, obj?: any }[] = [];
         let lightningComments: { url: string, subject: string } | undefined;
         let twitter: { url: string, subject: string } | undefined;
         const headers: Record<string, string> = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
@@ -170,14 +170,14 @@ export class ValidationJobVM {
                     } else {
                         addMessage('info', 'Found html, will try again as ActivityPub');
                         validateFeed = false;
-                        activityPub = { url: input, subject: 'input url' };
+                        activityPubs.push({ url: input, subject: 'input url' });
                     }
                 }
                 if (contentType && contentType.startsWith('application/activity+json')) {
                     addMessage('info', 'Found ActivityPub json');
                     const obj = await response.json();
                     validateFeed = false;
-                    activityPub = { url: input, subject: 'input url', obj };
+                    activityPubs.push({ url: input, subject: 'input url', obj });
                 }
 
                 if (validateFeed) {
@@ -210,7 +210,7 @@ export class ValidationJobVM {
                                 if (uri) {
                                     if (attributes.get('platform')?.toLowerCase() === 'activitypub' || attributes.get('protocol')?.toLowerCase() === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node)
-                                        activityPub = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                        activityPubs.push({ url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' });
                                     }
                                     if (attributes.get('protocol')?.toLowerCase() === 'lightningcomments') {
                                         const episodeTitle = findEpisodeTitle(node)
@@ -295,13 +295,13 @@ export class ValidationJobVM {
                     }
                 }
 
-                const hasComments = activityPub || lightningComments || twitter;
+                const hasComments = activityPubs.length > 0 || lightningComments || twitter;
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
                 } else if (hasComments) {
                     const results: CommentsResult[] = [];
-                    if (activityPub) {
+                    for (const activityPub of activityPubs) {
                         const sleepMillisBetweenCalls = 0;
                         setStatus(`Validating ActivityPub for ${activityPub.subject}`, { url: activityPub.url });
                         addMessage('info', 'Fetching ActivityPub comments', { url: activityPub.url });

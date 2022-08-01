@@ -81,9 +81,9 @@ class Template {
                     const parent = node.parentNode;
                     const strings2 = data.split(markerRegex);
                     const lastIndex = strings2.length - 1;
-                    for(let i = 0; i < lastIndex; i++){
+                    for(let i1 = 0; i1 < lastIndex; i1++){
                         let insert;
-                        let s = strings2[i];
+                        let s = strings2[i1];
                         if (s === "") {
                             insert = createMarker();
                         } else {
@@ -109,10 +109,10 @@ class Template {
                 }
             } else if (node.nodeType === 8) {
                 if (node.data === marker) {
-                    const parent = node.parentNode;
+                    const parent1 = node.parentNode;
                     if (node.previousSibling === null || index === lastPartIndex) {
                         index++;
-                        parent.insertBefore(createMarker(), node);
+                        parent1.insertBefore(createMarker(), node);
                     }
                     lastPartIndex = index;
                     this.parts.push({
@@ -127,8 +127,8 @@ class Template {
                     }
                     partIndex++;
                 } else {
-                    let i = -1;
-                    while((i = node.data.indexOf(marker, i + 1)) !== -1){
+                    let i2 = -1;
+                    while((i2 = node.data.indexOf(marker, i2 + 1)) !== -1){
                         this.parts.push({
                             type: "node",
                             index: -1
@@ -304,11 +304,11 @@ class AttributeCommitter {
             text += strings[i];
             const part = parts2[i];
             if (part !== void 0) {
-                const v = part.value;
-                if (isPrimitive(v) || !isIterable(v)) {
-                    text += typeof v === "string" ? v : String(v);
+                const v1 = part.value;
+                if (isPrimitive(v1) || !isIterable(v1)) {
+                    text += typeof v1 === "string" ? v1 : String(v1);
                 } else {
-                    for (const t of v){
+                    for (const t of v1){
                         text += typeof t === "string" ? t : String(t);
                     }
                 }
@@ -761,13 +761,13 @@ class UpdatingElement extends HTMLElement {
         this._ensureClassProperties();
         this._attributeToPropertyMap = new Map();
         if (this.hasOwnProperty(JSCompiler_renameProperty("properties", this))) {
-            const props1 = this.properties;
+            const props = this.properties;
             const propKeys = [
-                ...Object.getOwnPropertyNames(props1),
-                ...typeof Object.getOwnPropertySymbols === "function" ? Object.getOwnPropertySymbols(props1) : []
+                ...Object.getOwnPropertyNames(props),
+                ...typeof Object.getOwnPropertySymbols === "function" ? Object.getOwnPropertySymbols(props) : []
             ];
             for (const p of propKeys){
-                this.createProperty(p, props1[p]);
+                this.createProperty(p, props[p]);
             }
         }
     }
@@ -1332,8 +1332,8 @@ const convertToJson = function(node, options, parentTagName) {
             }
         } else {
             const result = convertToJson(node.child[tagName][0], options, tagName);
-            const asArray = options.arrayMode === true && typeof result === "object" || util.isTagNameInArrayMode(tagName, options.arrayMode, parentTagName);
-            jObj[tagName] = asArray ? [
+            const asArray1 = options.arrayMode === true && typeof result === "object" || util.isTagNameInArrayMode(tagName, options.arrayMode, parentTagName);
+            jObj[tagName] = asArray1 ? [
                 result
             ] : result;
         }
@@ -1525,47 +1525,47 @@ const getTraversalObj = function(xmlData, options) {
             } else if (xmlData.substr(i + 1, 3) === "!--") {
                 i = findClosingIndex(xmlData, "-->", i, "Comment is not closed.");
             } else if (xmlData.substr(i + 1, 2) === "!D") {
-                const closeIndex = findClosingIndex(xmlData, ">", i, "DOCTYPE is not closed.");
-                const tagExp = xmlData.substring(i, closeIndex);
+                const closeIndex1 = findClosingIndex(xmlData, ">", i, "DOCTYPE is not closed.");
+                const tagExp = xmlData.substring(i, closeIndex1);
                 if (tagExp.indexOf("[") >= 0) {
                     i = xmlData.indexOf("]>", i) + 1;
                 } else {
-                    i = closeIndex;
+                    i = closeIndex1;
                 }
             } else if (xmlData.substr(i + 1, 2) === "![") {
-                const closeIndex = findClosingIndex(xmlData, "]]>", i, "CDATA is not closed.") - 2;
-                const tagExp = xmlData.substring(i + 9, closeIndex);
+                const closeIndex2 = findClosingIndex(xmlData, "]]>", i, "CDATA is not closed.") - 2;
+                const tagExp1 = xmlData.substring(i + 9, closeIndex2);
                 if (textData) {
                     currentNode.val = util.getValue(currentNode.val) + "" + processTagValue(currentNode.tagname, textData, options);
                     textData = "";
                 }
                 if (options.cdataTagName) {
-                    const childNode = new xmlNode(options.cdataTagName, currentNode, tagExp);
+                    const childNode = new xmlNode(options.cdataTagName, currentNode, tagExp1);
                     currentNode.addChild(childNode);
                     currentNode.val = util.getValue(currentNode.val) + options.cdataPositionChar;
-                    if (tagExp) {
-                        childNode.val = tagExp;
+                    if (tagExp1) {
+                        childNode.val = tagExp1;
                     }
                 } else {
-                    currentNode.val = (currentNode.val || "") + (tagExp || "");
+                    currentNode.val = (currentNode.val || "") + (tagExp1 || "");
                 }
-                i = closeIndex + 2;
+                i = closeIndex2 + 2;
             } else {
                 const result = closingIndexForOpeningTag(xmlData, i + 1);
-                let tagExp = result.data;
-                const closeIndex = result.index;
-                const separatorIndex = tagExp.indexOf(" ");
-                let tagName = tagExp;
+                let tagExp2 = result.data;
+                const closeIndex3 = result.index;
+                const separatorIndex = tagExp2.indexOf(" ");
+                let tagName1 = tagExp2;
                 let shouldBuildAttributesMap = true;
                 if (separatorIndex !== -1) {
-                    tagName = tagExp.substr(0, separatorIndex).replace(/\s\s*$/, "");
-                    tagExp = tagExp.substr(separatorIndex + 1);
+                    tagName1 = tagExp2.substr(0, separatorIndex).replace(/\s\s*$/, "");
+                    tagExp2 = tagExp2.substr(separatorIndex + 1);
                 }
                 if (options.ignoreNameSpace) {
-                    const colonIndex = tagName.indexOf(":");
-                    if (colonIndex !== -1) {
-                        tagName = tagName.substr(colonIndex + 1);
-                        shouldBuildAttributesMap = tagName !== result.data.substr(colonIndex + 1);
+                    const colonIndex1 = tagName1.indexOf(":");
+                    if (colonIndex1 !== -1) {
+                        tagName1 = tagName1.substr(colonIndex1 + 1);
+                        shouldBuildAttributesMap = tagName1 !== result.data.substr(colonIndex1 + 1);
                     }
                 }
                 if (currentNode && textData) {
@@ -1573,31 +1573,31 @@ const getTraversalObj = function(xmlData, options) {
                         currentNode.val = util.getValue(currentNode.val) + "" + processTagValue(currentNode.tagname, textData, options);
                     }
                 }
-                if (tagExp.length > 0 && tagExp.lastIndexOf("/") === tagExp.length - 1) {
-                    if (tagName[tagName.length - 1] === "/") {
-                        tagName = tagName.substr(0, tagName.length - 1);
-                        tagExp = tagName;
+                if (tagExp2.length > 0 && tagExp2.lastIndexOf("/") === tagExp2.length - 1) {
+                    if (tagName1[tagName1.length - 1] === "/") {
+                        tagName1 = tagName1.substr(0, tagName1.length - 1);
+                        tagExp2 = tagName1;
                     } else {
-                        tagExp = tagExp.substr(0, tagExp.length - 1);
+                        tagExp2 = tagExp2.substr(0, tagExp2.length - 1);
                     }
-                    const childNode = new xmlNode(tagName, currentNode, "");
-                    if (tagName !== tagExp) {
-                        childNode.attrsMap = buildAttributesMap(tagExp, options);
+                    const childNode1 = new xmlNode(tagName1, currentNode, "");
+                    if (tagName1 !== tagExp2) {
+                        childNode1.attrsMap = buildAttributesMap(tagExp2, options);
                     }
-                    currentNode.addChild(childNode);
+                    currentNode.addChild(childNode1);
                 } else {
-                    const childNode = new xmlNode(tagName, currentNode);
-                    if (options.stopNodes.length && options.stopNodes.includes(childNode.tagname)) {
-                        childNode.startIndex = closeIndex;
+                    const childNode2 = new xmlNode(tagName1, currentNode);
+                    if (options.stopNodes.length && options.stopNodes.includes(childNode2.tagname)) {
+                        childNode2.startIndex = closeIndex3;
                     }
-                    if (tagName !== tagExp && shouldBuildAttributesMap) {
-                        childNode.attrsMap = buildAttributesMap(tagExp, options);
+                    if (tagName1 !== tagExp2 && shouldBuildAttributesMap) {
+                        childNode2.attrsMap = buildAttributesMap(tagExp2, options);
                     }
-                    currentNode.addChild(childNode);
-                    currentNode = childNode;
+                    currentNode.addChild(childNode2);
+                    currentNode = childNode2;
                 }
                 textData = "";
-                i = closeIndex;
+                i = closeIndex3;
             }
         } else {
             textData += xmlData[i];
@@ -1719,9 +1719,9 @@ var validate = function(xmlData, options) {
                         }
                     }
                 } else {
-                    const isValid = validateAttributeString(attrStr, options);
-                    if (isValid !== true) {
-                        return getErrorObject(isValid.err.code, isValid.err.msg, getLineNumberForPosition(xmlData, i - attrStr.length + isValid.err.line));
+                    const isValid1 = validateAttributeString(attrStr, options);
+                    if (isValid1 !== true) {
+                        return getErrorObject(isValid1.err.code, isValid1.err.msg, getLineNumberForPosition(xmlData, i - attrStr.length + isValid1.err.line));
                     }
                     if (reachedRoot === true) {
                         return getErrorObject("InvalidXml", "Multiple possible root nodes found.", getLineNumberForPosition(xmlData, i));
@@ -1978,9 +1978,9 @@ const _e = function(node, e_schema, options) {
                         str = processValue(str, r);
                     }
                 } else {
-                    for(let arr_i = 0; arr_i < arr_len; arr_i++){
-                        const r = _e(node[arr_i], itemSchema, options);
-                        str = processValue(str, r);
+                    for(let arr_i1 = 0; arr_i1 < arr_len; arr_i1++){
+                        const r1 = _e(node[arr_i1], itemSchema, options);
+                        str = processValue(str, r1);
                     }
                 }
                 str += chars.arrayEnd;
@@ -1992,15 +1992,15 @@ const _e = function(node, e_schema, options) {
                 }
                 for(let i in keys){
                     const key = keys[i];
-                    let r;
+                    let r2;
                     if (!options.ignoreAttributes && node.attrsMap && node.attrsMap[key]) {
-                        r = _e(node.attrsMap[key], e_schema[key], options);
+                        r2 = _e(node.attrsMap[key], e_schema[key], options);
                     } else if (key === options.textNodeName) {
-                        r = _e(node.val, e_schema[key], options);
+                        r2 = _e(node.val, e_schema[key], options);
                     } else {
-                        r = _e(node.child[key], e_schema[key], options);
+                        r2 = _e(node.child[key], e_schema[key], options);
                     }
-                    str = processValue(str, r);
+                    str = processValue(str, r2);
                 }
             }
             return str;
@@ -2233,8 +2233,8 @@ Parser.prototype.j2x = function(jObj, level) {
             if (this.options.attrNodeName && key === this.options.attrNodeName) {
                 const Ks = Object.keys(jObj[key]);
                 const L = Ks.length;
-                for(let j = 0; j < L; j++){
-                    attrStr += " " + Ks[j] + '="' + this.options.attrValueProcessor("" + jObj[key][Ks[j]]) + '"';
+                for(let j1 = 0; j1 < L; j1++){
+                    attrStr += " " + Ks[j1] + '="' + this.options.attrValueProcessor("" + jObj[key][Ks[j1]]) + '"';
                 }
             } else {
                 val += this.processTextOrObjNode(jObj[key], key, level);
@@ -3351,8 +3351,8 @@ function computeUrl(url) {
     if (url === undefined || url === null) return undefined;
     if (typeof url === 'string') return url;
     if (Array.isArray(url)) {
-        const v1 = url.find((v)=>v.type === 'Link' && v.mediaType === 'text/html' && typeof v.href === 'string');
-        if (v1) return v1.href;
+        const v = url.find((v)=>v.type === 'Link' && v.mediaType === 'text/html' && typeof v.href === 'string');
+        if (v) return v.href;
     }
     throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
 }
@@ -3408,10 +3408,10 @@ function computeAttachment(object) {
     };
 }
 function computeCommenter(person, asof) {
-    let icon1;
+    let icon;
     if (person.icon) {
         if (typeof person.icon !== 'object' || isReadonlyArray1(person.icon) || person.icon.type !== 'Image') throw new Error(`Expected person 'icon' to be an object, found: ${JSON.stringify(person.icon)}`);
-        icon1 = computeIcon(person.icon);
+        icon = computeIcon(person.icon);
     }
     const { name , preferredUsername , url: apUrl , id  } = person;
     if (name !== undefined && typeof name !== 'string') throw new Error(`Expected person 'name' to be a string, found: ${JSON.stringify(person)}`);
@@ -3423,7 +3423,7 @@ function computeCommenter(person, asof) {
     if (typeof url !== 'string') throw new Error(`Expected person 'url' or 'id' to be a string, found: ${JSON.stringify(url)}`);
     const fqUsername = computeFqUsername(url, person.preferredUsername);
     return {
-        icon: icon1,
+        icon,
         name: nameOrPreferredUsername,
         url,
         fqUsername,
@@ -3613,7 +3613,7 @@ function computeCommenterFromUserObj(obj, asof) {
     const iconUrl = obj.profile_image_url;
     const iconUrlLower = (iconUrl || '').toLowerCase();
     const iconMediaType = iconUrlLower.endsWith('.jpg') ? 'image/jpeg' : iconUrlLower.endsWith('.png') ? 'image/png' : undefined;
-    const icon2 = iconUrl ? {
+    const icon = iconUrl ? {
         url: iconUrl,
         mediaType: iconMediaType
     } : undefined;
@@ -3622,7 +3622,7 @@ function computeCommenterFromUserObj(obj, asof) {
         name,
         fqUsername,
         url: userUrl,
-        icon: icon2
+        icon
     };
 }
 function computeCommentFromTweetObj(obj) {
@@ -3807,9 +3807,9 @@ function computeDefaultMillisToWait(input) {
     if (remaining >= 100) return 0;
     return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
 }
-function makeRateLimitedFetcher(fetcher, opts1 = {}) {
-    const { callbacks  } = opts1;
-    const computeMillisToWait = opts1.computeMillisToWait || computeDefaultMillisToWait;
+function makeRateLimitedFetcher(fetcher, opts = {}) {
+    const { callbacks  } = opts;
+    const computeMillisToWait = opts.computeMillisToWait || computeDefaultMillisToWait;
     const endpointLimits = new Map();
     return async (url, opts)=>{
         const { hostname , pathname  } = new URL(url);
@@ -3843,15 +3843,15 @@ function makeRateLimitedFetcher(fetcher, opts1 = {}) {
         const limitHeader = twitterEndpoint ? 'x-rate-limit-limit' : 'x-ratelimit-limit';
         const remainingHeader = twitterEndpoint ? 'x-rate-limit-remaining' : 'x-ratelimit-remaining';
         const resetHeader = twitterEndpoint ? 'x-rate-limit-reset' : 'x-ratelimit-reset';
-        const limit = tryParseInt(res.headers.get(limitHeader) || '');
-        const remaining = tryParseInt(res.headers.get(remainingHeader) || '');
+        const limit1 = tryParseInt(res.headers.get(limitHeader) || '');
+        const remaining1 = tryParseInt(res.headers.get(remainingHeader) || '');
         const resetStr = res.headers.get(resetHeader) || '';
-        const reset = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr) : tryParseIso8601(resetStr);
-        if (limit !== undefined && remaining !== undefined && reset !== undefined) {
+        const reset1 = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr) : tryParseIso8601(resetStr);
+        if (limit1 !== undefined && remaining1 !== undefined && reset1 !== undefined) {
             endpointLimits.set(endpoint, {
-                limit,
-                remaining,
-                reset
+                limit: limit1,
+                remaining: remaining1,
+                reset: reset1
             });
         }
         return res;
@@ -3916,9 +3916,9 @@ async function processNode(id, processReplies, threadcap, implementation, opts) 
             try {
                 node.replies = await implementation.fetchReplies(id, opts);
                 node.repliesError = undefined;
-            } catch (e) {
+            } catch (e1) {
                 node.replies = undefined;
-                node.repliesError = `${e.stack || e}`;
+                node.repliesError = `${e1.stack || e1}`;
             }
             node.repliesAsof = updateTime;
         }
@@ -3979,13 +3979,13 @@ class ValidationJobVM {
         return this.currentJob?.commentsResults;
     }
     constructor(opts){
-        const { localFetcher: localFetcher1 , remoteFetcher: remoteFetcher1 , piSearchFetcher: piSearchFetcher1 , threadcapUserAgent: threadcapUserAgent1  } = opts;
+        const { localFetcher , remoteFetcher , piSearchFetcher , threadcapUserAgent  } = opts;
         this.fetchers = {
-            localFetcher: localFetcher1,
-            remoteFetcher: remoteFetcher1
+            localFetcher,
+            remoteFetcher
         };
-        this.piSearchFetcher = piSearchFetcher1;
-        this.threadcapUserAgent = threadcapUserAgent1;
+        this.piSearchFetcher = piSearchFetcher;
+        this.threadcapUserAgent = threadcapUserAgent;
     }
     onChange = ()=>{};
     continueWith(url) {
@@ -4065,23 +4065,23 @@ class ValidationJobVM {
             });
             this.onChange();
         };
-        let activityPub;
+        const activityPubs = [];
         let lightningComments;
         let twitter;
-        const headers1 = {
+        const headers = {
             'Accept-Encoding': 'gzip',
             'User-Agent': job.options.userAgent,
             'Cache-Control': 'no-store'
         };
         let continueWithUrl;
         const jobStart = Date.now();
-        const { fetchers , piSearchFetcher: piSearchFetcher2  } = this;
+        const { fetchers , piSearchFetcher  } = this;
         try {
             input = input.trim();
             if (input === '') throw new Error(`No input`);
             if (input.startsWith('https://t.co/')) {
                 const tcoHeaders = {
-                    ...headers1
+                    ...headers
                 };
                 delete tcoHeaders['User-Agent'];
                 const { response  } = await localOrRemoteFetch(input, {
@@ -4106,15 +4106,15 @@ class ValidationJobVM {
                     inputUrl.searchParams.set('_t', Date.now().toString());
                 }
                 if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
-                    delete headers1['User-Agent'];
+                    delete headers['User-Agent'];
                 }
-                const { response: response1 , side: side1 , fetchTime  } = await localOrRemoteFetch(inputUrl.toString(), {
+                const { response: response1 , side , fetchTime  } = await localOrRemoteFetch(inputUrl.toString(), {
                     fetchers,
-                    headers: headers1
+                    headers
                 });
                 if (job.done) return;
                 job.times.fetchTime = fetchTime;
-                if (side1 === 'local') {
+                if (side === 'local') {
                     if (inputUrl.protocol === 'file:') {
                         addMessage('good', `Local file contents loaded`);
                     } else {
@@ -4137,21 +4137,21 @@ class ValidationJobVM {
                     } else {
                         addMessage('info', 'Found html, will try again as ActivityPub');
                         validateFeed = false;
-                        activityPub = {
+                        activityPubs.push({
                             url: input,
                             subject: 'input url'
-                        };
+                        });
                     }
                 }
                 if (contentType && contentType.startsWith('application/activity+json')) {
                     addMessage('info', 'Found ActivityPub json');
                     const obj = await response1.json();
                     validateFeed = false;
-                    activityPub = {
+                    activityPubs.push({
                         url: input,
                         subject: 'input url',
                         obj
-                    };
+                    });
                 }
                 if (validateFeed) {
                     let start = Date.now();
@@ -4181,23 +4181,23 @@ class ValidationJobVM {
                                 if (uri) {
                                     if (attributes.get('platform')?.toLowerCase() === 'activitypub' || attributes.get('protocol')?.toLowerCase() === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node);
-                                        activityPub = {
+                                        activityPubs.push({
                                             url: uri,
                                             subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
-                                        };
+                                        });
                                     }
                                     if (attributes.get('protocol')?.toLowerCase() === 'lightningcomments') {
-                                        const episodeTitle = findEpisodeTitle(node);
+                                        const episodeTitle1 = findEpisodeTitle(node);
                                         lightningComments = {
                                             url: uri,
-                                            subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
+                                            subject: episodeTitle1 ? `“${episodeTitle1}”` : 'episode'
                                         };
                                     }
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
-                                        const episodeTitle = findEpisodeTitle(node);
+                                        const episodeTitle2 = findEpisodeTitle(node);
                                         twitter = {
                                             url: uri,
-                                            subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
+                                            subject: episodeTitle2 ? `“${episodeTitle2}”` : 'episode'
                                         };
                                     }
                                 }
@@ -4285,13 +4285,13 @@ class ValidationJobVM {
                         }
                     }
                 }
-                const hasComments = activityPub || lightningComments || twitter;
+                const hasComments = activityPubs.length > 0 || lightningComments || twitter;
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
                 } else if (hasComments) {
                     const results = [];
-                    if (activityPub) {
+                    for (const activityPub of activityPubs){
                         setStatus(`Validating ActivityPub for ${activityPub.subject}`, {
                             url: activityPub.url
                         });
@@ -4331,8 +4331,8 @@ class ValidationJobVM {
                             activityPubCalls++;
                             return response;
                         };
-                        const start = Date.now();
-                        const callbacks = {
+                        const start1 = Date.now();
+                        const callbacks1 = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
                                     const { message , url  } = event;
@@ -4354,7 +4354,7 @@ class ValidationJobVM {
                             }
                         };
                         const fetcher = makeRateLimitedFetcher(fetchActivityPubOrMastodon, {
-                            callbacks
+                            callbacks: callbacks1
                         });
                         const cache = new InMemoryCache();
                         const userAgent = this.threadcapUserAgent;
@@ -4378,9 +4378,9 @@ class ValidationJobVM {
                             userAgent,
                             fetcher,
                             cache,
-                            callbacks
+                            callbacks: callbacks1
                         });
-                        job.times.commentsTime = Date.now() - start;
+                        job.times.commentsTime = Date.now() - start1;
                         addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
                         job.commentsResults = [
                             ...results,
@@ -4402,31 +4402,31 @@ class ValidationJobVM {
                         addMessage('info', 'Fetching Lightning comments', {
                             url: lightningComments.url
                         });
-                        const keepGoing = ()=>!job.done;
-                        const remoteOnlyOrigins = new Set();
-                        const computeUseSide = (url)=>{
-                            return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
+                        const keepGoing1 = ()=>!job.done;
+                        const remoteOnlyOrigins1 = new Set();
+                        const computeUseSide1 = (url)=>{
+                            return remoteOnlyOrigins1.has(new URL(url).origin) ? 'remote' : undefined;
                         };
                         let lightningCommentsCalls = 0;
                         const fetchLightningComments = async (url)=>{
-                            const { response , side  } = await localOrRemoteFetchJson(url, fetchers, computeUseSide(url), 0);
+                            const { response , side  } = await localOrRemoteFetchJson(url, fetchers, computeUseSide1(url), 0);
                             const obj = await response.clone().json();
                             console.log(JSON.stringify(obj, undefined, 2));
                             if (side === 'remote') {
                                 const origin = new URL(url).origin;
-                                if (!remoteOnlyOrigins.has(origin)) {
+                                if (!remoteOnlyOrigins1.has(origin)) {
                                     addMessage('warning', `Local json fetch failed (CORS disabled?)`, {
                                         url,
                                         tag: 'cors'
                                     });
-                                    remoteOnlyOrigins.add(origin);
+                                    remoteOnlyOrigins1.add(origin);
                                 }
                             }
                             lightningCommentsCalls++;
                             return response;
                         };
-                        const start = Date.now();
-                        const callbacks = {
+                        const start2 = Date.now();
+                        const callbacks2 = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
                                     const { message , url  } = event;
@@ -4437,7 +4437,7 @@ class ValidationJobVM {
                                     job.commentsResults = [
                                         ...results,
                                         {
-                                            threadcap,
+                                            threadcap: threadcap1,
                                             subject: lightningComments.subject
                                         }
                                     ];
@@ -4447,46 +4447,46 @@ class ValidationJobVM {
                                 }
                             }
                         };
-                        const fetcher = makeRateLimitedFetcher(fetchLightningComments, {
-                            callbacks
+                        const fetcher1 = makeRateLimitedFetcher(fetchLightningComments, {
+                            callbacks: callbacks2
                         });
-                        const cache = new InMemoryCache();
-                        const userAgent = this.threadcapUserAgent;
-                        const threadcap = await makeThreadcap(lightningComments.url, {
-                            userAgent,
-                            fetcher,
-                            cache,
+                        const cache1 = new InMemoryCache();
+                        const userAgent1 = this.threadcapUserAgent;
+                        const threadcap1 = await makeThreadcap(lightningComments.url, {
+                            userAgent: userAgent1,
+                            fetcher: fetcher1,
+                            cache: cache1,
                             protocol: 'lightningcomments'
                         });
                         job.commentsResults = [
                             ...results,
                             {
-                                threadcap,
+                                threadcap: threadcap1,
                                 subject: lightningComments.subject
                             }
                         ];
                         this.onChange();
-                        const updateTime = new Date().toISOString();
-                        await updateThreadcap(threadcap, {
-                            updateTime,
-                            keepGoing,
-                            userAgent,
-                            fetcher,
-                            cache,
-                            callbacks
+                        const updateTime1 = new Date().toISOString();
+                        await updateThreadcap(threadcap1, {
+                            updateTime: updateTime1,
+                            keepGoing: keepGoing1,
+                            userAgent: userAgent1,
+                            fetcher: fetcher1,
+                            cache: cache1,
+                            callbacks: callbacks2
                         });
-                        job.times.commentsTime = Date.now() - start;
-                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(lightningCommentsCalls, 'Lightning Comments call')}`);
+                        job.times.commentsTime = Date.now() - start2;
+                        addMessage('info', `Found ${unitString(Object.values(threadcap1.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap1.commenters).length, 'participant')}, made ${unitString(lightningCommentsCalls, 'Lightning Comments call')}`);
                         job.commentsResults = [
                             ...results,
                             {
-                                threadcap,
+                                threadcap: threadcap1,
                                 subject: lightningComments.subject
                             }
                         ];
                         this.onChange();
                         results.push({
-                            threadcap,
+                            threadcap: threadcap1,
                             subject: lightningComments.subject
                         });
                     }
@@ -4497,15 +4497,15 @@ class ValidationJobVM {
                         addMessage('info', 'Fetching Twitter comments', {
                             url: twitter.url
                         });
-                        const keepGoing = ()=>!job.done;
+                        const keepGoing2 = ()=>!job.done;
                         let twitterCommentsCalls = 0;
                         const fetchTwitterComments = async (url)=>{
                             const { response  } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
                             twitterCommentsCalls++;
                             return response;
                         };
-                        const start = Date.now();
-                        const callbacks = {
+                        const start3 = Date.now();
+                        const callbacks3 = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
                                     const { message , url  } = event;
@@ -4516,7 +4516,7 @@ class ValidationJobVM {
                                     job.commentsResults = [
                                         ...results,
                                         {
-                                            threadcap,
+                                            threadcap: threadcap2,
                                             subject: twitter.subject
                                         }
                                     ];
@@ -4526,46 +4526,46 @@ class ValidationJobVM {
                                 }
                             }
                         };
-                        const fetcher = makeRateLimitedFetcher(fetchTwitterComments, {
-                            callbacks
+                        const fetcher2 = makeRateLimitedFetcher(fetchTwitterComments, {
+                            callbacks: callbacks3
                         });
-                        const cache = new InMemoryCache();
-                        const userAgent = this.threadcapUserAgent;
-                        const threadcap = await makeThreadcap(twitter.url, {
-                            userAgent,
-                            fetcher,
-                            cache,
+                        const cache2 = new InMemoryCache();
+                        const userAgent2 = this.threadcapUserAgent;
+                        const threadcap2 = await makeThreadcap(twitter.url, {
+                            userAgent: userAgent2,
+                            fetcher: fetcher2,
+                            cache: cache2,
                             protocol: 'twitter'
                         });
                         job.commentsResults = [
                             ...results,
                             {
-                                threadcap,
+                                threadcap: threadcap2,
                                 subject: twitter.subject
                             }
                         ];
                         this.onChange();
-                        const updateTime = new Date().toISOString();
-                        await updateThreadcap(threadcap, {
-                            updateTime,
-                            keepGoing,
-                            userAgent,
-                            fetcher,
-                            cache,
-                            callbacks
+                        const updateTime2 = new Date().toISOString();
+                        await updateThreadcap(threadcap2, {
+                            updateTime: updateTime2,
+                            keepGoing: keepGoing2,
+                            userAgent: userAgent2,
+                            fetcher: fetcher2,
+                            cache: cache2,
+                            callbacks: callbacks3
                         });
-                        job.times.commentsTime = Date.now() - start;
-                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(twitterCommentsCalls, 'Twitter Comments call')}`);
+                        job.times.commentsTime = Date.now() - start3;
+                        addMessage('info', `Found ${unitString(Object.values(threadcap2.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap2.commenters).length, 'participant')}, made ${unitString(twitterCommentsCalls, 'Twitter Comments call')}`);
                         job.commentsResults = [
                             ...results,
                             {
-                                threadcap,
+                                threadcap: threadcap2,
                                 subject: twitter.subject
                             }
                         ];
                         this.onChange();
                         results.push({
-                            threadcap,
+                            threadcap: threadcap2,
                             subject: twitter.subject
                         });
                     }
@@ -4573,7 +4573,7 @@ class ValidationJobVM {
             } else {
                 job.search = true;
                 setStatus('Searching');
-                const searchResponse = await piSearchFetcher2(input, headers1);
+                const searchResponse = await piSearchFetcher(input, headers);
                 checkEqual1('searchResponse.status', searchResponse.status, 200);
                 const searchResult = await searchResponse.json();
                 if (searchResult.piSearchResult) {
@@ -4592,9 +4592,9 @@ class ValidationJobVM {
                     }
                 }
             }
-        } catch (e) {
-            console.error(e);
-            addMessage('error', e.message);
+        } catch (e1) {
+            console.error(e1);
+            addMessage('error', e1.message);
         } finally{
             addMessage('info', `${job.search ? 'Search took' : 'Took'} ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job.times)}`);
             if (continueWithUrl) {
@@ -4727,12 +4727,12 @@ async function localOrRemoteFetch(url, opts) {
         }
     }
     console.log(`remote fetch: ${url} ${headers}`);
-    const start = Date.now();
-    const response = await fetchers.remoteFetcher(url, headers);
+    const start1 = Date.now();
+    const response1 = await fetchers.remoteFetcher(url, headers);
     return {
-        fetchTime: Date.now() - start,
+        fetchTime: Date.now() - start1,
         side: 'remote',
-        response
+        response: response1
     };
 }
 function findEpisodeTitle(socialInteract) {
@@ -4969,7 +4969,7 @@ function computeCommenterFromUserObj1(obj, asof) {
     const iconUrl = obj.profile_image_url;
     const iconUrlLower = (iconUrl || '').toLowerCase();
     const iconMediaType = iconUrlLower.endsWith('.jpg') ? 'image/jpeg' : iconUrlLower.endsWith('.png') ? 'image/png' : undefined;
-    const icon3 = iconUrl ? {
+    const icon = iconUrl ? {
         url: iconUrl,
         mediaType: iconMediaType
     } : undefined;
@@ -4978,7 +4978,7 @@ function computeCommenterFromUserObj1(obj, asof) {
         name,
         fqUsername,
         url: userUrl,
-        icon: icon3
+        icon
     };
 }
 function computeCommentFromTweetObj1(obj) {
@@ -5139,11 +5139,11 @@ class ValidatorAppVM {
             return response;
         });
         console.log(`mastodonId`, mastodonId);
-        const { url: url1  } = await statusesPublish(origin, info.tokenResponse.access_token, {
+        const { url  } = await statusesPublish(origin, info.tokenResponse.access_token, {
             status: reply,
             in_reply_to_id: mastodonId
         });
-        return url1;
+        return url;
     }
 }
 function computeExpired(tokenResponse) {
@@ -5414,32 +5414,32 @@ details.error {
 }
 
 `;
-function initComments(document, vm1) {
-    const commentsDetails = document.getElementById('comments-details');
-    const commentsSubjectSpan = document.getElementById('comments-subject');
-    const commentsOutput = document.getElementById('comments');
+function initComments(document1, vm) {
+    const commentsDetails = document1.getElementById('comments-details');
+    const commentsSubjectSpan = document1.getElementById('comments-subject');
+    const commentsOutput = document1.getElementById('comments');
     return ()=>{
-        const results = vm1.commentsResults;
+        const results = vm.commentsResults;
         commentsDetails.style.display = results ? 'block' : 'none';
         commentsSubjectSpan.textContent = results && results[0] ? results && results[0].subject : 'subject';
         if (results !== _renderedResults) {
-            renderComments(results, commentsOutput, vm1);
+            renderComments(results, commentsOutput, vm);
             _renderedResults = results;
         }
     };
 }
 let _renderedResults;
-function renderComments(results, commentsOutput, vm2) {
+function renderComments(results, commentsOutput, vm) {
     while(commentsOutput.firstChild)commentsOutput.removeChild(commentsOutput.firstChild);
     if (results) {
         for (const result of results){
             for (const root of result.threadcap.roots){
-                renderNode(root, result.threadcap, commentsOutput, 0, vm2);
+                renderNode(root, result.threadcap, commentsOutput, 0, vm);
             }
         }
     }
 }
-function renderNode(nodeId, threadcap, containerElement, level, vm3) {
+function renderNode(nodeId, threadcap, containerElement, level, vm) {
     const node = threadcap.nodes[nodeId];
     if (!node) return;
     const { comment , commentError  } = node;
@@ -5531,17 +5531,17 @@ function renderNode(nodeId, threadcap, containerElement, level, vm3) {
             replyDiv.appendChild(replyFieldsetContainer);
             replyAnchor.onclick = (e)=>{
                 e.preventDefault();
-                toggleReplyBox(replyAnchor, replyFieldsetContainer, replyToUrl, vm3);
+                toggleReplyBox(replyAnchor, replyFieldsetContainer, replyToUrl, vm);
             };
             rhsDiv.appendChild(replyDiv);
         }
     } else if (commentError) {
         const lines = commentError.split('\n');
-        const summary = lines[0];
+        const summary1 = lines[0];
         const errorDetails = document.createElement('details');
         errorDetails.classList.add('error');
         const errorSummary = document.createElement('summary');
-        errorSummary.textContent = summary;
+        errorSummary.textContent = summary1;
         errorDetails.appendChild(errorSummary);
         errorDetails.append(document.createTextNode(lines.slice(1).join('\n')));
         rhsDiv.appendChild(errorDetails);
@@ -5549,7 +5549,7 @@ function renderNode(nodeId, threadcap, containerElement, level, vm3) {
     commentDiv.appendChild(rhsDiv);
     containerElement.appendChild(commentDiv);
     for (const reply of node.replies || []){
-        renderNode(reply, threadcap, containerElement, level + 1, vm3);
+        renderNode(reply, threadcap, containerElement, level + 1, vm);
     }
 }
 function computeAge(date) {
@@ -5562,7 +5562,7 @@ function computeAge(date) {
     const days = hours / 24;
     return `${Math.floor(days)}d`;
 }
-function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm4) {
+function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm) {
     if (anchor.textContent?.startsWith('Reply')) {
         anchor.textContent = 'Cancel ⅹ';
         LitElement.render(REPLY_BOX, fieldsetContainer);
@@ -5576,18 +5576,18 @@ function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm4) {
         let sent = false;
         let newReplyUrl;
         const update = ()=>{
-            const loggedIn = vm4.isLoggedIn(origin);
+            const loggedIn = vm.isLoggedIn(origin);
             loginAnchor.textContent = loggedIn ? `Sign out of ${origin}` : `Sign in at ${origin}...`;
             loginAnchor.style.display = !sent ? 'block' : 'none';
             textarea.style.display = button.style.display = loggedIn && !sent ? 'block' : 'none';
             output.style.display = sent ? 'block' : 'none';
             outputAnchor.href = newReplyUrl || origin;
         };
-        loginAnchor.onclick = (e1)=>{
-            e1.preventDefault();
-            const loggedIn = vm4.isLoggedIn(origin);
+        loginAnchor.onclick = (e)=>{
+            e.preventDefault();
+            const loggedIn = vm.isLoggedIn(origin);
             if (loggedIn) {
-                vm4.expireLogin(origin);
+                vm.expireLogin(origin);
                 update();
             } else {
                 const w = window.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
@@ -5596,7 +5596,7 @@ function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm4) {
                         const { data  } = e;
                         console.log('onmessage', data);
                         if (typeof data.origin === 'string' && isOauthObtainTokenResponse(data.tokenResponse)) {
-                            vm4.acceptLogin(data.origin, data.tokenResponse);
+                            vm.acceptLogin(data.origin, data.tokenResponse);
                             update();
                             w.close();
                         }
@@ -5606,7 +5606,7 @@ function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm4) {
         };
         button.onclick = async (e)=>{
             e.preventDefault();
-            newReplyUrl = await vm4.sendReply(textarea.value.trim(), replyToUrl);
+            newReplyUrl = await vm.sendReply(textarea.value.trim(), replyToUrl);
             sent = true;
             anchor.textContent = 'Close ⅹ';
             update();
@@ -5726,26 +5726,26 @@ input:-webkit-autofill, input:-webkit-autofill:focus {
 }
 
 `;
-function initForm(document, vm5, staticData1, droppedFiles1) {
-    const form = document.getElementById('form');
-    const textInput = document.getElementById('text-input');
-    const submitButton = document.getElementById('submit');
-    const versionSpan = document.getElementById('version');
+function initForm(document1, vm, staticData, droppedFiles) {
+    const form = document1.getElementById('form');
+    const textInput = document1.getElementById('text-input');
+    const submitButton = document1.getElementById('submit');
+    const versionSpan = document1.getElementById('version');
     const version = [
-        staticData1.version,
-        staticData1.pushId
+        staticData.version,
+        staticData.pushId
     ].map((v)=>(v || '').trim()).filter((v)=>v.length > 0).join('.');
-    versionSpan.textContent = staticData1.version ? `v${version}` : '';
-    document.ondragover = (e)=>e.preventDefault();
-    document.ondrop = async (e)=>{
+    versionSpan.textContent = staticData.version ? `v${version}` : '';
+    document1.ondragover = (e)=>e.preventDefault();
+    document1.ondrop = async (e)=>{
         e.preventDefault();
         try {
             const { name , text  } = await getDroppedFileContents(e);
-            if (!vm5.validating) {
+            if (!vm.validating) {
                 const fileUrl = `file://(dropped)/${name}`;
-                droppedFiles1.set(new URL(fileUrl).toString(), text);
+                droppedFiles.set(new URL(fileUrl).toString(), text);
                 textInput.value = fileUrl;
-                vm5.startValidation(textInput.value, {
+                vm.startValidation(textInput.value, {
                     validateComments: false,
                     userAgent: navigator.userAgent
                 });
@@ -5754,24 +5754,24 @@ function initForm(document, vm5, staticData1, droppedFiles1) {
             console.log('Error in getDroppedFileText', e1);
         }
     };
-    const { searchParams  } = new URL(document.URL);
-    const validate1 = searchParams.get('validate') || undefined;
+    const { searchParams  } = new URL(document1.URL);
+    const validate = searchParams.get('validate') || undefined;
     const input = searchParams.get('input') || undefined;
     const nocomments = searchParams.has('nocomments');
-    const startValidation = ()=>vm5.startValidation(textInput.value, {
+    const startValidation = ()=>vm.startValidation(textInput.value, {
             validateComments: !nocomments,
             userAgent: navigator.userAgent
         });
     form.onsubmit = (e)=>{
         e.preventDefault();
-        if (vm5.validating) {
-            vm5.cancelValidation();
+        if (vm.validating) {
+            vm.cancelValidation();
         } else {
             startValidation();
         }
     };
-    if (validate1) {
-        textInput.value = validate1;
+    if (validate) {
+        textInput.value = validate;
         setTimeout(startValidation, 0);
     } else if (input) {
         textInput.value = input;
@@ -5779,9 +5779,9 @@ function initForm(document, vm5, staticData1, droppedFiles1) {
     textInput.focus();
     return ()=>{
         const wasDisabled = textInput.disabled;
-        textInput.disabled = vm5.validating;
-        textInput.readOnly = vm5.validating;
-        submitButton.textContent = vm5.validating ? 'Cancel' : 'Validate';
+        textInput.disabled = vm.validating;
+        textInput.readOnly = vm.validating;
+        submitButton.textContent = vm.validating ? 'Cancel' : 'Validate';
         if (wasDisabled && !textInput.disabled) {
             textInput.focus();
         }
@@ -5800,8 +5800,8 @@ async function getDroppedFileContents(event) {
                 }
             }
         } else {
-            for (const file of event.dataTransfer.files){
-                files.push(file);
+            for (const file1 of event.dataTransfer.files){
+                files.push(file1);
             }
         }
     }
@@ -5889,14 +5889,14 @@ const MESSAGES_CSS = css`
 }
 
 `;
-function initMessages(document, vm6) {
-    const messagesOutput = document.getElementById('messages');
+function initMessages(document1, vm) {
+    const messagesOutput = document1.getElementById('messages');
     return ()=>{
-        LitElement.render(MESSAGE_HTML(vm6), messagesOutput);
+        LitElement.render(MESSAGE_HTML(vm), messagesOutput);
     };
 }
-const MESSAGE_HTML = (vm7)=>html`
-    ${vm7.messages.filter(filterDuplicates()).map((message)=>html`
+const MESSAGE_HTML = (vm)=>html`
+    ${vm.messages.filter(filterDuplicates()).map((message)=>html`
         <div class="${message.type} icon">${icon(message.type)}</div>
         <div class="${message.type} message">${message.text}${REFERENCE_HTML(message.reference)}</div>
         ${ANCHOR_HTML(message.url)}`)}`;
@@ -5952,18 +5952,18 @@ const SEARCH_RESULTS_CSS = css`
 }
 
 `;
-function initSearchResults(document, vm8) {
-    const searchResultsOutput = document.getElementById('search-results');
+function initSearchResults(document1, vm) {
+    const searchResultsOutput = document1.getElementById('search-results');
     return ()=>{
-        LitElement.render(RESULTS_HTML(vm8), searchResultsOutput);
-        searchResultsOutput.style.display = vm8.isSearch ? 'block' : 'none';
+        LitElement.render(RESULTS_HTML(vm), searchResultsOutput);
+        searchResultsOutput.style.display = vm.isSearch ? 'block' : 'none';
     };
 }
-const RESULTS_HTML = (vm9)=>html`
-    ${vm9.searchResults.map((result)=>html`<div class="search-result" @click="${selectResult(vm9, result.url)}"><div class="icon">${IMAGE_HTML(result.artwork)}</div><div class="title">${result.title}</div><div class="author">${result.author}</div></div>`)}`;
+const RESULTS_HTML = (vm)=>html`
+    ${vm.searchResults.map((result)=>html`<div class="search-result" @click="${selectResult(vm, result.url)}"><div class="icon">${IMAGE_HTML(result.artwork)}</div><div class="title">${result.title}</div><div class="author">${result.author}</div></div>`)}`;
 const IMAGE_HTML = (artwork)=>artwork ? html`<img src=${artwork}>` : SQUARE_ICON;
-function selectResult(vm10, url) {
-    return ()=>vm10.continueWith(url);
+function selectResult(vm, url) {
+    return ()=>vm.continueWith(url);
 }
 const XML_HTML = html`
 <output id="xml"></output>
@@ -6007,12 +6007,12 @@ summary.empty::-webkit-details-marker { display: none; }
     margin: 0.5rem 1rem;
 }
 `;
-function initXml(document, vm11) {
-    const xmlOutput = document.getElementById('xml');
+function initXml(document1, vm) {
+    const xmlOutput = document1.getElementById('xml');
     return ()=>{
-        const xml = vm11.xml;
+        const xml = vm.xml;
         if (xml !== _renderedXml) {
-            renderXml(xml, xmlOutput, vm11.xmlSummaryText);
+            renderXml(xml, xmlOutput, vm.xmlSummaryText);
             _renderedXml = xml;
         }
     };
@@ -6059,16 +6059,16 @@ function renderNode1(node, containerElement, level, context, itemNumber, xmlSumm
         childCount++;
     }
     for (const [name, value] of Object.entries(node.child)){
-        let itemNumber = 1;
+        let itemNumber1 = 1;
         let itemsNotShown = 0;
         for (const child of value){
-            if (name === 'item' && itemNumber > 20) {
+            if (name === 'item' && itemNumber1 > 20) {
                 itemsNotShown++;
                 continue;
             }
-            renderNode1(child, details, level + 1, context, value.length > 1 ? itemNumber : undefined);
+            renderNode1(child, details, level + 1, context, value.length > 1 ? itemNumber1 : undefined);
             childCount++;
-            itemNumber++;
+            itemNumber1++;
         }
         if (itemsNotShown > 0) {
             const fakeNode = {
