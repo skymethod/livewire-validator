@@ -24,31 +24,30 @@ Public version available at: https://validator.livewire.io/
 ## Example .denoflare config
 ```jsonc
 {
-	// This file supports comments!
-	"$schema": "https://raw.githubusercontent.com/skymethod/denoflare/v0.5.6/common/config.schema.json",
+  // This file supports comments and trailing commas!
+  "$schema": "https://raw.githubusercontent.com/skymethod/denoflare/v0.5.6/common/config.schema.json",
+  "scripts": {
+    "validator-local": {
+	  "path": "/path/to/livewire-validator/validator-worker/validator_worker.ts",
+	  "bindings": {
+        // optional: displayed in the UI as the app version
+        "version": { "value": "local" },
 
-	"scripts": {
-        "validator-local": {
-			"path": "/path/to/livewire-validator/validator-worker/validator_worker.ts",
-		    "bindings": {
+        // optional: needed for search
+        "piCredentials": { "value": "<api-key>:<api-secret>" },
 
-                // optional: displayed in the UI as the app version
-				"version": { "value": "local" },
+        // optional: needed for twitter api calls
+        "twitterCredentials": { "value": "bearer:<bearer-token>" },
 
-                // optional: needed for search
-				"piCredentials": { "value": "<api-key>:<api-secret>" },
-
-                // optional: needed for twitter api calls
-				"twitterCredentials": { "value": "bearer:<bearer-token>" },
-
-                // optional: needed for mastodon login to reply
-				"origin" : { "value": "http://localhost:8820" },
-				"mastodonClientName": { "value": "livewire-validator (local dev)" },
-				"mastodonClientUrl": { "value": "https://github.com/skymethod/livewire-validator" },
-				"storageNamespace": { "doNamespace": "local:StorageDO:storage=webstorage:container=validator-local" },
-			},
-			"localPort": 8820, // optional: to run on a specific local port (default 8080)
-		},
-    }
+        // optional: needed for mastodon login to reply
+        "origin" : { "value": "http://localhost:8820" },
+        "mastodonClientName": { "value": "livewire-validator (local dev)" },
+        "mastodonClientUrl": { "value": "https://github.com/skymethod/livewire-validator" },
+        "storageNamespace": { "doNamespace": "local:StorageDO:storage=webstorage:container=validator-local" },
+      },
+      // optional: to run on a specific local port (default 8080)
+	  "localPort": 8820,
+	},
+  }
 }
 ```
