@@ -28,8 +28,8 @@ Public version available at: https://validator.livewire.io/
   "$schema": "https://raw.githubusercontent.com/skymethod/denoflare/v0.5.6/common/config.schema.json",
   "scripts": {
     "validator-local": {
-	  "path": "/path/to/livewire-validator/validator-worker/validator_worker.ts",
-	  "bindings": {
+      "path": "/path/to/livewire-validator/validator-worker/validator_worker.ts",
+      "bindings": {
         // optional: displayed in the UI as the app version
         "version": { "value": "local" },
 
@@ -46,8 +46,8 @@ Public version available at: https://validator.livewire.io/
         "storageNamespace": { "doNamespace": "local:StorageDO:storage=webstorage:container=validator-local" },
       },
       // optional: to run on a specific local port (default 8080)
-	  "localPort": 8820,
-	},
+      "localPort": 8820,
+    },
   }
 }
 ```
