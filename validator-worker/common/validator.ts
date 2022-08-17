@@ -1,5 +1,5 @@
 import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastBlockExcludeList, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
@@ -236,10 +236,14 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // PHASE 5
 
     // podcast:block
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastblock---discuss'), ...Qnames.PodcastIndex.block)
-        .checkOptionalAttribute('exclude', isPodcastBlockExcludeList)
-        .checkValue(isYesNo)
-        .checkRemainingAttributes();
+    const blocks = findChildElements(channel, ...Qnames.PodcastIndex.block);
+    const blockReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#block');
+    for (const block of blocks) {
+        ElementValidation.forElement('channel', block, callbacks, blockReference)
+            .checkOptionalAttribute('id', isPodcastServiceSlug)
+            .checkValue(isYesNo)
+            .checkRemainingAttributes();
+    }
 
     // podcast:complete
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastcomplete---discuss'), ...Qnames.PodcastIndex.complete)

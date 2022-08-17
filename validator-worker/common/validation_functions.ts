@@ -140,9 +140,9 @@ export function isPodcastSocialInteractProtocol(trimmedText: string): boolean {
     return /^(disabled|activitypub|twitter|lightning)$/.test(trimmedText);
 }
 
-export function isPodcastBlockExcludeList(trimmedText: string): boolean {
+export function isPodcastServiceSlug(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/serviceslugs.txt
-    return /^[a-z]{2,}(,[a-z]{2,})*$/.test(trimmedText);
+    return /^[a-z]{3,30}$/.test(trimmedText);
 }
 
 export function isPodcastLiveItemStatus(trimmedText: string): boolean {

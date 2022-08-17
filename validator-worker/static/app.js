@@ -2644,8 +2644,8 @@ function isPodcastMedium(trimmedText) {
 function isPodcastSocialInteractProtocol(trimmedText) {
     return /^(disabled|activitypub|twitter|lightning)$/.test(trimmedText);
 }
-function isPodcastBlockExcludeList(trimmedText) {
-    return /^[a-z]{2,}(,[a-z]{2,})*$/.test(trimmedText);
+function isPodcastServiceSlug(trimmedText) {
+    return /^[a-z]{3,30}$/.test(trimmedText);
 }
 function isPodcastLiveItemStatus(trimmedText) {
     return /^(pending|live|ended)$/.test(trimmedText);
@@ -2812,7 +2812,11 @@ function validateChannel(channel, callbacks) {
         }
     }
     callbacks.onPodcastIndexLiveItemsFound(liveItems.length);
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastblock---discuss'), ...Qnames.PodcastIndex.block).checkOptionalAttribute('exclude', isPodcastBlockExcludeList).checkValue(isYesNo).checkRemainingAttributes();
+    const blocks = findChildElements(channel, ...Qnames.PodcastIndex.block);
+    const blockReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#block');
+    for (const block of blocks){
+        ElementValidation.forElement('channel', block, callbacks, blockReference).checkOptionalAttribute('id', isPodcastServiceSlug).checkValue(isYesNo).checkRemainingAttributes();
+    }
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastcomplete---discuss'), ...Qnames.PodcastIndex.complete).checkOptionalAttribute('archive', isUrl).checkValue(isYesNo).checkRemainingAttributes();
     const socials = findChildElements(channel, ...Qnames.PodcastIndex.social);
     const socialReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#social-element');
