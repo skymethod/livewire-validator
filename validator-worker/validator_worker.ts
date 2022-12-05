@@ -21,11 +21,12 @@ export default {
         console.log(`version: ${[env.version, env.pushId].filter(v => v !== undefined).join('-')}`);
         const url = new URL(request.url);
         const { pathname } = url;
+        const { cfAnalyticsToken } = env;
 
         if (pathname === '/') {
             const { version, flags, twitter, pushId } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
-            return new Response(computeHtml(url, { version, flags, twitter, pushId }), { headers });
+            return new Response(computeHtml(url, { version, flags, twitter, pushId, cfAnalyticsToken }), { headers });
         } else if (pathname === computeAppJsPath()) {
             return computeAppResponse();
         } else if (pathname === computeAppSourcemapPath()) {
@@ -64,7 +65,7 @@ export default {
         }
         
         const headers = computeHeaders('text/html; charset=utf-8');
-        return new Response(NOT_FOUND, { status: 404, headers });
+        return new Response(computeNotFound({ cfAnalyticsToken }), { status: 404, headers });
     }
 
 };
@@ -211,6 +212,10 @@ function encodeHtml(value: string): string {
         .replace(/>/g, '&gt;');
 }
 
+function computeCfAnalyticsScript(cfAnalyticsToken: unknown): string {
+    return typeof cfAnalyticsToken === 'string' ? `<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "${cfAnalyticsToken}"}'></script><!-- End Cloudflare Web Analytics -->` : '';
+}
+
 const ICONS_MANIFEST_AND_THEME_COLORS = `
 <link rel="icon" href="${FAVICON_ICO_PATHNAME}">
 <link rel="icon" href="${FAVICON_SVG_PATHNAME}" type="${SVG_MIME_TYPE}">
@@ -249,7 +254,7 @@ body {
 }
 `;
 
-const NOT_FOUND = `<!DOCTYPE html>
+const computeNotFound = ({ cfAnalyticsToken }: Record<string, unknown>) => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -262,12 +267,13 @@ ${COMMON_STYLES}
 </head>
 <body>
   <div id="centered">Not found</div>
+  ${computeCfAnalyticsScript(cfAnalyticsToken)}
 </body>
 </html>`;
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
     const { name, description } = computeManifest();
-    const { twitter } = staticData;
+    const { twitter, cfAnalyticsToken } = staticData;
     const title = name;
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
@@ -334,6 +340,7 @@ ${COMMON_STYLES}
       </ul>
     </div>
   </div>
+  ${computeCfAnalyticsScript(cfAnalyticsToken)}
 </body>
 </html>`;
 }

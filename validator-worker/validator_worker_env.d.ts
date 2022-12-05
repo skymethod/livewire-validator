@@ -11,4 +11,5 @@ export interface ValidatorWorkerEnv {
     readonly mastodonClientUrl?: string;
     readonly storageNamespace?: DurableObjectNamespace;
     readonly twitterCredentials?: string;
+    readonly cfAnalyticsToken?: string;
 }
