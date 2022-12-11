@@ -63,6 +63,7 @@ export class Qnames {
         source: _podcastIndex('source'),
         trailer: _podcastIndex('trailer'),
         transcript: _podcastIndex('transcript'),
+        txt: _podcastIndex('txt'),
         value: _podcastIndex('value'),
         valueRecipient: _podcastIndex('valueRecipient'),
     }

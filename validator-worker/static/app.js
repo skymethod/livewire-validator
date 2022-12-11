@@ -1169,6 +1169,7 @@ class Qnames {
         source: _podcastIndex('source'),
         trailer: _podcastIndex('trailer'),
         transcript: _podcastIndex('transcript'),
+        txt: _podcastIndex('txt'),
         value: _podcastIndex('value'),
         valueRecipient: _podcastIndex('valueRecipient')
     };
@@ -2818,6 +2819,7 @@ function validateChannel(channel, callbacks) {
         ElementValidation.forElement('channel', block, callbacks, blockReference).checkOptionalAttribute('id', isPodcastServiceSlug).checkValue(isYesNo).checkRemainingAttributes();
     }
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastcomplete---discuss'), ...Qnames.PodcastIndex.complete).checkOptionalAttribute('archive', isUrl).checkValue(isYesNo).checkRemainingAttributes();
+    checkPodcastTxt('channel', channel, callbacks);
     const socials = findChildElements(channel, ...Qnames.PodcastIndex.social);
     const socialReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#social-element');
     const socialSignUpReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#socialsignup-element');
@@ -2876,6 +2878,13 @@ function checkPodcastValue(level, node, callbacks) {
 }
 function checkPodcastImages(level, node, callbacks) {
     ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#images'), ...Qnames.PodcastIndex.images).checkRequiredAttribute('srcset', isPodcastImagesSrcSet).checkRemainingAttributes();
+}
+function checkPodcastTxt(level, node, callbacks) {
+    const txts = findChildElements(node, ...Qnames.PodcastIndex.txt);
+    const txtReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#txt');
+    for (const txt of txts){
+        ElementValidation.forElement(level, txt, callbacks, txtReference).checkOptionalAttribute('purpose', isAtMostCharacters(128)).checkValue(isAtMostCharacters(4000)).checkRemainingAttributes();
+    }
 }
 function checkPodcastTagUsage(node, callbacks) {
     const known = new Set();
@@ -3024,6 +3033,7 @@ function validateItem(item, callbacks, itemTagName) {
             reference: socialInteractReference
         });
     }
+    checkPodcastTxt('item', item, callbacks);
     checkPodcastTagUsage(item, callbacks);
 }
 class ElementValidation {
@@ -4823,294 +4833,24 @@ async function statusesPublish(apiBase, accessToken, opts) {
 function isStatus(obj) {
     return isStringRecord(obj) && typeof obj.id === 'string' && typeof obj.uri === 'string' && typeof obj.created_at === 'string' && typeof obj.content === 'string' && typeof obj.visibility === 'string' && (obj.url === undefined || typeof obj.url === 'string') && (obj.in_reply_to_id === undefined || obj.in_reply_to_id === null || typeof obj.in_reply_to_id === 'string');
 }
-function isNonEmpty1(value) {
-    return value.trim().length > 0;
-}
-function isStringRecord2(obj) {
-    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
-}
-function isValidIso86011(text) {
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
-}
-function isNonNegativeInteger2(value) {
-    return Number.isInteger(value) && value >= 0;
-}
-async function findOrFetchJson1(url, after, fetcher, cache, opts) {
-    const response = await findOrFetchTextResponse1(url, after, fetcher, cache, opts);
-    const { status , headers , bodyText  } = response;
-    if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
-    const contentType = headers['content-type'] || '<none>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
-    return JSON.parse(bodyText);
-}
-async function findOrFetchTextResponse1(url, after, fetcher, cache, opts) {
-    const existing = await cache.get(url, after);
-    if (existing) return existing;
-    const { accept , authorization  } = opts;
-    const headers = {
-        accept
-    };
-    if (authorization) headers.authorization = authorization;
-    const res = await fetcher(url, {
-        headers
-    });
-    const response = {
-        status: res.status,
-        headers: Object.fromEntries([
-            ...res.headers
-        ]),
-        bodyText: await res.text()
-    };
-    await cache.put(url, new Date().toISOString(), response);
-    return response;
-}
-({
-    async initThreadcap (url, opts) {
-        const { fetcher , cache  } = opts;
-        const time = new Date().toISOString();
-        const comments = await findOrFetchLightningComments1(url, time, fetcher, cache);
-        const roots = comments.filter((v)=>v.depth === 0).map((v)=>computeUrlWithHash1(url, `comment-${v.id}`));
-        return {
-            protocol: 'lightning',
-            roots,
-            nodes: {},
-            commenters: {}
-        };
-    },
-    async fetchComment (id, opts) {
-        const { fetcher , cache , updateTime  } = opts;
-        const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
-        if (m) {
-            const [_, commentId] = m;
-            const comments = await findOrFetchLightningComments1(computeUrlWithHash1(id, ''), updateTime, fetcher, cache);
-            const comment = comments.find((v)=>v.id === commentId);
-            if (!comment) throw new Error(`Comment not found: ${commentId}`);
-            return {
-                attachments: [],
-                attributedTo: computeUrlWithHash1(id, `commenter-${computeCommenterId1(comment.sender)}`),
-                content: {
-                    und: comment.message
-                },
-                published: comment.created
-            };
+class InMemoryCache1 {
+    map = new Map();
+    onReturningCachedResponse;
+    get(id, after) {
+        const { response , fetched  } = this.map.get(id) || {};
+        if (response && fetched && fetched > after) {
+            if (this.onReturningCachedResponse) this.onReturningCachedResponse(id, after, fetched, response);
+            return Promise.resolve(response);
         }
-        throw new Error(`fetchComment: unexpected id=${id}`);
-    },
-    async fetchCommenter (attributedTo, opts) {
-        const { fetcher , cache , updateTime  } = opts;
-        const m = /^#commenter-(.*?)$/.exec(new URL(attributedTo).hash);
-        if (m) {
-            const [_, commenterId] = m;
-            const comments = await findOrFetchLightningComments1(computeUrlWithHash1(attributedTo, ''), updateTime, fetcher, cache);
-            const commenter = comments.map((v)=>v.sender).find((v)=>computeCommenterId1(v) === commenterId);
-            if (!commenter) throw new Error(`Commenter not found: ${commenterId}`);
-            return {
-                asof: updateTime,
-                name: `${commenter.name} from ${commenter.app}`
-            };
-        }
-        throw new Error(`fetchCommenter: unexpected attributedTo=${attributedTo}`);
-    },
-    async fetchReplies (id, opts) {
-        const { fetcher , cache , updateTime  } = opts;
-        const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
-        if (m) {
-            const [_, commentId] = m;
-            const url = computeUrlWithHash1(id, '');
-            const comments = await findOrFetchLightningComments1(url, updateTime, fetcher, cache);
-            const comment = comments.find((v)=>v.id === commentId);
-            if (!comment) throw new Error(`Comment not found: ${commentId}`);
-            return comment.children.map((v)=>computeUrlWithHash1(url, `comment-${v}`));
-        }
-        throw new Error(`fetchReplies: unexpected id=${id}`);
+        return Promise.resolve(undefined);
     }
-});
-async function findOrFetchLightningComments1(url, after, fetcher, cache) {
-    const obj = await findOrFetchJson1(url, after, fetcher, cache, {
-        accept: 'application/json'
-    });
-    if (!isStringRecord2(obj) || !isStringRecord2(obj.data) || !Array.isArray(obj.data.comments)) throw new Error(`Unable to find obj.data.comments array: ${JSON.stringify(obj)}`);
-    return obj.data.comments.map((v, i)=>{
-        if (!isValidLightningComment1(v)) throw new Error(`Unexpected lightning comment at index ${i}: ${JSON.stringify(v)}`);
-        return v;
-    });
-}
-function computeUrlWithHash1(url, hash) {
-    const u = new URL(url);
-    u.hash = hash;
-    return u.toString();
-}
-function computeCommenterId1(sender) {
-    return sender.id === null ? `null-${sender.name}` : sender.id;
-}
-function isValidLightningComment1(obj) {
-    return isStringRecord2(obj) && typeof obj.id === 'string' && isNonEmpty1(obj.id) && typeof obj.message === 'string' && isNonEmpty1(obj.message) && (typeof obj.parent === 'string' && isNonEmpty1(obj.parent) || obj.parent === null) && Array.isArray(obj.children) && obj.children.every((v)=>typeof v === 'string' && isNonEmpty1(v)) && typeof obj.depth === 'number' && isNonNegativeInteger2(obj.depth) && typeof obj.created === 'string' && isValidIso86011(obj.created) && isValidLightningSender1(obj.sender);
-}
-function isValidLightningSender1(obj) {
-    return isStringRecord2(obj) && typeof obj.app === 'string' && isNonEmpty1(obj.app) && (obj.id === null || typeof obj.id === 'string' && isNonEmpty1(obj.id)) && typeof obj.name === 'string' && isNonEmpty1(obj.name);
-}
-({
-    async initThreadcap (url, opts) {
-        const { debug  } = opts;
-        const { hostname , pathname  } = new URL(url);
-        const m = /^\/.*?\/status\/(\d+)$/.exec(pathname);
-        if (!/^(mobile\.)?twitter\.com$/.test(hostname) || !m) throw new Error(`Unexpected tweet url: ${url}`);
-        const [_, id] = m;
-        const tweetApiUrl = `https://api.twitter.com/2/tweets/${id}`;
-        const obj = await findOrFetchTwitter1(tweetApiUrl, new Date().toISOString(), opts);
-        if (debug) console.log(JSON.stringify(obj, undefined, 2));
-        return {
-            protocol: 'twitter',
-            roots: [
-                tweetApiUrl
-            ],
-            nodes: {},
-            commenters: {}
-        };
-    },
-    async fetchComment (id, opts) {
-        const { updateTime , debug , state  } = opts;
-        if (typeof state.conversationId === 'string') {
-            const conversation = await findOrFetchConversation1(state.conversationId, opts);
-            const tweetId = id.split('/').pop();
-            const tweet = conversation.tweets[tweetId];
-            if (!tweet) throw new Error(`fetchComment: tweet ${tweetId} not found in conversation`);
-            return computeCommentFromTweetObj1(tweet);
-        }
-        const url = new URL(id);
-        url.searchParams.set('tweet.fields', 'author_id,lang,created_at');
-        const obj = await findOrFetchTwitter1(url.toString(), updateTime, opts);
-        if (debug) console.log(JSON.stringify(obj, undefined, 2));
-        return computeCommentFromTweetObj1(obj.data);
-    },
-    async fetchCommenter (attributedTo, opts) {
-        const { updateTime , debug , state  } = opts;
-        if (typeof state.conversationId === 'string') {
-            const conversation = await findOrFetchConversation1(state.conversationId, opts);
-            const userId = attributedTo.split('/').pop();
-            const user = conversation.users[userId];
-            if (!user) throw new Error(`fetchCommenter: user ${userId} not found in conversation`);
-            return computeCommenterFromUserObj1(user, updateTime);
-        }
-        const url = new URL(attributedTo);
-        url.searchParams.set('user.fields', 'profile_image_url');
-        const obj = await findOrFetchTwitter1(url.toString(), updateTime, opts);
-        if (debug) console.log('fetchCommenter', JSON.stringify(obj, undefined, 2));
-        return computeCommenterFromUserObj1(obj.data, updateTime);
-    },
-    async fetchReplies (id, opts) {
-        const m = /^https:\/\/api\.twitter\.com\/2\/tweets\/(.*?)$/.exec(id);
-        if (!m) throw new Error(`Unexpected tweet id: ${id}`);
-        const [_, tweetId] = m;
-        const convo = await findOrFetchConversation1(tweetId, opts);
-        return Object.values(convo.tweets).filter((v)=>v.referenced_tweets.some((w)=>w.type === 'replied_to' && w.id === tweetId)).map((v)=>`https://api.twitter.com/2/tweets/${v.id}`);
+    put(id, fetched, response) {
+        this.map.set(id, {
+            response,
+            fetched
+        });
+        return Promise.resolve();
     }
-});
-function computeCommenterFromUserObj1(obj, asof) {
-    const name = obj.name;
-    const fqUsername = '@' + obj.username;
-    const userUrl = `https://twitter.com/${obj.username}`;
-    const iconUrl = obj.profile_image_url;
-    const iconUrlLower = (iconUrl || '').toLowerCase();
-    const iconMediaType = iconUrlLower.endsWith('.jpg') ? 'image/jpeg' : iconUrlLower.endsWith('.png') ? 'image/png' : undefined;
-    const icon = iconUrl ? {
-        url: iconUrl,
-        mediaType: iconMediaType
-    } : undefined;
-    return {
-        asof,
-        name,
-        fqUsername,
-        url: userUrl,
-        icon
-    };
-}
-function computeCommentFromTweetObj1(obj) {
-    const tweetId = obj.id;
-    const text = obj.text;
-    const authorId = obj.author_id;
-    const lang = obj.lang;
-    const createdAt = obj.created_at;
-    const content = {};
-    content[lang] = text;
-    const tweetUrl = `https://twitter.com/i/web/status/${tweetId}`;
-    return {
-        attachments: [],
-        attributedTo: `https://api.twitter.com/2/users/${authorId}`,
-        content,
-        published: createdAt,
-        url: tweetUrl
-    };
-}
-async function findOrFetchTwitter1(url, after, opts) {
-    const { fetcher , cache , bearerToken  } = opts;
-    const obj = await findOrFetchJson1(url, after, fetcher, cache, {
-        accept: 'application/json',
-        authorization: `Bearer ${bearerToken}`
-    });
-    return obj;
-}
-async function findOrFetchConversation1(tweetId, opts) {
-    const { updateTime , state , debug  } = opts;
-    let { conversation  } = state;
-    if (!conversation) {
-        const conversationId = await findOrFetchConversationId1(tweetId, opts);
-        state.conversationId = conversationId;
-        const url = new URL('https://api.twitter.com/2/tweets/search/recent');
-        url.searchParams.set('query', `conversation_id:${conversationId}`);
-        url.searchParams.set('expansions', `referenced_tweets.id,author_id`);
-        url.searchParams.set('tweet.fields', `author_id,lang,created_at`);
-        url.searchParams.set('user.fields', `id,name,username,profile_image_url`);
-        url.searchParams.set('max_results', `100`);
-        const tweets = {};
-        const users = {};
-        let nextToken;
-        let i = 0;
-        while(++i){
-            if (nextToken) {
-                url.searchParams.set('next_token', nextToken);
-            } else {
-                url.searchParams.delete('next_token');
-            }
-            const obj = await findOrFetchTwitter1(url.toString(), updateTime, opts);
-            if (debug) console.log(`findOrFetchConversation nextToken=${nextToken}`, JSON.stringify(obj, undefined, 2));
-            for (const tweetObj of obj.data){
-                const tweet = tweetObj;
-                tweets[tweet.id] = tweet;
-            }
-            if (obj.includes && Array.isArray(obj.includes.users)) {
-                for (const userObj of obj.includes.users){
-                    const user = userObj;
-                    users[user.id] = user;
-                }
-            }
-            if (obj.meta && typeof obj.meta.next_token === 'string') {
-                nextToken = obj.meta.next_token;
-                if (i === 50) break;
-            } else {
-                break;
-            }
-        }
-        conversation = {
-            tweets,
-            users
-        };
-        state.conversation = conversation;
-    }
-    return conversation;
-}
-async function findOrFetchConversationId1(tweetId, opts) {
-    const { updateTime , state , debug  } = opts;
-    let { conversationId  } = state;
-    if (typeof conversationId === 'string') return conversationId;
-    const url = new URL(`https://api.twitter.com/2/tweets/${tweetId}`);
-    url.searchParams.set('tweet.fields', 'conversation_id');
-    const obj = await findOrFetchTwitter1(url.toString(), updateTime, opts);
-    if (debug) console.log('findOrFetchConversation', JSON.stringify(obj, undefined, 2));
-    conversationId = obj.data.conversation_id;
-    if (typeof conversationId !== 'string') throw new Error(`Unexpected conversationId in payload: ${JSON.stringify(obj, undefined, 2)}`);
-    state.conversationId = conversationId;
-    return conversationId;
 }
 class ValidatorAppVM {
     job;
@@ -6224,7 +5964,7 @@ appendStylesheets([
     SEARCH_RESULTS_CSS.cssText,
     COMMENTS_CSS.cssText,
     XML_CSS.cssText,
-    CIRCULAR_PROGRESS_CSS.cssText, 
+    CIRCULAR_PROGRESS_CSS.cssText
 ]);
 LitElement.render(appHtml, document.body);
 function parseStaticData() {

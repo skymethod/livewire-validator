@@ -232,7 +232,6 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     }
     callbacks.onPodcastIndexLiveItemsFound(liveItems.length);
 
-
     // PHASE 5
 
     // podcast:block
@@ -251,6 +250,10 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
         .checkValue(isYesNo)
         .checkRemainingAttributes();
 
+    // PHASE 6
+
+    // podcast:txt
+    checkPodcastTxt('channel', channel, callbacks);
 
     // PROPOSALS
 
@@ -369,6 +372,17 @@ function checkPodcastImages(level: Level, node: ExtendedXmlNode, callbacks: Vali
     ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#images'), ...Qnames.PodcastIndex.images)
         .checkRequiredAttribute('srcset', isPodcastImagesSrcSet)
         .checkRemainingAttributes();
+}
+
+function checkPodcastTxt(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    const txts = findChildElements(node, ...Qnames.PodcastIndex.txt);
+    const txtReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#txt');
+    for (const txt of txts) {
+        ElementValidation.forElement(level, txt, callbacks, txtReference)
+            .checkOptionalAttribute('purpose', isAtMostCharacters(128))
+            .checkValue(isAtMostCharacters(4000))
+            .checkRemainingAttributes();
+    }
 }
 
 function checkPodcastTagUsage(node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
@@ -575,6 +589,11 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
 
         callbacks.onGood(socialInteract, `Found ${itemTagName} <podcast:socialInteract>, nice!`, { tag: 'social-interact', reference: socialInteractReference });
     }
+
+    // PHASE 6
+
+    // podcast:txt
+    checkPodcastTxt('item', item, callbacks);
 
     // PROPOSALS
 
