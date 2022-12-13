@@ -168,7 +168,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:locked
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked'), ...Qnames.PodcastIndex.locked)
         .checkValue(v => /^(yes|no)$/.test(v))
-        .checkRequiredAttribute('owner', isEmailAddress)
+        .checkOptionalAttribute('owner', isEmailAddress)
         .checkRemainingAttributes();
 
     // podcast:funding

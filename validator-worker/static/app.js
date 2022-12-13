@@ -2798,7 +2798,7 @@ function validateChannel(channel, callbacks) {
             return `expected a UUIDv5, found a UUIDv${version}`;
         }
     }).checkRemainingAttributes();
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked'), ...Qnames.PodcastIndex.locked).checkValue((v)=>/^(yes|no)$/.test(v)).checkRequiredAttribute('owner', isEmailAddress).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked'), ...Qnames.PodcastIndex.locked).checkValue((v)=>/^(yes|no)$/.test(v)).checkOptionalAttribute('owner', isEmailAddress).checkRemainingAttributes();
     for (const funding of findChildElements(channel, ...Qnames.PodcastIndex.funding)){
         ElementValidation.forElement('channel', funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding')).checkValue(isNotEmpty).checkValue(isAtMostCharacters(128)).checkRequiredAttribute('url', isUrl).checkRemainingAttributes();
     }
