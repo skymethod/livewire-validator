@@ -2389,11 +2389,13 @@ var getTraversalObj$1 = parser.getTraversalObj;
 parser.j2xParser;
 parser.parse;
 parser.parseToNimn;
-parser.validate;
-function decodeXml(encoded) {
+var validate$1 = parser.validate;
+function decodeXml(encoded, additionalEntities = {}) {
     return encoded.replaceAll(/&(#(\d+)|[a-z]+);/g, (str, entity, decimal)=>{
         if (typeof decimal === 'string') return String.fromCharCode(parseInt(decimal));
         if (typeof entity === 'string') {
+            const additional = additionalEntities[entity];
+            if (additional) return additional;
             const rt = ENTITIES_TO_UNENCODED_CHARS[entity];
             if (rt) return rt;
         }
@@ -2407,12 +2409,18 @@ const ENTITIES_TO_UNENCODED_CHARS = {
     'apos': `'`,
     'quot': '"'
 };
-function parseXml(xml) {
+function validateXml(xml) {
+    const rt = validate$1(xml);
+    return rt === true ? rt : rt.err;
+}
+function parseXml(xml, opts = {}) {
+    const { additionalEntities  } = opts;
+    const tagValueProcessor = (tagName)=>decodeXml(tagName, additionalEntities);
     const rt = getTraversalObj$1(xml, {
         ignoreAttributes: false,
         parseAttributeValue: false,
         parseNodeValue: false,
-        tagValueProcessor: decodeXml
+        tagValueProcessor
     });
     const namespaces = new XmlNamespaces();
     applyQnames(rt, namespaces);
@@ -4215,6 +4223,11 @@ class ValidationJobVM {
                     start = Date.now();
                     let xml;
                     try {
+                        const result = validateXml(text);
+                        if (result !== true) {
+                            const { code , col , line , msg  } = result;
+                            throw new Error(`${code} (at line ${line}, col ${col}): ${msg}`);
+                        }
                         xml = parseXml(text);
                         console.log(xml);
                     } catch (e) {
