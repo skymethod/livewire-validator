@@ -5,8 +5,7 @@ import { isOauthObtainTokenResponse, OauthObtainTokenResponse } from './oauth.ts
 
 const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
 
-// deno-lint-ignore no-explicit-any
-async function verifyJsonResponse<T>(res: Response, bodyVerifier: (body: any) => body is T): Promise<T> {
+async function verifyJsonResponse<T>(res: Response, bodyVerifier: (body: unknown) => body is T): Promise<T> {
     if (res.status !== 200) throw new Error(`Unexpected http response status: ${res.status}, expected 200, body=${await res.text()}`);
     const contentType = res.headers.get('content-type');
     if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected http response status: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
@@ -155,8 +154,7 @@ export interface AppsCreateApplicationResponse {
     readonly vapid_key: string;
 }
 
-// deno-lint-ignore no-explicit-any
-function isAppsCreateApplicationResponse(obj: any): obj is AppsCreateApplicationResponse {
+function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreateApplicationResponse {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.name === 'string'
@@ -183,8 +181,7 @@ export interface AccountsVerifyCredentialsResponse extends Account {
     source: Source;
 }
 
-// deno-lint-ignore no-explicit-any
-function isAccountsVerifyCredentialsResponse(obj: any): obj is AccountsVerifyCredentialsResponse {
+function isAccountsVerifyCredentialsResponse(obj: unknown): obj is AccountsVerifyCredentialsResponse {
     return isStringRecord(obj) 
         && isSource(obj.source)
         && isAccount(obj);
@@ -214,6 +211,11 @@ export interface StatusesPublishOpts {
      * If media_ids is provided, this becomes optional. Attaching a poll is optional while status is provided. */
     readonly status: string;
 
+    /** Include Attachment IDs to be attached as media. 
+     * 
+     * If provided, status becomes optional, and poll cannot be used. */
+    readonly media_ids?: readonly string[];
+
     /** ID of the status being replied to, if status is a reply. */
     readonly in_reply_to_id?: string;
 
@@ -222,7 +224,7 @@ export interface StatusesPublishOpts {
 }
 
 export async function statusesPublish(apiBase: string, accessToken: string, opts: StatusesPublishOpts): Promise<Status> {
-    const { idempotencyKey, status, in_reply_to_id, visibility } = opts;
+    const { idempotencyKey, status, in_reply_to_id, visibility, media_ids } = opts;
 
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${accessToken}`);
@@ -231,6 +233,7 @@ export async function statusesPublish(apiBase: string, accessToken: string, opts
     data.set('status', status);
     if (in_reply_to_id) data.set('in_reply_to_id', in_reply_to_id);
     if (visibility) data.set('visibility', visibility);
+    if (media_ids) media_ids.forEach(v => data.append('media_ids[]', v));
     
     const res = await fetch(`${apiBase}/api/v1/statuses`, { method: 'POST', body: data, headers });
     return verifyJsonResponse(res, isStatus);
@@ -242,6 +245,25 @@ export async function statusesViewById(apiBase: string, accessToken: string, id:
     
     const res = await fetch(`${apiBase}/api/v1/statuses/${id}`, { headers });
     return verifyJsonResponse(res, isStatus);
+}
+
+// https://docs.joinmastodon.org/methods/media/#v2
+
+/** Upload media as an attachment (async) */
+export interface MediaUploadAsyncOpts {
+    readonly file: Blob;
+}
+
+export async function mediaUploadAsync(apiBase: string, accessToken: string, opts: MediaUploadAsyncOpts): Promise<MediaAttachment> {
+    const { file } = opts;
+
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${accessToken}`);
+    const data = new FormData();
+    data.set('file', file);
+    
+    const res = await fetch(`${apiBase}/api/v2/media`, { method: 'POST', body: data, headers });
+    return verifyJsonResponse(res, isMediaAttachment);
 }
 
 // Api Entities
@@ -265,8 +287,7 @@ export interface Account {
     readonly header_static: string;
 }
 
-// deno-lint-ignore no-explicit-any
-function isAccount(obj: any): obj is Account {
+function isAccount(obj: unknown): obj is Account {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.username === 'string'
@@ -291,8 +312,7 @@ export interface Source {
     readonly note: string; // no markup?
 }
 
-// deno-lint-ignore no-explicit-any
-function isSource(obj: any): obj is Source {
+function isSource(obj: unknown): obj is Source {
     return isStringRecord(obj)
         && typeof obj.note === 'string'
         ;
@@ -330,8 +350,7 @@ export interface Instance {
     // and others...
 }
 
-// deno-lint-ignore no-explicit-any
-function isInstance(obj: any): obj is Instance {
+function isInstance(obj: unknown): obj is Instance {
     return isStringRecord(obj) 
         && typeof obj.uri === 'string'
         && typeof obj.title === 'string'
@@ -376,8 +395,7 @@ export interface Status {
     readonly in_reply_to_id?: string;
 }
 
-// deno-lint-ignore no-explicit-any
-function isStatus(obj: any): obj is Status {
+function isStatus(obj: unknown): obj is Status {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.uri === 'string'
@@ -386,5 +404,28 @@ function isStatus(obj: any): obj is Status {
         && typeof obj.visibility === 'string'
         && (obj.url === undefined || typeof obj.url === 'string')
         && (obj.in_reply_to_id === undefined || obj.in_reply_to_id === null || typeof obj.in_reply_to_id === 'string')
+        ;
+}
+
+// https://docs.joinmastodon.org/entities/MediaAttachment/
+export interface MediaAttachment {
+    /** The ID of the attachment in the database. */
+    readonly id: string;
+
+    /** The type of the attachment. */
+    readonly type: string;
+
+    /** The location of the original full-size attachment. (Only missing when uploading async) */
+    readonly url?: string;
+
+    // others
+
+}
+
+function isMediaAttachment(obj: unknown): obj is MediaAttachment {
+    return isStringRecord(obj) 
+        && typeof obj.id === 'string'
+        && typeof obj.type === 'string'
+        && (obj.url === undefined || typeof obj.url === 'string')
         ;
 }

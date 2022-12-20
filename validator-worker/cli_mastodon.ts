@@ -1,4 +1,4 @@
-import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, oauthObtainToken, statusesPublish, statusesViewById } from './common/mastodon_api.ts';
+import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, mediaUploadAsync, oauthObtainToken, statusesPublish, statusesViewById } from './common/mastodon_api.ts';
 import { parseJsonc } from './deps_cli.ts';
 
 export async function mastodon(args: (string | number)[]) {
@@ -90,12 +90,23 @@ export async function mastodon(args: (string | number)[]) {
     if (action === 'post-status') {
         if (!accessToken) throw new Error(`accessToken is required`);
         if (!status) throw new Error(`status is required`);
-        const { idempotencyKey, content, inReplyToId } = status;
+        const { idempotencyKey, content, inReplyToId, visibility: visibilityStr, mediaUrl } = status;
+        const visibility = visibilityStr as 'public' | 'unlisted' | 'private' | 'direct' | undefined;
         console.log(JSON.stringify(status, undefined, 2));
 
         await accountsVerifyCredentials(apiBase, accessToken); // just checking
-       
-        const res = await statusesPublish(apiBase, accessToken, { status: content, idempotencyKey, in_reply_to_id: inReplyToId });
+
+        let media_ids: string[] | undefined;
+        if (mediaUrl) {
+            const mediaResponse = await fetch(mediaUrl);
+            if (mediaResponse.status !== 200) throw new Error();
+            const file = await mediaResponse.blob();
+            const res = await mediaUploadAsync(apiBase, accessToken, { file });
+            console.log(JSON.stringify(res, undefined, 2));
+            media_ids = [ res.id ];
+        }
+
+        const res = await statusesPublish(apiBase, accessToken, { status: content, idempotencyKey, in_reply_to_id: inReplyToId, visibility, media_ids });
         console.log(JSON.stringify(res, undefined, 2));
     }
 
@@ -138,12 +149,14 @@ interface MastodonSecrets {
     readonly accessToken?: string;
     readonly code?: string;
     readonly comment?: Record<string, unknown>;
-    readonly status?: MastodonReplyStatus;
+    readonly status?: MastodonStatus;
     readonly statusId?: string;
 }
 
-interface MastodonReplyStatus {
-    readonly idempotencyKey: string;
+interface MastodonStatus {
+    readonly idempotencyKey?: string;
     readonly content: string;
-    readonly inReplyToId: string;
+    readonly inReplyToId?: string;
+    readonly visibility?: string;
+    readonly mediaUrl?: string;
 }
