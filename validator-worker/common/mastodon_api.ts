@@ -251,16 +251,22 @@ export async function statusesViewById(apiBase: string, accessToken: string, id:
 
 /** Upload media as an attachment (async) */
 export interface MediaUploadAsyncOpts {
+
+    /** The file to be attached, encoded using multipart form data. The file must have a MIME type. */
     readonly file: Blob;
+
+    /** A plain-text description of the media, for accessibility purposes. */
+    readonly description?: string;
 }
 
 export async function mediaUploadAsync(apiBase: string, accessToken: string, opts: MediaUploadAsyncOpts): Promise<MediaAttachment> {
-    const { file } = opts;
+    const { file, description } = opts;
 
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${accessToken}`);
     const data = new FormData();
     data.set('file', file);
+    if (typeof description === 'string' && description !== '') data.set('description', description);
     
     const res = await fetch(`${apiBase}/api/v2/media`, { method: 'POST', body: data, headers });
     return verifyJsonResponse(res, isMediaAttachment);
