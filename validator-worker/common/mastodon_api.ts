@@ -5,10 +5,10 @@ import { isOauthObtainTokenResponse, OauthObtainTokenResponse } from './oauth.ts
 
 const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
 
-async function verifyJsonResponse<T>(res: Response, bodyVerifier: (body: unknown) => body is T): Promise<T> {
-    if (res.status !== 200) throw new Error(`Unexpected http response status: ${res.status}, expected 200, body=${await res.text()}`);
+async function verifyJsonResponse<T>(res: Response, bodyVerifier: (body: unknown) => body is T, { allow202 }: { allow202?: boolean } = { }): Promise<T> {
+    if (!(res.status === 200 || allow202 && res.status === 202)) throw new Error(`Unexpected http response status: ${res.status}, expected 200${allow202 ? ' or 202' : ''}, body=${await res.text()}`);
     const contentType = res.headers.get('content-type');
-    if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected http response status: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
+    if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected response content-type: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
     const body = await res.json();
     if (!bodyVerifier(body)) throw new Error(`Unexpected body: ${JSON.stringify(body, undefined, 2)}`);
     return body;
@@ -269,7 +269,7 @@ export async function mediaUploadAsync(apiBase: string, accessToken: string, opt
     if (typeof description === 'string' && description !== '') data.set('description', description);
     
     const res = await fetch(`${apiBase}/api/v2/media`, { method: 'POST', body: data, headers });
-    return verifyJsonResponse(res, isMediaAttachment);
+    return verifyJsonResponse(res, isMediaAttachment, { allow202: true });
 }
 
 // Api Entities
@@ -421,8 +421,11 @@ export interface MediaAttachment {
     /** The type of the attachment. */
     readonly type: string;
 
+    /** The location of a scaled-down preview of the attachment. */
+    readonly preview_url: string;
+
     /** The location of the original full-size attachment. (Only missing when uploading async) */
-    readonly url?: string;
+    readonly url: string | null;
 
     // others
 
@@ -432,6 +435,7 @@ function isMediaAttachment(obj: unknown): obj is MediaAttachment {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.type === 'string'
-        && (obj.url === undefined || typeof obj.url === 'string')
+        && typeof obj.preview_url === 'string'
+        && (obj.url === null || typeof obj.url === 'string')
         ;
 }
