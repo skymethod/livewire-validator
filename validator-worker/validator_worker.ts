@@ -1,4 +1,4 @@
-import { Bytes, DurableObjectNamespace, importText, IncomingRequestCf } from './deps_worker.ts';
+import { Bytes, computeSystemActorResponse, computeWebfingerResponse, computeWebfingerSubject, DurableObjectNamespace, importText, IncomingRequestCf } from './deps_worker.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { AppManifest } from './app_manifest.d.ts';
@@ -21,8 +21,12 @@ export default {
     async fetch(request: IncomingRequestCf, env: ValidatorWorkerEnv): Promise<Response> {
         console.log(`version: ${[env.version, env.pushId].filter(v => v !== undefined).join('-')}`);
         const url = new URL(request.url);
-        const { pathname } = url;
-        const { cfAnalyticsToken } = env;
+        const { pathname, searchParams } = url;
+        const { cfAnalyticsToken, origin } = env;
+
+        const actorUsername = 'system';
+        const actorSubject = origin ? computeWebfingerSubject({ origin, actorUsername }) : undefined;
+        const actorPathname = '/actor';
 
         if (pathname === '/') {
             const { version, flags, twitter, pushId } = env;
@@ -62,6 +66,18 @@ export default {
                     scopes: 'read:accounts write:statuses',
                     website: mastodonClientUrl,
                 }});
+            }
+        } else if (pathname === actorPathname && origin) {
+            const { actorPublicPemText } = env;
+            if (actorPublicPemText) {
+                const { body, contentType } = computeSystemActorResponse({ origin, actorUsername, actorPathname, url: origin, publicKeyPem: actorPublicPemText });
+                return new Response(JSON.stringify(body, undefined, 2), { headers: { 'content-type': contentType } });
+            }
+        } else if (pathname === `/.well-known/webfinger` && origin) {
+            const resource = searchParams.get('resource') ?? undefined;
+            if (resource === actorSubject) {
+                const { body, contentType } = computeWebfingerResponse({ origin, actorUsername, actorPathname });
+                return new Response(JSON.stringify(body, undefined, 2), { headers: { 'content-type': contentType } });
             }
         }
         

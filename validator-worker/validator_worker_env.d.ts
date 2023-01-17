@@ -13,5 +13,6 @@ export interface ValidatorWorkerEnv {
     readonly twitterCredentials?: string;
     readonly cfAnalyticsToken?: string;
     readonly actorKeyId?: string;
+    readonly actorPublicPemText?: string;
     readonly actorPrivatePemText?: string;
 }
