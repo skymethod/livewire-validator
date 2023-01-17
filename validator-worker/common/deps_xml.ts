@@ -1,2 +1,2 @@
-export { parseXml, validateXml, findChildElements, findElementRecursive, computeAttributeMap, qnameEq, qnamesInclude } from 'https://raw.githubusercontent.com/skymethod/denoflare/eeacf004d8ec15913f94d5644d10f8f04d5340d2/common/xml_parser.ts';
-export type { ExtendedXmlNode, Qname } from 'https://raw.githubusercontent.com/skymethod/denoflare/eeacf004d8ec15913f94d5644d10f8f04d5340d2/common/xml_parser.ts';
+export { parseXml, validateXml, findChildElements, findElementRecursive, computeAttributeMap, qnameEq, qnamesInclude } from 'https://raw.githubusercontent.com/skymethod/denoflare/171f4cdb1266928d2ff67f8a851827ab51bae937/common/xml_parser.ts';
+export type { ExtendedXmlNode, Qname } from 'https://raw.githubusercontent.com/skymethod/denoflare/171f4cdb1266928d2ff67f8a851827ab51bae937/common/xml_parser.ts';

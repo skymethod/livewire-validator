@@ -12,4 +12,6 @@ export interface ValidatorWorkerEnv {
     readonly storageNamespace?: DurableObjectNamespace;
     readonly twitterCredentials?: string;
     readonly cfAnalyticsToken?: string;
+    readonly actorKeyId?: string;
+    readonly actorPrivatePemText?: string;
 }

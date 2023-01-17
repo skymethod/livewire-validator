@@ -106,7 +106,6 @@ export class ValidationJobVM {
 
         // deno-lint-ignore no-explicit-any
         const activityPubs: { url: string, subject: string, obj?: any }[] = [];
-        let lightningComments: { url: string, subject: string } | undefined;
         let twitter: { url: string, subject: string } | undefined;
         const headers: Record<string, string> = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
@@ -217,10 +216,6 @@ export class ValidationJobVM {
                                         const episodeTitle = findEpisodeTitle(node)
                                         activityPubs.push({ url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' });
                                     }
-                                    if (attributes.get('protocol')?.toLowerCase() === 'lightningcomments') {
-                                        const episodeTitle = findEpisodeTitle(node)
-                                        lightningComments = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
-                                    }
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         twitter = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
@@ -300,7 +295,7 @@ export class ValidationJobVM {
                     }
                 }
 
-                const hasComments = activityPubs.length > 0 || lightningComments || twitter;
+                const hasComments = activityPubs.length > 0 || twitter;
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
@@ -374,63 +369,6 @@ export class ValidationJobVM {
                         job.commentsResults = [...results, { threadcap, subject: activityPub!.subject }];
                         this.onChange();
                         results.push({ threadcap, subject: activityPub!.subject });
-                    }
-
-                    if (lightningComments) {
-                        const sleepMillisBetweenCalls = 0;
-                        setStatus(`Validating Lightning Comments for ${lightningComments.subject}`, { url: lightningComments.url });
-                        addMessage('info', 'Fetching Lightning comments', { url: lightningComments.url });
-                        const keepGoing = () => !job.done;
-                        const remoteOnlyOrigins = new Set<string>();
-                        const computeUseSide = (url: string) => {
-                            return remoteOnlyOrigins.has(new URL(url).origin) ? 'remote' : undefined;
-                        };
-                        let lightningCommentsCalls = 0;
-                        const fetchLightningComments = async (url: string) => {
-                            const { response, side } = await localOrRemoteFetchJson(url, fetchers, computeUseSide(url), sleepMillisBetweenCalls); 
-                            const obj = await response.clone().json();
-                            console.log(JSON.stringify(obj, undefined, 2));
-                            if (side === 'remote') {
-                                const origin = new URL(url).origin;
-                                if (!remoteOnlyOrigins.has(origin)) {
-                                    addMessage('warning', `Local json fetch failed (CORS disabled?)`, { url, tag: 'cors' });
-                                    remoteOnlyOrigins.add(origin);
-                                }
-                            }
-                            lightningCommentsCalls++;
-                            return response;
-                        };
-                        const start = Date.now();
-                        const callbacks: Callbacks = {
-                            onEvent: event => {
-                                if (event.kind === 'warning') {
-                                    const { message, url} = event;
-                                    addMessage('warning', message, { url });
-                                } else if (event.kind === 'node-processed') {
-                                    job.commentsResults = [...results, { threadcap, subject: lightningComments!.subject }];
-                                    this.onChange();
-                                } else {
-                                    console.log('callbacks.event', event);
-                                }
-                            }
-                        };
-                        const fetcher = makeRateLimitedFetcher(fetchLightningComments, { callbacks });
-                        const cache = new InMemoryCache();
-                        const userAgent = this.threadcapUserAgent;
-                    
-                        const threadcap = await makeThreadcap(lightningComments.url, { userAgent, fetcher, cache, protocol: 'lightningcomments' });
-                        job.commentsResults = [...results, { threadcap, subject: lightningComments!.subject }];
-                        this.onChange();
-                        
-                        const updateTime = new Date().toISOString();
-                        await updateThreadcap(threadcap, { updateTime, keepGoing, userAgent, fetcher, cache, callbacks });
-                        // console.log(JSON.stringify(threadcap, undefined, 2));
-                        job.times.commentsTime = Date.now() - start;
-                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter(v => v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(lightningCommentsCalls, 'Lightning Comments call')}`);
-
-                        job.commentsResults = [...results, { threadcap, subject: lightningComments!.subject }];
-                        this.onChange();
-                        results.push({ threadcap, subject: lightningComments!.subject });
                     }
 
                     if (twitter) {

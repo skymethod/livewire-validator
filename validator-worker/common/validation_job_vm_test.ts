@@ -1,4 +1,4 @@
-import { assert, assertEquals } from 'https://deno.land/std@0.140.0/testing/asserts.ts';
+import { assert, assertEquals } from 'https://deno.land/std@0.173.0/testing/asserts.ts';
 import { Fetcher, PISearchFetcher, ValidationJobVM } from './validation_job_vm.ts';
 
 Deno.test('ValidationJobVM calls search ', () => {

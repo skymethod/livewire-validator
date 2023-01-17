@@ -137,7 +137,7 @@ export function isPodcastMedium(trimmedText: string): boolean {
 
 export function isPodcastSocialInteractProtocol(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/socialprotocols.txt
-    return /^(disabled|activitypub|twitter|lightning)$/.test(trimmedText);
+    return /^(disabled|activitypub|twitter)$/.test(trimmedText);
 }
 
 export function isPodcastServiceSlug(trimmedText: string): boolean {

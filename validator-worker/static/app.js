@@ -2651,7 +2651,7 @@ function isPodcastMedium(trimmedText) {
     return /^[a-z]+$/.test(trimmedText);
 }
 function isPodcastSocialInteractProtocol(trimmedText) {
-    return /^(disabled|activitypub|twitter|lightning)$/.test(trimmedText);
+    return /^(disabled|activitypub|twitter)$/.test(trimmedText);
 }
 function isPodcastServiceSlug(trimmedText) {
     return /^[a-z]{3,30}$/.test(trimmedText);
@@ -3155,9 +3155,6 @@ function setIntersect(lhs, rhs) {
     }
     return rt;
 }
-function isNonEmpty(value) {
-    return value.trim().length > 0;
-}
 function isStringRecord1(obj) {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
@@ -3166,9 +3163,6 @@ function isReadonlyArray1(arg) {
 }
 function isValidIso8601(text) {
     return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
-}
-function isNonNegativeInteger1(value) {
-    return Number.isInteger(value) && value >= 0;
 }
 async function findOrFetchJson(url, after, fetcher, cache, opts) {
     const response = await findOrFetchTextResponse(url, after, fetcher, cache, opts);
@@ -3526,91 +3520,6 @@ async function mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, d
     }
     return undefined;
 }
-const LightningCommentsProtocolImplementation = {
-    async initThreadcap (url, opts) {
-        const { fetcher , cache  } = opts;
-        const time = new Date().toISOString();
-        const comments = await findOrFetchLightningComments(url, time, fetcher, cache);
-        const roots = comments.filter((v)=>v.depth === 0).map((v)=>computeUrlWithHash(url, `comment-${v.id}`));
-        return {
-            protocol: 'lightning',
-            roots,
-            nodes: {},
-            commenters: {}
-        };
-    },
-    async fetchComment (id, opts) {
-        const { fetcher , cache , updateTime  } = opts;
-        const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
-        if (m) {
-            const [_, commentId] = m;
-            const comments = await findOrFetchLightningComments(computeUrlWithHash(id, ''), updateTime, fetcher, cache);
-            const comment = comments.find((v)=>v.id === commentId);
-            if (!comment) throw new Error(`Comment not found: ${commentId}`);
-            return {
-                attachments: [],
-                attributedTo: computeUrlWithHash(id, `commenter-${computeCommenterId(comment.sender)}`),
-                content: {
-                    und: comment.message
-                },
-                published: comment.created
-            };
-        }
-        throw new Error(`fetchComment: unexpected id=${id}`);
-    },
-    async fetchCommenter (attributedTo, opts) {
-        const { fetcher , cache , updateTime  } = opts;
-        const m = /^#commenter-(.*?)$/.exec(new URL(attributedTo).hash);
-        if (m) {
-            const [_, commenterId] = m;
-            const comments = await findOrFetchLightningComments(computeUrlWithHash(attributedTo, ''), updateTime, fetcher, cache);
-            const commenter = comments.map((v)=>v.sender).find((v)=>computeCommenterId(v) === commenterId);
-            if (!commenter) throw new Error(`Commenter not found: ${commenterId}`);
-            return {
-                asof: updateTime,
-                name: `${commenter.name} from ${commenter.app}`
-            };
-        }
-        throw new Error(`fetchCommenter: unexpected attributedTo=${attributedTo}`);
-    },
-    async fetchReplies (id, opts) {
-        const { fetcher , cache , updateTime  } = opts;
-        const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
-        if (m) {
-            const [_, commentId] = m;
-            const url = computeUrlWithHash(id, '');
-            const comments = await findOrFetchLightningComments(url, updateTime, fetcher, cache);
-            const comment = comments.find((v)=>v.id === commentId);
-            if (!comment) throw new Error(`Comment not found: ${commentId}`);
-            return comment.children.map((v)=>computeUrlWithHash(url, `comment-${v}`));
-        }
-        throw new Error(`fetchReplies: unexpected id=${id}`);
-    }
-};
-async function findOrFetchLightningComments(url, after, fetcher, cache) {
-    const obj = await findOrFetchJson(url, after, fetcher, cache, {
-        accept: 'application/json'
-    });
-    if (!isStringRecord1(obj) || !isStringRecord1(obj.data) || !Array.isArray(obj.data.comments)) throw new Error(`Unable to find obj.data.comments array: ${JSON.stringify(obj)}`);
-    return obj.data.comments.map((v, i)=>{
-        if (!isValidLightningComment(v)) throw new Error(`Unexpected lightning comment at index ${i}: ${JSON.stringify(v)}`);
-        return v;
-    });
-}
-function computeUrlWithHash(url, hash) {
-    const u = new URL(url);
-    u.hash = hash;
-    return u.toString();
-}
-function computeCommenterId(sender) {
-    return sender.id === null ? `null-${sender.name}` : sender.id;
-}
-function isValidLightningComment(obj) {
-    return isStringRecord1(obj) && typeof obj.id === 'string' && isNonEmpty(obj.id) && typeof obj.message === 'string' && isNonEmpty(obj.message) && (typeof obj.parent === 'string' && isNonEmpty(obj.parent) || obj.parent === null) && Array.isArray(obj.children) && obj.children.every((v)=>typeof v === 'string' && isNonEmpty(v)) && typeof obj.depth === 'number' && isNonNegativeInteger1(obj.depth) && typeof obj.created === 'string' && isValidIso8601(obj.created) && isValidLightningSender(obj.sender);
-}
-function isValidLightningSender(obj) {
-    return isStringRecord1(obj) && typeof obj.app === 'string' && isNonEmpty(obj.app) && (obj.id === null || typeof obj.id === 'string' && isNonEmpty(obj.id)) && typeof obj.name === 'string' && isNonEmpty(obj.name);
-}
 const TwitterProtocolImplementation = {
     async initThreadcap (url, opts) {
         const { debug  } = opts;
@@ -3939,7 +3848,6 @@ function makeFetcherWithUserAgent(fetcher, userAgent) {
 }
 function computeProtocolImplementation(protocol) {
     if (protocol === undefined || protocol === 'activitypub') return ActivityPubProtocolImplementation;
-    if (protocol === 'lightning' || protocol === 'lightningcomments') return LightningCommentsProtocolImplementation;
     if (protocol === 'twitter') return TwitterProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
@@ -4128,7 +4036,6 @@ class ValidationJobVM {
             this.onChange();
         };
         const activityPubs = [];
-        let lightningComments;
         let twitter;
         const headers = {
             'Accept-Encoding': 'gzip',
@@ -4253,18 +4160,11 @@ class ValidationJobVM {
                                             subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
                                         });
                                     }
-                                    if (attributes.get('protocol')?.toLowerCase() === 'lightningcomments') {
-                                        const episodeTitle1 = findEpisodeTitle(node);
-                                        lightningComments = {
-                                            url: uri,
-                                            subject: episodeTitle1 ? `“${episodeTitle1}”` : 'episode'
-                                        };
-                                    }
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
-                                        const episodeTitle2 = findEpisodeTitle(node);
+                                        const episodeTitle1 = findEpisodeTitle(node);
                                         twitter = {
                                             url: uri,
-                                            subject: episodeTitle2 ? `“${episodeTitle2}”` : 'episode'
+                                            subject: episodeTitle1 ? `“${episodeTitle1}”` : 'episode'
                                         };
                                     }
                                 }
@@ -4352,7 +4252,7 @@ class ValidationJobVM {
                         }
                     }
                 }
-                const hasComments = activityPubs.length > 0 || lightningComments || twitter;
+                const hasComments = activityPubs.length > 0 || twitter;
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
@@ -4462,34 +4362,18 @@ class ValidationJobVM {
                             subject: activityPub.subject
                         });
                     }
-                    if (lightningComments) {
-                        setStatus(`Validating Lightning Comments for ${lightningComments.subject}`, {
-                            url: lightningComments.url
+                    if (twitter) {
+                        setStatus(`Validating Twitter Comments for ${twitter.subject}`, {
+                            url: twitter.url
                         });
-                        addMessage('info', 'Fetching Lightning comments', {
-                            url: lightningComments.url
+                        addMessage('info', 'Fetching Twitter comments', {
+                            url: twitter.url
                         });
                         const keepGoing1 = ()=>!job.done;
-                        const remoteOnlyOrigins1 = new Set();
-                        const computeUseSide1 = (url)=>{
-                            return remoteOnlyOrigins1.has(new URL(url).origin) ? 'remote' : undefined;
-                        };
-                        let lightningCommentsCalls = 0;
-                        const fetchLightningComments = async (url)=>{
-                            const { response , side  } = await localOrRemoteFetchJson(url, fetchers, computeUseSide1(url), 0);
-                            const obj = await response.clone().json();
-                            console.log(JSON.stringify(obj, undefined, 2));
-                            if (side === 'remote') {
-                                const origin = new URL(url).origin;
-                                if (!remoteOnlyOrigins1.has(origin)) {
-                                    addMessage('warning', `Local json fetch failed (CORS disabled?)`, {
-                                        url,
-                                        tag: 'cors'
-                                    });
-                                    remoteOnlyOrigins1.add(origin);
-                                }
-                            }
-                            lightningCommentsCalls++;
+                        let twitterCommentsCalls = 0;
+                        const fetchTwitterComments = async (url)=>{
+                            const { response  } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
+                            twitterCommentsCalls++;
                             return response;
                         };
                         const start2 = Date.now();
@@ -4505,7 +4389,7 @@ class ValidationJobVM {
                                         ...results,
                                         {
                                             threadcap: threadcap1,
-                                            subject: lightningComments.subject
+                                            subject: twitter.subject
                                         }
                                     ];
                                     this.onChange();
@@ -4514,22 +4398,22 @@ class ValidationJobVM {
                                 }
                             }
                         };
-                        const fetcher1 = makeRateLimitedFetcher(fetchLightningComments, {
+                        const fetcher1 = makeRateLimitedFetcher(fetchTwitterComments, {
                             callbacks: callbacks2
                         });
                         const cache1 = new InMemoryCache();
                         const userAgent1 = this.threadcapUserAgent;
-                        const threadcap1 = await makeThreadcap(lightningComments.url, {
+                        const threadcap1 = await makeThreadcap(twitter.url, {
                             userAgent: userAgent1,
                             fetcher: fetcher1,
                             cache: cache1,
-                            protocol: 'lightningcomments'
+                            protocol: 'twitter'
                         });
                         job.commentsResults = [
                             ...results,
                             {
                                 threadcap: threadcap1,
-                                subject: lightningComments.subject
+                                subject: twitter.subject
                             }
                         ];
                         this.onChange();
@@ -4543,96 +4427,17 @@ class ValidationJobVM {
                             callbacks: callbacks2
                         });
                         job.times.commentsTime = Date.now() - start2;
-                        addMessage('info', `Found ${unitString(Object.values(threadcap1.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap1.commenters).length, 'participant')}, made ${unitString(lightningCommentsCalls, 'Lightning Comments call')}`);
+                        addMessage('info', `Found ${unitString(Object.values(threadcap1.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap1.commenters).length, 'participant')}, made ${unitString(twitterCommentsCalls, 'Twitter Comments call')}`);
                         job.commentsResults = [
                             ...results,
                             {
                                 threadcap: threadcap1,
-                                subject: lightningComments.subject
+                                subject: twitter.subject
                             }
                         ];
                         this.onChange();
                         results.push({
                             threadcap: threadcap1,
-                            subject: lightningComments.subject
-                        });
-                    }
-                    if (twitter) {
-                        setStatus(`Validating Twitter Comments for ${twitter.subject}`, {
-                            url: twitter.url
-                        });
-                        addMessage('info', 'Fetching Twitter comments', {
-                            url: twitter.url
-                        });
-                        const keepGoing2 = ()=>!job.done;
-                        let twitterCommentsCalls = 0;
-                        const fetchTwitterComments = async (url)=>{
-                            const { response  } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
-                            twitterCommentsCalls++;
-                            return response;
-                        };
-                        const start3 = Date.now();
-                        const callbacks3 = {
-                            onEvent: (event)=>{
-                                if (event.kind === 'warning') {
-                                    const { message , url  } = event;
-                                    addMessage('warning', message, {
-                                        url
-                                    });
-                                } else if (event.kind === 'node-processed') {
-                                    job.commentsResults = [
-                                        ...results,
-                                        {
-                                            threadcap: threadcap2,
-                                            subject: twitter.subject
-                                        }
-                                    ];
-                                    this.onChange();
-                                } else {
-                                    console.log('callbacks.event', event);
-                                }
-                            }
-                        };
-                        const fetcher2 = makeRateLimitedFetcher(fetchTwitterComments, {
-                            callbacks: callbacks3
-                        });
-                        const cache2 = new InMemoryCache();
-                        const userAgent2 = this.threadcapUserAgent;
-                        const threadcap2 = await makeThreadcap(twitter.url, {
-                            userAgent: userAgent2,
-                            fetcher: fetcher2,
-                            cache: cache2,
-                            protocol: 'twitter'
-                        });
-                        job.commentsResults = [
-                            ...results,
-                            {
-                                threadcap: threadcap2,
-                                subject: twitter.subject
-                            }
-                        ];
-                        this.onChange();
-                        const updateTime2 = new Date().toISOString();
-                        await updateThreadcap(threadcap2, {
-                            updateTime: updateTime2,
-                            keepGoing: keepGoing2,
-                            userAgent: userAgent2,
-                            fetcher: fetcher2,
-                            cache: cache2,
-                            callbacks: callbacks3
-                        });
-                        job.times.commentsTime = Date.now() - start3;
-                        addMessage('info', `Found ${unitString(Object.values(threadcap2.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap2.commenters).length, 'participant')}, made ${unitString(twitterCommentsCalls, 'Twitter Comments call')}`);
-                        job.commentsResults = [
-                            ...results,
-                            {
-                                threadcap: threadcap2,
-                                subject: twitter.subject
-                            }
-                        ];
-                        this.onChange();
-                        results.push({
-                            threadcap: threadcap2,
                             subject: twitter.subject
                         });
                     }
@@ -4819,16 +4624,16 @@ function isOauthObtainTokenResponse(obj) {
     return isStringRecord(obj) && typeof obj.access_token === 'string' && typeof obj.token_type === 'string' && typeof obj.scope === 'string' && typeof obj.created_at === 'number';
 }
 const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
-async function verifyJsonResponse(res, bodyVerifier) {
-    if (res.status !== 200) throw new Error(`Unexpected http response status: ${res.status}, expected 200, body=${await res.text()}`);
+async function verifyJsonResponse(res, bodyVerifier, { allow202  } = {}) {
+    if (!(res.status === 200 || allow202 && res.status === 202)) throw new Error(`Unexpected http response status: ${res.status}, expected 200${allow202 ? ' or 202' : ''}, body=${await res.text()}`);
     const contentType = res.headers.get('content-type');
-    if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected http response status: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
+    if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected response content-type: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
     const body = await res.json();
     if (!bodyVerifier(body)) throw new Error(`Unexpected body: ${JSON.stringify(body, undefined, 2)}`);
     return body;
 }
 async function statusesPublish(apiBase, accessToken, opts) {
-    const { idempotencyKey , status , in_reply_to_id , visibility  } = opts;
+    const { idempotencyKey , status , in_reply_to_id , visibility , media_ids  } = opts;
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${accessToken}`);
     if (idempotencyKey) headers.set('Idempotency-Key', idempotencyKey);
@@ -4836,6 +4641,7 @@ async function statusesPublish(apiBase, accessToken, opts) {
     data.set('status', status);
     if (in_reply_to_id) data.set('in_reply_to_id', in_reply_to_id);
     if (visibility) data.set('visibility', visibility);
+    if (media_ids) media_ids.forEach((v)=>data.append('media_ids[]', v));
     const res = await fetch(`${apiBase}/api/v1/statuses`, {
         method: 'POST',
         body: data,
@@ -4845,25 +4651,6 @@ async function statusesPublish(apiBase, accessToken, opts) {
 }
 function isStatus(obj) {
     return isStringRecord(obj) && typeof obj.id === 'string' && typeof obj.uri === 'string' && typeof obj.created_at === 'string' && typeof obj.content === 'string' && typeof obj.visibility === 'string' && (obj.url === undefined || typeof obj.url === 'string') && (obj.in_reply_to_id === undefined || obj.in_reply_to_id === null || typeof obj.in_reply_to_id === 'string');
-}
-class InMemoryCache1 {
-    map = new Map();
-    onReturningCachedResponse;
-    get(id, after) {
-        const { response , fetched  } = this.map.get(id) || {};
-        if (response && fetched && fetched > after) {
-            if (this.onReturningCachedResponse) this.onReturningCachedResponse(id, after, fetched, response);
-            return Promise.resolve(response);
-        }
-        return Promise.resolve(undefined);
-    }
-    put(id, fetched, response) {
-        this.map.set(id, {
-            response,
-            fetched
-        });
-        return Promise.resolve();
-    }
 }
 class ValidatorAppVM {
     job;
@@ -5104,7 +4891,6 @@ const CHECK_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" height="24px" vie
 const CHECKLIST_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><g><rect fill="none" height="24" width="24"/></g><g><g><path d="M5,5h2v1c0,1.1,0.9,2,2,2h6c1.1,0,2-0.9,2-2V5h2v5h2V5c0-1.1-0.9-2-2-2h-4.18C14.4,1.84,13.3,1,12,1S9.6,1.84,9.18,3H5 C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h6v-2H5V5z M12,3c0.55,0,1,0.45,1,1s-0.45,1-1,1s-1-0.45-1-1S11.45,3,12,3z"/><path d="M21.75,12.25c-0.41-0.41-1.09-0.41-1.5,0L15.51,17l-2.26-2.25c-0.41-0.41-1.08-0.41-1.5,0l0,0c-0.41,0.41-0.41,1.09,0,1.5 l3.05,3.04c0.39,0.39,1.02,0.39,1.41,0l5.53-5.54C22.16,13.34,22.16,12.66,21.75,12.25z"/></g></g></svg>`;
 const SQUARE_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><g><rect fill="none" height="24" width="24"/></g><g><g><path d="M3,3v18h18V3H3z M19,19H5V5h14V19z"/></g></g></svg>`;
 const PERSON_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1c0 .55.45 1 1 1h14c.55 0 1-.45 1-1v-1c0-2.66-5.33-4-8-4z"/></svg>`;
-const BOLT_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><g><rect fill="none" height="24" width="24"/></g><g><path d="M10.67,21L10.67,21c-0.35,0-0.62-0.31-0.57-0.66L11,14H7.5c-0.88,0-0.33-0.75-0.31-0.78c1.26-2.23,3.15-5.53,5.65-9.93 c0.1-0.18,0.3-0.29,0.5-0.29h0c0.35,0,0.62,0.31,0.57,0.66L13.01,10h3.51c0.4,0,0.62,0.19,0.4,0.66c-3.29,5.74-5.2,9.09-5.75,10.05 C11.07,20.89,10.88,21,10.67,21z"/></g></svg>`;
 function externalizeAnchor(anchor) {
     anchor.target = '_blank';
     anchor.rel = 'noreferrer noopener nofollow';
@@ -5252,7 +5038,7 @@ function renderNode(nodeId, threadcap, containerElement, level, vm) {
     } else {
         const iconDiv = document.createElement('div');
         iconDiv.classList.add('icon', commentError ? 'error' : 'default');
-        iconDiv.innerHTML = (commentError ? ERROR_ICON : threadcap.protocol === 'lightningcomments' ? BOLT_ICON : PERSON_ICON).getHTML();
+        iconDiv.innerHTML = (commentError ? ERROR_ICON : PERSON_ICON).getHTML();
         commentDiv.appendChild(iconDiv);
     }
     const rhsDiv = document.createElement('div');

@@ -7,6 +7,7 @@ import { Theme } from './common/theme.ts';
 import { PodcastIndexCredentials, search } from './search.ts';
 import { computeLogin } from './login.ts';
 import { Storage } from './storage.ts';
+import { computeFetch } from './fetch.ts';
 export { StorageDO } from './storage_do.ts';
 
 const appJs = await importText(import.meta.url, './static/app.js');
@@ -47,8 +48,8 @@ export default {
             const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
         } else if (/^\/f(\/.*)?$/.test(pathname)) {
-            const { twitterCredentials } = env;
-            return await computeFetch(request, twitterCredentials);
+            const { twitterCredentials, actorKeyId, actorPrivatePemText } = env;
+            return await computeFetch(request, { twitterCredentials, actorKeyId, actorPrivatePemText });
         } else if (pathname === '/s') {
             return await computeSearch(request, computePodcastIndexCredentials(env.piCredentials));
         } else if (pathname === '/login') {
@@ -104,31 +105,6 @@ function makeStorage(storageNamespace: DurableObjectNamespace, durableObjectName
             const response = await fetchFromStorageDO(url);
             if (response.status !== 200) throw new Error(`Unexpected status ${response.status}, expected 200 from DO set operation. body=${await response.text()}`);
         },
-    }
-}
-
-async function computeFetch(request: Request, twitterCredentials: string | undefined): Promise<Response> {
-    try {
-        if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
-        const { url, headers } = await request.json();
-        console.log(`Fetching ${url}`, headers);
-        if (new URL(url).hostname === 'api.twitter.com' && twitterCredentials) {
-            headers.authorization = `Bearer ${twitterCredentials.split(':')[1]}`;
-        }
-        let rt = await fetch(new URL(url).toString(), { headers });
-        if (rt.url !== url) {
-            console.log(`${url} -> ${rt.url}`);
-            const headers = new Headers(rt.headers);
-            headers.set('x-response-url', rt.url);
-            const { status } = rt;
-            rt = new Response(await rt.text(), { status, headers });
-        }
-        if (rt.status !== 200) {
-            console.log(`Response ${rt.status}`, [...rt.headers.entries()].map(v => v.join(':')).join(', '));
-        }
-        return rt;
-    } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 400 });
     }
 }
 

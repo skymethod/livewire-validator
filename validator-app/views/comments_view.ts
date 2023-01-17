@@ -1,6 +1,6 @@
 import { html, css, unsafeCSS, Theme, LitElement, isOauthObtainTokenResponse, Threadcap, CommentsResult } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
-import { BOLT_ICON, ERROR_ICON, PERSON_ICON } from './icons.ts';
+import { ERROR_ICON, PERSON_ICON } from './icons.ts';
 import { externalizeAnchor } from './util.ts';
 
 export const COMMENTS_HTML = html`
@@ -157,7 +157,7 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
     } else {
        const iconDiv = document.createElement('div');
        iconDiv.classList.add('icon', commentError ? 'error' : 'default');
-       iconDiv.innerHTML = (commentError ? ERROR_ICON : threadcap.protocol === 'lightningcomments' ? BOLT_ICON : PERSON_ICON).getHTML();
+       iconDiv.innerHTML = (commentError ? ERROR_ICON : PERSON_ICON).getHTML();
        commentDiv.appendChild(iconDiv);
     }
     
