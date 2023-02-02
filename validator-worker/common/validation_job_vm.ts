@@ -580,7 +580,7 @@ async function localOrRemoteFetchActivityPub(url: string, fetchers: Fetchers, us
 async function localOrRemoteFetchJson(url: string, fetchers: Fetchers, useSide: FetchSide | undefined, sleepMillisBetweenCalls: number): Promise<{ response: Response, side: FetchSide }> {
     if (sleepMillisBetweenCalls > 0) await sleep(sleepMillisBetweenCalls);
     const { response, side } = await localOrRemoteFetch(url, { fetchers, headers: { 'Accept': 'application/json' }, useSide });
-    checkEqual('res.status', response.status, 200);
+    if (response.status !== 200) throw new Error(`Unexpected status ${response.status}: ${await response.text()}`);
     console.log([...response.headers].map(v => v.join(': ')));
     const contentType = response.headers.get('Content-Type');
     if (!(contentType || '').includes('json')) { // application/activity+json; charset=utf-8, application/json
@@ -596,6 +596,7 @@ async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, heade
             console.log(`local fetch: ${url}`);
             const start = Date.now();
             const response = await fetchers.localFetcher(url, headers);
+            if (response.status === 429) throw new Error(`429: ${await response.text()}`); // retry "too many requests" on the server side
             return { fetchTime: Date.now() - start, side: 'local', response };
         } catch (e) {
             if (new URL(url).protocol === 'file:') throw e;

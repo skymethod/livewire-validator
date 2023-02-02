@@ -3164,6 +3164,295 @@ function isReadonlyArray1(arg) {
 function isValidIso8601(text) {
     return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
 }
+class Bytes {
+    static EMPTY = new Bytes(new Uint8Array(0));
+    _bytes;
+    length;
+    constructor(bytes){
+        this._bytes = bytes;
+        this.length = bytes.length;
+    }
+    array() {
+        return this._bytes;
+    }
+    async sha1() {
+        const hash = await cryptoSubtle().digest('SHA-1', this._bytes);
+        return new Bytes(new Uint8Array(hash));
+    }
+    concat(other) {
+        const rt = new Uint8Array(this.length + other.length);
+        rt.set(this._bytes);
+        rt.set(other._bytes, this.length);
+        return new Bytes(rt);
+    }
+    async gitSha1Hex() {
+        return (await Bytes.ofUtf8(`blob ${this.length}\0`).concat(this).sha1()).hex();
+    }
+    async hmacSha1(key) {
+        const cryptoKey = await cryptoSubtle().importKey('raw', key._bytes, {
+            name: 'HMAC',
+            hash: 'SHA-1'
+        }, true, [
+            'sign'
+        ]);
+        const sig = await cryptoSubtle().sign('HMAC', cryptoKey, this._bytes);
+        return new Bytes(new Uint8Array(sig));
+    }
+    async sha256() {
+        const hash = await cryptoSubtle().digest('SHA-256', this._bytes);
+        return new Bytes(new Uint8Array(hash));
+    }
+    async hmacSha256(key) {
+        const cryptoKey = await cryptoSubtle().importKey('raw', key._bytes, {
+            name: 'HMAC',
+            hash: 'SHA-256'
+        }, true, [
+            'sign'
+        ]);
+        const sig = await cryptoSubtle().sign('HMAC', cryptoKey, this._bytes);
+        return new Bytes(new Uint8Array(sig));
+    }
+    hex() {
+        const a = Array.from(this._bytes);
+        return a.map((b)=>b.toString(16).padStart(2, '0')).join('');
+    }
+    static ofHex(hex) {
+        if (hex === '') {
+            return Bytes.EMPTY;
+        }
+        return new Bytes(new Uint8Array(hex.match(/.{1,2}/g).map((__byte)=>parseInt(__byte, 16))));
+    }
+    utf8() {
+        return new TextDecoder().decode(this._bytes);
+    }
+    static ofUtf8(str) {
+        return new Bytes(new TextEncoder().encode(str));
+    }
+    base64() {
+        return base64Encode(this._bytes);
+    }
+    static ofBase64(base64, opts = {
+        urlSafe: false
+    }) {
+        return new Bytes(base64Decode(base64, opts.urlSafe));
+    }
+    static async ofStream(stream) {
+        const chunks = [];
+        for await (const chunk of stream){
+            chunks.push(chunk);
+        }
+        const len = chunks.reduce((prev, current)=>prev + current.length, 0);
+        const rt = new Uint8Array(len);
+        let offset = 0;
+        for (const chunk1 of chunks){
+            rt.set(chunk1, offset);
+            offset += chunk1.length;
+        }
+        return new Bytes(rt);
+    }
+    static formatSize(sizeInBytes) {
+        const sign = sizeInBytes < 0 ? '-' : '';
+        let size = Math.abs(sizeInBytes);
+        if (size < 1024) return `${sign}${size}bytes`;
+        size = size / 1024;
+        if (size < 1024) return `${sign}${roundToOneDecimal(size)}kb`;
+        size = size / 1024;
+        return `${sign}${roundToOneDecimal(size)}mb`;
+    }
+}
+function roundToOneDecimal(value) {
+    return Math.round(value * 10) / 10;
+}
+function base64Encode(buf) {
+    let string = '';
+    buf.forEach((__byte)=>{
+        string += String.fromCharCode(__byte);
+    });
+    return btoa(string);
+}
+function base64Decode(str, urlSafe) {
+    if (urlSafe) str = str.replace(/_/g, '/').replace(/-/g, '+');
+    str = atob(str);
+    const length = str.length, buf = new ArrayBuffer(length), bufView = new Uint8Array(buf);
+    for(let i = 0; i < length; i++){
+        bufView[i] = str.charCodeAt(i);
+    }
+    return bufView;
+}
+function cryptoSubtle() {
+    return crypto.subtle;
+}
+function createLiteralTestFunction(value) {
+    return (string)=>{
+        return string.startsWith(value) ? {
+            value,
+            length: value.length
+        } : undefined;
+    };
+}
+function createMatchTestFunction(match) {
+    return (string)=>{
+        const result = match.exec(string);
+        if (result) return {
+            value: result,
+            length: result[0].length
+        };
+    };
+}
+[
+    {
+        test: createLiteralTestFunction("yyyy"),
+        fn: ()=>({
+                type: "year",
+                value: "numeric"
+            })
+    },
+    {
+        test: createLiteralTestFunction("yy"),
+        fn: ()=>({
+                type: "year",
+                value: "2-digit"
+            })
+    },
+    {
+        test: createLiteralTestFunction("MM"),
+        fn: ()=>({
+                type: "month",
+                value: "2-digit"
+            })
+    },
+    {
+        test: createLiteralTestFunction("M"),
+        fn: ()=>({
+                type: "month",
+                value: "numeric"
+            })
+    },
+    {
+        test: createLiteralTestFunction("dd"),
+        fn: ()=>({
+                type: "day",
+                value: "2-digit"
+            })
+    },
+    {
+        test: createLiteralTestFunction("d"),
+        fn: ()=>({
+                type: "day",
+                value: "numeric"
+            })
+    },
+    {
+        test: createLiteralTestFunction("HH"),
+        fn: ()=>({
+                type: "hour",
+                value: "2-digit"
+            })
+    },
+    {
+        test: createLiteralTestFunction("H"),
+        fn: ()=>({
+                type: "hour",
+                value: "numeric"
+            })
+    },
+    {
+        test: createLiteralTestFunction("hh"),
+        fn: ()=>({
+                type: "hour",
+                value: "2-digit",
+                hour12: true
+            })
+    },
+    {
+        test: createLiteralTestFunction("h"),
+        fn: ()=>({
+                type: "hour",
+                value: "numeric",
+                hour12: true
+            })
+    },
+    {
+        test: createLiteralTestFunction("mm"),
+        fn: ()=>({
+                type: "minute",
+                value: "2-digit"
+            })
+    },
+    {
+        test: createLiteralTestFunction("m"),
+        fn: ()=>({
+                type: "minute",
+                value: "numeric"
+            })
+    },
+    {
+        test: createLiteralTestFunction("ss"),
+        fn: ()=>({
+                type: "second",
+                value: "2-digit"
+            })
+    },
+    {
+        test: createLiteralTestFunction("s"),
+        fn: ()=>({
+                type: "second",
+                value: "numeric"
+            })
+    },
+    {
+        test: createLiteralTestFunction("SSS"),
+        fn: ()=>({
+                type: "fractionalSecond",
+                value: 3
+            })
+    },
+    {
+        test: createLiteralTestFunction("SS"),
+        fn: ()=>({
+                type: "fractionalSecond",
+                value: 2
+            })
+    },
+    {
+        test: createLiteralTestFunction("S"),
+        fn: ()=>({
+                type: "fractionalSecond",
+                value: 1
+            })
+    },
+    {
+        test: createLiteralTestFunction("a"),
+        fn: (value)=>({
+                type: "dayPeriod",
+                value: value
+            })
+    },
+    {
+        test: createMatchTestFunction(/^(')(?<value>\\.|[^\']*)\1/),
+        fn: (match)=>({
+                type: "literal",
+                value: match.groups.value
+            })
+    },
+    {
+        test: createMatchTestFunction(/^.+?\s*/),
+        fn: (match)=>({
+                type: "literal",
+                value: match[0]
+            })
+    }
+];
+var Day;
+(function(Day) {
+    Day[Day["Sun"] = 0] = "Sun";
+    Day[Day["Mon"] = 1] = "Mon";
+    Day[Day["Tue"] = 2] = "Tue";
+    Day[Day["Wed"] = 3] = "Wed";
+    Day[Day["Thu"] = 4] = "Thu";
+    Day[Day["Fri"] = 5] = "Fri";
+    Day[Day["Sat"] = 6] = "Sat";
+})(Day || (Day = {}));
 async function findOrFetchJson(url, after, fetcher, cache, opts) {
     const response = await findOrFetchTextResponse(url, after, fetcher, cache, opts);
     const { status , headers , bodyText  } = response;
@@ -3186,13 +3475,21 @@ async function findOrFetchTextResponse(url, after, fetcher, cache, opts) {
     });
     const response = {
         status: res.status,
-        headers: Object.fromEntries([
+        headers: objectFromEntries([
             ...res.headers
         ]),
         bodyText: await res.text()
     };
     await cache.put(url, new Date().toISOString(), response);
     return response;
+}
+function objectFromEntries(entries) {
+    return [
+        ...entries
+    ].reduce((obj, [key, value])=>{
+        obj[key] = value;
+        return obj;
+    }, {});
 }
 const ActivityPubProtocolImplementation = {
     initThreadcap: initActivityPubThreadcap,
@@ -3390,6 +3687,7 @@ function collectRepliesFromItems(items, outReplies, nodeId, url, callbacks) {
 function computeComment(object, id, callbacks) {
     object = unwrapActivityIfNecessary(object, id, callbacks);
     const content = computeContent(object);
+    const summary = computeSummary(object);
     const attachments = computeAttachments(object);
     const url = computeUrl(object.url) || id;
     const { published  } = object;
@@ -3400,7 +3698,8 @@ function computeComment(object, id, callbacks) {
         published,
         attachments,
         content,
-        attributedTo
+        attributedTo,
+        summary
     };
 }
 function computeUrl(url) {
@@ -3428,15 +3727,23 @@ function computeAttributedTo(attributedTo) {
     throw new Error(`Expected 'attributedTo' to be a string or non-empty string/object array, found ${JSON.stringify(attributedTo)}`);
 }
 function computeContent(obj) {
+    const rt = computeLanguageTaggedValues(obj, 'content', 'contentMap');
+    if (!rt) throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
+    return rt;
+}
+function computeSummary(obj) {
+    return computeLanguageTaggedValues(obj, 'summary', 'summaryMap');
+}
+function computeLanguageTaggedValues(obj, stringProp, mapProp) {
     if (obj.type === 'PodcastEpisode' && isStringRecord1(obj.description) && obj.description.type === 'Note') obj = obj.description;
-    const { content , contentMap  } = obj;
-    if (content !== undefined && typeof content !== 'string') throw new Error(`Expected 'content' to be a string, found ${JSON.stringify(content)}`);
-    if (contentMap !== undefined && !isStringRecord1(contentMap)) throw new Error(`Expected 'contentMap' to be a string record, found ${JSON.stringify(contentMap)}`);
-    if (contentMap !== undefined) return contentMap;
-    if (content !== undefined) return {
-        und: content
+    const stringVal = obj[stringProp] ?? undefined;
+    const mapVal = obj[mapProp] ?? undefined;
+    if (stringVal !== undefined && typeof stringVal !== 'string') throw new Error(`Expected '${stringProp}' to be a string, found ${JSON.stringify(stringVal)}`);
+    if (mapVal !== undefined && !(isStringRecord1(mapVal) && Object.values(mapVal).every((v)=>typeof v === 'string'))) throw new Error(`Expected '${mapProp}' to be a string record, found ${JSON.stringify(mapVal)}`);
+    if (mapVal !== undefined) return mapVal;
+    if (stringVal !== undefined) return {
+        und: stringVal
     };
-    throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
 }
 function computeAttachments(object) {
     const rt = [];
@@ -4568,7 +4875,7 @@ async function localOrRemoteFetchJson(url, fetchers, useSide, sleepMillisBetween
         },
         useSide
     });
-    checkEqual1('res.status', response.status, 200);
+    if (response.status !== 200) throw new Error(`Unexpected status ${response.status}: ${await response.text()}`);
     console.log([
         ...response.headers
     ].map((v)=>v.join(': ')));
@@ -4588,6 +4895,7 @@ async function localOrRemoteFetch(url, opts) {
             console.log(`local fetch: ${url}`);
             const start = Date.now();
             const response = await fetchers.localFetcher(url, headers);
+            if (response.status === 429) throw new Error(`429: ${await response.text()}`);
             return {
                 fetchTime: Date.now() - start,
                 side: 'local',
@@ -5025,7 +5333,7 @@ function renderComments(results, commentsOutput, vm) {
 function renderNode(nodeId, threadcap, containerElement, level, vm) {
     const node = threadcap.nodes[nodeId];
     if (!node) return;
-    const { comment , commentError  } = node;
+    const { comment , commentError , repliesError  } = node;
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
     if (level > 0) commentDiv.style.marginLeft = `${level * 4}em`;
@@ -5083,6 +5391,17 @@ function renderNode(nodeId, threadcap, containerElement, level, vm) {
         headerDiv.appendChild(nodeAnchor);
     }
     rhsDiv.appendChild(headerDiv);
+    const renderError = (error)=>{
+        const lines = error.split('\n');
+        const summary = lines[0];
+        const errorDetails = document.createElement('details');
+        errorDetails.classList.add('error');
+        const errorSummary = document.createElement('summary');
+        errorSummary.textContent = summary;
+        errorDetails.appendChild(errorSummary);
+        errorDetails.append(document.createTextNode(lines.slice(1).join('\n')));
+        rhsDiv.appendChild(errorDetails);
+    };
     if (comment) {
         const contentDiv = document.createElement('div');
         contentDiv.innerHTML = Object.values(comment.content)[0];
@@ -5119,15 +5438,10 @@ function renderNode(nodeId, threadcap, containerElement, level, vm) {
             rhsDiv.appendChild(replyDiv);
         }
     } else if (commentError) {
-        const lines = commentError.split('\n');
-        const summary1 = lines[0];
-        const errorDetails = document.createElement('details');
-        errorDetails.classList.add('error');
-        const errorSummary = document.createElement('summary');
-        errorSummary.textContent = summary1;
-        errorDetails.appendChild(errorSummary);
-        errorDetails.append(document.createTextNode(lines.slice(1).join('\n')));
-        rhsDiv.appendChild(errorDetails);
+        renderError(commentError);
+    }
+    if (repliesError) {
+        renderError(repliesError);
     }
     commentDiv.appendChild(rhsDiv);
     containerElement.appendChild(commentDiv);

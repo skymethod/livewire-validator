@@ -141,7 +141,7 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
     const node = threadcap.nodes[nodeId];
     if (!node) return;
     
-    const { comment, commentError } = node;
+    const { comment, commentError, repliesError } = node;
     
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
@@ -208,6 +208,18 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
     }
     rhsDiv.appendChild(headerDiv);
 
+    const renderError = (error: string) => {
+        const lines = error.split('\n');
+        const summary = lines[0];
+        const errorDetails = document.createElement('details');
+        errorDetails.classList.add('error');
+        const errorSummary = document.createElement('summary');
+        errorSummary.textContent = summary;
+        errorDetails.appendChild(errorSummary);
+        errorDetails.append(document.createTextNode(lines.slice(1).join('\n')))
+        rhsDiv.appendChild(errorDetails);
+    }
+
     if (comment) {
         const contentDiv = document.createElement('div');
         contentDiv.innerHTML = Object.values(comment.content)[0];
@@ -246,16 +258,12 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
             rhsDiv.appendChild(replyDiv);
         }
     } else if (commentError) {
-        const lines = commentError.split('\n');
-        const summary = lines[0];
-        const errorDetails = document.createElement('details');
-        errorDetails.classList.add('error');
-        const errorSummary = document.createElement('summary');
-        errorSummary.textContent = summary;
-        errorDetails.appendChild(errorSummary);
-        errorDetails.append(document.createTextNode(lines.slice(1).join('\n')))
-        rhsDiv.appendChild(errorDetails);
+        renderError(commentError);
     }
+    if (repliesError) {
+        renderError(repliesError);
+    }
+
     commentDiv.appendChild(rhsDiv);
 
     containerElement.appendChild(commentDiv);
