@@ -1,4 +1,4 @@
-import { html, css, unsafeCSS, Theme, LitElement, isOauthObtainTokenResponse, Threadcap, CommentsResult } from '../deps_app.ts';
+import { html, css, unsafeCSS, Theme, LitElement, isOauthObtainTokenResponse, Threadcap, CommentsResult, encodeXml } from '../deps_app.ts';
 import { ValidatorAppVM } from '../validator_app_vm.ts';
 import { ERROR_ICON, PERSON_ICON } from './icons.ts';
 import { externalizeAnchor } from './util.ts';
@@ -222,7 +222,7 @@ function renderNode(nodeId: string, threadcap: Threadcap, containerElement: HTML
 
     if (comment) {
         const contentDiv = document.createElement('div');
-        contentDiv.innerHTML = Object.values(comment.content)[0];
+        contentDiv.innerHTML = Object.values(comment.content)[0] + (comment.questionOptions ? `<ul>${comment.questionOptions.map(v => `<li>${encodeXml(v)}</li>`).join('')}</ul>` : '');
         contentDiv.querySelectorAll('a').forEach(externalizeAnchor);
         rhsDiv.appendChild(contentDiv);
 

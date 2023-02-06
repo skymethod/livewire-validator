@@ -2390,6 +2390,11 @@ parser.j2xParser;
 parser.parse;
 parser.parseToNimn;
 var validate$1 = parser.validate;
+function encodeXml(unencoded) {
+    return unencoded.replaceAll(/[&<>'']/g, (__char)=>{
+        return UNENCODED_CHARS_TO_ENTITIES[__char];
+    });
+}
 function decodeXml(encoded, additionalEntities = {}) {
     return encoded.replaceAll(/&(#(\d+)|[a-z]+);/g, (str, entity, decimal)=>{
         if (typeof decimal === 'string') return String.fromCharCode(parseInt(decimal));
@@ -2402,6 +2407,13 @@ function decodeXml(encoded, additionalEntities = {}) {
         throw new Error(`Unsupported entity: ${str}`);
     });
 }
+const UNENCODED_CHARS_TO_ENTITIES = {
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    '\'': '&#39;',
+    '"': '&#34;'
+};
 const ENTITIES_TO_UNENCODED_CHARS = {
     'lt': '<',
     'gt': '>',
@@ -3528,7 +3540,7 @@ async function initActivityPubThreadcap(url, opts) {
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id , type  } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type)) throw new Error(`Unexpected type: ${type}`);
+    if (!/^(Note|Article|Video|PodcastEpisode|Question)$/.test(type)) throw new Error(`Unexpected type: ${type}`);
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
     return {
         protocol: 'activitypub',
@@ -3693,13 +3705,15 @@ function computeComment(object, id, callbacks) {
     const { published  } = object;
     const attributedTo = computeAttributedTo(object.attributedTo);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
+    const questionOptions = computeQuestionOptions(object);
     return {
         url,
         published,
         attachments,
         content,
         attributedTo,
-        summary
+        summary,
+        questionOptions
     };
 }
 function computeUrl(url) {
@@ -3710,6 +3724,31 @@ function computeUrl(url) {
         if (v) return v.href;
     }
     throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
+}
+function computeQuestionOptions(obj) {
+    let rt;
+    if (obj.type === 'Question') {
+        for (const prop of [
+            'oneOf',
+            'anyOf'
+        ]){
+            const val = obj[prop];
+            if (Array.isArray(val)) {
+                for (const item of val){
+                    if (isStringRecord1(item) && item.type === 'Note' && typeof item.name === 'string') {
+                        if (!rt) rt = [];
+                        rt.push(item.name);
+                    } else {
+                        throw new Error(`Unsupported Question '${prop}' item: ${JSON.stringify(item)}`);
+                    }
+                }
+                return rt;
+            } else if (val !== undefined) {
+                throw new Error(`Unsupported Question '${prop}' value: ${JSON.stringify(val)}`);
+            }
+        }
+    }
+    return rt;
 }
 function computeAttributedTo(attributedTo) {
     if (typeof attributedTo === 'string') return attributedTo;
@@ -5404,7 +5443,7 @@ function renderNode(nodeId, threadcap, containerElement, level, vm) {
     };
     if (comment) {
         const contentDiv = document.createElement('div');
-        contentDiv.innerHTML = Object.values(comment.content)[0];
+        contentDiv.innerHTML = Object.values(comment.content)[0] + (comment.questionOptions ? `<ul>${comment.questionOptions.map((v)=>`<li>${encodeXml(v)}</li>`).join('')}</ul>` : '');
         contentDiv.querySelectorAll('a').forEach(externalizeAnchor);
         rhsDiv.appendChild(contentDiv);
         for (const attachment of comment.attachments){
