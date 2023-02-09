@@ -4808,6 +4808,14 @@ class ValidationJobVM {
                             continueWithUrl = searchResult.piIdResult.feed.url;
                         }
                     }
+                } else if (searchResult.piGuidResult) {
+                    if (typeof searchResult.piGuidResult === 'string') {
+                        addMessage('error', searchResult.piGuidResult);
+                    } else {
+                        if (isStringRecord(searchResult.piGuidResult)) {
+                            continueWithUrl = searchResult.piGuidResult.feed.url;
+                        }
+                    }
                 }
             }
         } catch (e1) {

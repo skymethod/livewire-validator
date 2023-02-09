@@ -8,12 +8,14 @@ export interface PodcastIndexCredentials {
 export interface SearchResult {
     readonly piSearchResult?: Record<string, unknown> | string;
     readonly piIdResult?: Record<string, unknown> | string;
+    readonly piGuidResult?: Record<string, unknown> | string;
 }
 
 export async function search(input: string, opts: { headers: Record<string, string>, podcastIndexCredentials?: PodcastIndexCredentials }): Promise<SearchResult> {
     const { podcastIndexCredentials, headers } = opts;
     let piSearchResult: Record<string, unknown> | string | undefined;
     let piIdResult: Record<string, unknown> | string | undefined;
+    let piGuidResult: Record<string, unknown> | string | undefined;
     if (podcastIndexCredentials) {
         let m: RegExpExecArray | null;
         if (/^\d+$/.test(input)) {
@@ -32,6 +34,14 @@ export async function search(input: string, opts: { headers: Record<string, stri
             } catch (e) {
                 piIdResult = e.message;
             }
+        } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
+            try {
+                const u = new URL('https://api.podcastindex.org/api/1.0/podcasts/byguid');
+                u.searchParams.set('guid', input);
+                piGuidResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
+            } catch (e) {
+                piGuidResult = e.message;
+            }
         } else {
             try {
                 const u = new URL('https://api.podcastindex.org/api/1.0/search/byterm');
@@ -42,7 +52,7 @@ export async function search(input: string, opts: { headers: Record<string, stri
             }
         }
     }
-    return { piSearchResult, piIdResult };
+    return { piSearchResult, piIdResult, piGuidResult };
 }
 
 //

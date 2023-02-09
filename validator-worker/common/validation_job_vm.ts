@@ -1,4 +1,4 @@
-import { checkMatches, checkEqual } from './check.ts';
+import { checkMatches, checkEqual, isStringRecord } from './check.ts';
 import { Qnames } from './qnames.ts';
 import { isReadonlyArray } from './util.ts';
 import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
@@ -437,6 +437,14 @@ export class ValidationJobVM {
                             continueWithUrl = searchResult.piIdResult.feed.url;
                         }
                     }
+                } else if (searchResult.piGuidResult){
+                    if (typeof searchResult.piGuidResult === 'string') {
+                        addMessage('error', searchResult.piGuidResult);
+                    } else {
+                        if (isStringRecord(searchResult.piGuidResult)) {
+                            continueWithUrl = searchResult.piGuidResult.feed.url;
+                        }
+                    }
                 }
             }
         } catch (e) {
@@ -642,10 +650,15 @@ interface ValidationJob {
 interface SearchResult {
     readonly piSearchResult?: PISearchResponse | string;
     readonly piIdResult?: PIIdResponse | string;
+    readonly piGuidResult?: PIGuidResponse | string;
 }
 
 interface PISearchResponse {
     readonly feeds: readonly PIFeedInfo[];
+}
+
+interface PIGuidResponse {
+    readonly feed: PIFeedInfo;
 }
 
 interface PIIdResponse {
