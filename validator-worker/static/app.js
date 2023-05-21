@@ -81,9 +81,9 @@ class Template {
                     const parent = node.parentNode;
                     const strings2 = data.split(markerRegex);
                     const lastIndex = strings2.length - 1;
-                    for(let i1 = 0; i1 < lastIndex; i1++){
+                    for(let i = 0; i < lastIndex; i++){
                         let insert;
-                        let s = strings2[i1];
+                        let s = strings2[i];
                         if (s === "") {
                             insert = createMarker();
                         } else {
@@ -109,10 +109,10 @@ class Template {
                 }
             } else if (node.nodeType === 8) {
                 if (node.data === marker) {
-                    const parent1 = node.parentNode;
+                    const parent = node.parentNode;
                     if (node.previousSibling === null || index === lastPartIndex) {
                         index++;
-                        parent1.insertBefore(createMarker(), node);
+                        parent.insertBefore(createMarker(), node);
                     }
                     lastPartIndex = index;
                     this.parts.push({
@@ -127,8 +127,8 @@ class Template {
                     }
                     partIndex++;
                 } else {
-                    let i2 = -1;
-                    while((i2 = node.data.indexOf(marker, i2 + 1)) !== -1){
+                    let i = -1;
+                    while((i = node.data.indexOf(marker, i + 1)) !== -1){
                         this.parts.push({
                             type: "node",
                             index: -1
@@ -165,9 +165,9 @@ class TemplateInstance {
             }
             i++;
         }
-        for (const part1 of this.__parts){
-            if (part1 !== void 0) {
-                part1.commit();
+        for (const part of this.__parts){
+            if (part !== void 0) {
+                part.commit();
             }
         }
     }
@@ -304,11 +304,11 @@ class AttributeCommitter {
             text += strings[i];
             const part = parts2[i];
             if (part !== void 0) {
-                const v1 = part.value;
-                if (isPrimitive(v1) || !isIterable(v1)) {
-                    text += typeof v1 === "string" ? v1 : String(v1);
+                const v = part.value;
+                if (isPrimitive(v) || !isIterable(v)) {
+                    text += typeof v === "string" ? v : String(v);
                 } else {
-                    for (const t of v1){
+                    for (const t of v){
                         text += typeof t === "string" ? t : String(t);
                     }
                 }
@@ -1373,8 +1373,8 @@ const convertToJson = function(node, options, parentTagName) {
             }
         } else {
             const result = convertToJson(node.child[tagName][0], options, tagName);
-            const asArray1 = options.arrayMode === true && typeof result === "object" || util.isTagNameInArrayMode(tagName, options.arrayMode, parentTagName);
-            jObj[tagName] = asArray1 ? [
+            const asArray = options.arrayMode === true && typeof result === "object" || util.isTagNameInArrayMode(tagName, options.arrayMode, parentTagName);
+            jObj[tagName] = asArray ? [
                 result
             ] : result;
         }
@@ -1566,47 +1566,47 @@ const getTraversalObj = function(xmlData, options) {
             } else if (xmlData.substr(i + 1, 3) === "!--") {
                 i = findClosingIndex(xmlData, "-->", i, "Comment is not closed.");
             } else if (xmlData.substr(i + 1, 2) === "!D") {
-                const closeIndex1 = findClosingIndex(xmlData, ">", i, "DOCTYPE is not closed.");
-                const tagExp = xmlData.substring(i, closeIndex1);
+                const closeIndex = findClosingIndex(xmlData, ">", i, "DOCTYPE is not closed.");
+                const tagExp = xmlData.substring(i, closeIndex);
                 if (tagExp.indexOf("[") >= 0) {
                     i = xmlData.indexOf("]>", i) + 1;
                 } else {
-                    i = closeIndex1;
+                    i = closeIndex;
                 }
             } else if (xmlData.substr(i + 1, 2) === "![") {
-                const closeIndex2 = findClosingIndex(xmlData, "]]>", i, "CDATA is not closed.") - 2;
-                const tagExp1 = xmlData.substring(i + 9, closeIndex2);
+                const closeIndex = findClosingIndex(xmlData, "]]>", i, "CDATA is not closed.") - 2;
+                const tagExp = xmlData.substring(i + 9, closeIndex);
                 if (textData) {
                     currentNode.val = util.getValue(currentNode.val) + "" + processTagValue(currentNode.tagname, textData, options);
                     textData = "";
                 }
                 if (options.cdataTagName) {
-                    const childNode = new xmlNode(options.cdataTagName, currentNode, tagExp1);
+                    const childNode = new xmlNode(options.cdataTagName, currentNode, tagExp);
                     currentNode.addChild(childNode);
                     currentNode.val = util.getValue(currentNode.val) + options.cdataPositionChar;
-                    if (tagExp1) {
-                        childNode.val = tagExp1;
+                    if (tagExp) {
+                        childNode.val = tagExp;
                     }
                 } else {
-                    currentNode.val = (currentNode.val || "") + (tagExp1 || "");
+                    currentNode.val = (currentNode.val || "") + (tagExp || "");
                 }
-                i = closeIndex2 + 2;
+                i = closeIndex + 2;
             } else {
                 const result = closingIndexForOpeningTag(xmlData, i + 1);
-                let tagExp2 = result.data;
-                const closeIndex3 = result.index;
-                const separatorIndex = tagExp2.indexOf(" ");
-                let tagName1 = tagExp2;
+                let tagExp = result.data;
+                const closeIndex = result.index;
+                const separatorIndex = tagExp.indexOf(" ");
+                let tagName = tagExp;
                 let shouldBuildAttributesMap = true;
                 if (separatorIndex !== -1) {
-                    tagName1 = tagExp2.substr(0, separatorIndex).replace(/\s\s*$/, "");
-                    tagExp2 = tagExp2.substr(separatorIndex + 1);
+                    tagName = tagExp.substr(0, separatorIndex).replace(/\s\s*$/, "");
+                    tagExp = tagExp.substr(separatorIndex + 1);
                 }
                 if (options.ignoreNameSpace) {
-                    const colonIndex1 = tagName1.indexOf(":");
-                    if (colonIndex1 !== -1) {
-                        tagName1 = tagName1.substr(colonIndex1 + 1);
-                        shouldBuildAttributesMap = tagName1 !== result.data.substr(colonIndex1 + 1);
+                    const colonIndex = tagName.indexOf(":");
+                    if (colonIndex !== -1) {
+                        tagName = tagName.substr(colonIndex + 1);
+                        shouldBuildAttributesMap = tagName !== result.data.substr(colonIndex + 1);
                     }
                 }
                 if (currentNode && textData) {
@@ -1614,31 +1614,31 @@ const getTraversalObj = function(xmlData, options) {
                         currentNode.val = util.getValue(currentNode.val) + "" + processTagValue(currentNode.tagname, textData, options);
                     }
                 }
-                if (tagExp2.length > 0 && tagExp2.lastIndexOf("/") === tagExp2.length - 1) {
-                    if (tagName1[tagName1.length - 1] === "/") {
-                        tagName1 = tagName1.substr(0, tagName1.length - 1);
-                        tagExp2 = tagName1;
+                if (tagExp.length > 0 && tagExp.lastIndexOf("/") === tagExp.length - 1) {
+                    if (tagName[tagName.length - 1] === "/") {
+                        tagName = tagName.substr(0, tagName.length - 1);
+                        tagExp = tagName;
                     } else {
-                        tagExp2 = tagExp2.substr(0, tagExp2.length - 1);
+                        tagExp = tagExp.substr(0, tagExp.length - 1);
                     }
-                    const childNode1 = new xmlNode(tagName1, currentNode, "");
-                    if (tagName1 !== tagExp2) {
-                        childNode1.attrsMap = buildAttributesMap(tagExp2, options);
+                    const childNode = new xmlNode(tagName, currentNode, "");
+                    if (tagName !== tagExp) {
+                        childNode.attrsMap = buildAttributesMap(tagExp, options);
                     }
-                    currentNode.addChild(childNode1);
+                    currentNode.addChild(childNode);
                 } else {
-                    const childNode2 = new xmlNode(tagName1, currentNode);
-                    if (options.stopNodes.length && options.stopNodes.includes(childNode2.tagname)) {
-                        childNode2.startIndex = closeIndex3;
+                    const childNode = new xmlNode(tagName, currentNode);
+                    if (options.stopNodes.length && options.stopNodes.includes(childNode.tagname)) {
+                        childNode.startIndex = closeIndex;
                     }
-                    if (tagName1 !== tagExp2 && shouldBuildAttributesMap) {
-                        childNode2.attrsMap = buildAttributesMap(tagExp2, options);
+                    if (tagName !== tagExp && shouldBuildAttributesMap) {
+                        childNode.attrsMap = buildAttributesMap(tagExp, options);
                     }
-                    currentNode.addChild(childNode2);
-                    currentNode = childNode2;
+                    currentNode.addChild(childNode);
+                    currentNode = childNode;
                 }
                 textData = "";
-                i = closeIndex3;
+                i = closeIndex;
             }
         } else {
             textData += xmlData[i];
@@ -1760,9 +1760,9 @@ var validate = function(xmlData, options) {
                         }
                     }
                 } else {
-                    const isValid1 = validateAttributeString(attrStr, options);
-                    if (isValid1 !== true) {
-                        return getErrorObject(isValid1.err.code, isValid1.err.msg, getLineNumberForPosition(xmlData, i - attrStr.length + isValid1.err.line));
+                    const isValid = validateAttributeString(attrStr, options);
+                    if (isValid !== true) {
+                        return getErrorObject(isValid.err.code, isValid.err.msg, getLineNumberForPosition(xmlData, i - attrStr.length + isValid.err.line));
                     }
                     if (reachedRoot === true) {
                         return getErrorObject("InvalidXml", "Multiple possible root nodes found.", getLineNumberForPosition(xmlData, i));
@@ -2019,9 +2019,9 @@ const _e = function(node, e_schema, options) {
                         str = processValue(str, r);
                     }
                 } else {
-                    for(let arr_i1 = 0; arr_i1 < arr_len; arr_i1++){
-                        const r1 = _e(node[arr_i1], itemSchema, options);
-                        str = processValue(str, r1);
+                    for(let arr_i = 0; arr_i < arr_len; arr_i++){
+                        const r = _e(node[arr_i], itemSchema, options);
+                        str = processValue(str, r);
                     }
                 }
                 str += chars.arrayEnd;
@@ -2033,15 +2033,15 @@ const _e = function(node, e_schema, options) {
                 }
                 for(let i in keys){
                     const key = keys[i];
-                    let r2;
+                    let r;
                     if (!options.ignoreAttributes && node.attrsMap && node.attrsMap[key]) {
-                        r2 = _e(node.attrsMap[key], e_schema[key], options);
+                        r = _e(node.attrsMap[key], e_schema[key], options);
                     } else if (key === options.textNodeName) {
-                        r2 = _e(node.val, e_schema[key], options);
+                        r = _e(node.val, e_schema[key], options);
                     } else {
-                        r2 = _e(node.child[key], e_schema[key], options);
+                        r = _e(node.child[key], e_schema[key], options);
                     }
-                    str = processValue(str, r2);
+                    str = processValue(str, r);
                 }
             }
             return str;
@@ -2274,8 +2274,8 @@ Parser.prototype.j2x = function(jObj, level) {
             if (this.options.attrNodeName && key === this.options.attrNodeName) {
                 const Ks = Object.keys(jObj[key]);
                 const L = Ks.length;
-                for(let j1 = 0; j1 < L; j1++){
-                    attrStr += " " + Ks[j1] + '="' + this.options.attrValueProcessor("" + jObj[key][Ks[j1]]) + '"';
+                for(let j = 0; j < L; j++){
+                    attrStr += " " + Ks[j] + '="' + this.options.attrValueProcessor("" + jObj[key][Ks[j]]) + '"';
                 }
             } else {
                 val += this.processTextOrObjNode(jObj[key], key, level);
@@ -2677,6 +2677,10 @@ function isRssLanguage(trimmedText) {
 function isItunesDuration(trimmedText) {
     return /^(\d+:)?\d+:\d+$/.test(trimmedText) || isNonNegativeInteger(trimmedText);
 }
+function hasApplePodcastsSupportedFileExtension(url) {
+    const u = tryParseUrl(url);
+    return u !== undefined && /\.(m4a|mp3|mov|mp4|m4v|pdf)$/i.test(u.pathname);
+}
 function tryParseUrl(str, base) {
     try {
         return new URL(str, base);
@@ -2982,6 +2986,7 @@ function validateItem(item, callbacks, itemTagName) {
         const url = enclosure.atts.get('url');
         if (!url) callbacks.onWarning(enclosure, `Missing ${itemTagName} <enclosure> url attribute`, rssEnclosureOpts);
         if (url && !isUrl(url)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute value: ${url}, expected url`, rssEnclosureOpts);
+        if (url && !hasApplePodcastsSupportedFileExtension(url)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute file extension: ${url}, Apple Podcasts only supports .m4a, .mp3, .mov, .mp4, .m4v, and .pdf.`, itunesOpts2);
         const length = enclosure.atts.get('length');
         if (!length) callbacks.onWarning(enclosure, `Missing ${itemTagName} <enclosure> length attribute`, rssEnclosureOpts);
         if (length && !isNonNegativeInteger(length)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> length attribute value: ${length}, expected non-negative integer`, rssEnclosureOpts);
@@ -3162,8 +3167,8 @@ function setIntersect(lhs, rhs) {
     for (const item of lhs){
         if (rhs.has(item)) rt.add(item);
     }
-    for (const item1 of rhs){
-        if (lhs.has(item1)) rt.add(item1);
+    for (const item of rhs){
+        if (lhs.has(item)) rt.add(item);
     }
     return rt;
 }
@@ -3256,9 +3261,9 @@ class Bytes {
         const len = chunks.reduce((prev, current)=>prev + current.length, 0);
         const rt = new Uint8Array(len);
         let offset = 0;
-        for (const chunk1 of chunks){
-            rt.set(chunk1, offset);
-            offset += chunk1.length;
+        for (const chunk of chunks){
+            rt.set(chunk, offset);
+            offset += chunk.length;
         }
         return new Bytes(rt);
     }
@@ -4160,15 +4165,15 @@ function makeRateLimitedFetcher(fetcher, opts = {}) {
         const limitHeader = twitterEndpoint ? 'x-rate-limit-limit' : 'x-ratelimit-limit';
         const remainingHeader = twitterEndpoint ? 'x-rate-limit-remaining' : 'x-ratelimit-remaining';
         const resetHeader = twitterEndpoint ? 'x-rate-limit-reset' : 'x-ratelimit-reset';
-        const limit1 = tryParseInt(res.headers.get(limitHeader) || '');
-        const remaining1 = tryParseInt(res.headers.get(remainingHeader) || '');
+        const limit = tryParseInt(res.headers.get(limitHeader) || '');
+        const remaining = tryParseInt(res.headers.get(remainingHeader) || '');
         const resetStr = res.headers.get(resetHeader) || '';
-        const reset1 = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr) : tryParseIso8601(resetStr);
-        if (limit1 !== undefined && remaining1 !== undefined && reset1 !== undefined) {
+        const reset = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr) : tryParseIso8601(resetStr);
+        if (limit !== undefined && remaining !== undefined && reset !== undefined) {
             endpointLimits.set(endpoint, {
-                limit: limit1,
-                remaining: remaining1,
-                reset: reset1
+                limit,
+                remaining,
+                reset
             });
         }
         return res;
@@ -4232,9 +4237,9 @@ async function processNode(id, processReplies, threadcap, implementation, opts) 
             try {
                 node.replies = await implementation.fetchReplies(id, opts);
                 node.repliesError = undefined;
-            } catch (e1) {
+            } catch (e) {
                 node.replies = undefined;
-                node.repliesError = `${e1.stack || e1}`;
+                node.repliesError = `${e.stack || e}`;
             }
             node.repliesAsof = updateTime;
         }
@@ -4423,7 +4428,7 @@ class ValidationJobVM {
                 if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
                     delete headers['User-Agent'];
                 }
-                const { response: response1 , side , fetchTime  } = await localOrRemoteFetch(inputUrl.toString(), {
+                const { response , side , fetchTime  } = await localOrRemoteFetch(inputUrl.toString(), {
                     fetchers,
                     headers
                 });
@@ -4438,8 +4443,8 @@ class ValidationJobVM {
                         });
                     }
                 }
-                checkEqual1(`${inputUrl.host} response status`, response1.status, 200);
-                const contentType = response1.headers.get('Content-Type');
+                checkEqual1(`${inputUrl.host} response status`, response.status, 200);
+                const contentType = response.headers.get('Content-Type');
                 let validateFeed = true;
                 if (contentType && contentType.includes('/html')) {
                     if (inputUrl.hostname.endsWith('twitter.com')) {
@@ -4460,7 +4465,7 @@ class ValidationJobVM {
                 }
                 if (contentType && contentType.startsWith('application/activity+json')) {
                     addMessage('info', 'Found ActivityPub json');
-                    const obj = await response1.json();
+                    const obj = await response.json();
                     validateFeed = false;
                     activityPubs.push({
                         url: input,
@@ -4470,7 +4475,7 @@ class ValidationJobVM {
                 }
                 if (validateFeed) {
                     let start = Date.now();
-                    const text = await response1.text();
+                    const text = await response.text();
                     if (job.done) return;
                     job.times.readTime = Date.now() - start;
                     start = Date.now();
@@ -4507,10 +4512,10 @@ class ValidationJobVM {
                                         });
                                     }
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
-                                        const episodeTitle1 = findEpisodeTitle(node);
+                                        const episodeTitle = findEpisodeTitle(node);
                                         twitter = {
                                             url: uri,
-                                            subject: episodeTitle1 ? `“${episodeTitle1}”` : 'episode'
+                                            subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
                                         };
                                     }
                                 }
@@ -4644,8 +4649,8 @@ class ValidationJobVM {
                             activityPubCalls++;
                             return response;
                         };
-                        const start1 = Date.now();
-                        const callbacks1 = {
+                        const start = Date.now();
+                        const callbacks = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
                                     const { message , url  } = event;
@@ -4667,7 +4672,7 @@ class ValidationJobVM {
                             }
                         };
                         const fetcher = makeRateLimitedFetcher(fetchActivityPubOrMastodon, {
-                            callbacks: callbacks1
+                            callbacks
                         });
                         const cache = new InMemoryCache();
                         const userAgent = this.threadcapUserAgent;
@@ -4691,9 +4696,9 @@ class ValidationJobVM {
                             userAgent,
                             fetcher,
                             cache,
-                            callbacks: callbacks1
+                            callbacks
                         });
-                        job.times.commentsTime = Date.now() - start1;
+                        job.times.commentsTime = Date.now() - start;
                         addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(activityPubCalls, 'ActivityPub call')}`);
                         job.commentsResults = [
                             ...results,
@@ -4715,15 +4720,15 @@ class ValidationJobVM {
                         addMessage('info', 'Fetching Twitter comments', {
                             url: twitter.url
                         });
-                        const keepGoing1 = ()=>!job.done;
+                        const keepGoing = ()=>!job.done;
                         let twitterCommentsCalls = 0;
                         const fetchTwitterComments = async (url)=>{
                             const { response  } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
                             twitterCommentsCalls++;
                             return response;
                         };
-                        const start2 = Date.now();
-                        const callbacks2 = {
+                        const start = Date.now();
+                        const callbacks = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
                                     const { message , url  } = event;
@@ -4734,7 +4739,7 @@ class ValidationJobVM {
                                     job.commentsResults = [
                                         ...results,
                                         {
-                                            threadcap: threadcap1,
+                                            threadcap,
                                             subject: twitter.subject
                                         }
                                     ];
@@ -4744,46 +4749,46 @@ class ValidationJobVM {
                                 }
                             }
                         };
-                        const fetcher1 = makeRateLimitedFetcher(fetchTwitterComments, {
-                            callbacks: callbacks2
+                        const fetcher = makeRateLimitedFetcher(fetchTwitterComments, {
+                            callbacks
                         });
-                        const cache1 = new InMemoryCache();
-                        const userAgent1 = this.threadcapUserAgent;
-                        const threadcap1 = await makeThreadcap(twitter.url, {
-                            userAgent: userAgent1,
-                            fetcher: fetcher1,
-                            cache: cache1,
+                        const cache = new InMemoryCache();
+                        const userAgent = this.threadcapUserAgent;
+                        const threadcap = await makeThreadcap(twitter.url, {
+                            userAgent,
+                            fetcher,
+                            cache,
                             protocol: 'twitter'
                         });
                         job.commentsResults = [
                             ...results,
                             {
-                                threadcap: threadcap1,
+                                threadcap,
                                 subject: twitter.subject
                             }
                         ];
                         this.onChange();
-                        const updateTime1 = new Date().toISOString();
-                        await updateThreadcap(threadcap1, {
-                            updateTime: updateTime1,
-                            keepGoing: keepGoing1,
-                            userAgent: userAgent1,
-                            fetcher: fetcher1,
-                            cache: cache1,
-                            callbacks: callbacks2
+                        const updateTime = new Date().toISOString();
+                        await updateThreadcap(threadcap, {
+                            updateTime,
+                            keepGoing,
+                            userAgent,
+                            fetcher,
+                            cache,
+                            callbacks
                         });
-                        job.times.commentsTime = Date.now() - start2;
-                        addMessage('info', `Found ${unitString(Object.values(threadcap1.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap1.commenters).length, 'participant')}, made ${unitString(twitterCommentsCalls, 'Twitter Comments call')}`);
+                        job.times.commentsTime = Date.now() - start;
+                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(twitterCommentsCalls, 'Twitter Comments call')}`);
                         job.commentsResults = [
                             ...results,
                             {
-                                threadcap: threadcap1,
+                                threadcap,
                                 subject: twitter.subject
                             }
                         ];
                         this.onChange();
                         results.push({
-                            threadcap: threadcap1,
+                            threadcap,
                             subject: twitter.subject
                         });
                     }
@@ -4818,9 +4823,9 @@ class ValidationJobVM {
                     }
                 }
             }
-        } catch (e1) {
-            console.error(e1);
-            addMessage('error', e1.message);
+        } catch (e) {
+            console.error(e);
+            addMessage('error', e.message);
         } finally{
             addMessage('info', `${job.search ? 'Search took' : 'Took'} ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job.times)}`);
             if (continueWithUrl) {
@@ -4954,12 +4959,12 @@ async function localOrRemoteFetch(url, opts) {
         }
     }
     console.log(`remote fetch: ${url} ${headers}`);
-    const start1 = Date.now();
-    const response1 = await fetchers.remoteFetcher(url, headers);
+    const start = Date.now();
+    const response = await fetchers.remoteFetcher(url, headers);
     return {
-        fetchTime: Date.now() - start1,
+        fetchTime: Date.now() - start,
         side: 'remote',
-        response: response1
+        response
     };
 }
 function findEpisodeTitle(socialInteract) {
@@ -5694,8 +5699,8 @@ function initForm(document1, vm, staticData, droppedFiles) {
                     userAgent: navigator.userAgent
                 });
             }
-        } catch (e1) {
-            console.log('Error in getDroppedFileText', e1);
+        } catch (e) {
+            console.log('Error in getDroppedFileText', e);
         }
     };
     const { searchParams  } = new URL(document1.URL);
@@ -5744,8 +5749,8 @@ async function getDroppedFileContents(event) {
                 }
             }
         } else {
-            for (const file1 of event.dataTransfer.files){
-                files.push(file1);
+            for (const file of event.dataTransfer.files){
+                files.push(file);
             }
         }
     }
@@ -6003,16 +6008,16 @@ function renderNode1(node, containerElement, level, context, itemNumber, xmlSumm
         childCount++;
     }
     for (const [name, value] of Object.entries(node.child)){
-        let itemNumber1 = 1;
+        let itemNumber = 1;
         let itemsNotShown = 0;
         for (const child of value){
-            if (name === 'item' && itemNumber1 > 20) {
+            if (name === 'item' && itemNumber > 20) {
                 itemsNotShown++;
                 continue;
             }
-            renderNode1(child, details, level + 1, context, value.length > 1 ? itemNumber1 : undefined);
+            renderNode1(child, details, level + 1, context, value.length > 1 ? itemNumber : undefined);
             childCount++;
-            itemNumber1++;
+            itemNumber++;
         }
         if (itemsNotShown > 0) {
             const fakeNode = {

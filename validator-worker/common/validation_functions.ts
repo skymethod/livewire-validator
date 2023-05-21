@@ -160,6 +160,11 @@ export function isItunesDuration(trimmedText: string): boolean {
     return /^(\d+:)?\d+:\d+$/.test(trimmedText) || isNonNegativeInteger(trimmedText);
 }
 
+export function hasApplePodcastsSupportedFileExtension(url: string): boolean {
+    const u = tryParseUrl(url);
+    return u !== undefined && /\.(m4a|mp3|mov|mp4|m4v|pdf)$/i.test(u.pathname);
+}
+
 //
 
 function tryParseUrl(str: string, base?: string | URL | undefined): URL | undefined {
