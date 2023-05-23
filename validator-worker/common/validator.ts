@@ -1,5 +1,5 @@
 import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration, hasApplePodcastsSupportedFileExtension } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration, hasApplePodcastsSupportedFileExtension, isItunesType } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
@@ -153,6 +153,11 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // rss channel ttl (optional)
     ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, { name: 'ttl' })
         .checkValue(isNonNegativeInteger)
+        .checkRemainingAttributes();
+
+    // itunes:type
+    ElementValidation.forSingleChild('channel', channel, callbacks, itunesPodcastersGuide, Qnames.Itunes.type)
+        .checkValue(isItunesType)
         .checkRemainingAttributes();
 
     // podcast:guid
@@ -430,10 +435,12 @@ function findFirstChildElement(node: ExtendedXmlNode, qname: Qname, callbacks: V
     return undefined;
 }
 
+const itunesPodcastersGuide: RuleReference = { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' };
+
 function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, itemTagName: string) {
 
     const itunesOpts1: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://podcasters.apple.com/support/823-podcast-requirements#:~:text=Podcast%20RSS%20feed%20technical%20requirements' } };
-    const itunesOpts2: MessageOptions = { reference: { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' } };
+    const itunesOpts2: MessageOptions = { reference: itunesPodcastersGuide };
 
     // title
     const title = findFirstChildElement(item, { name: 'title' }, callbacks, itunesOpts2);
@@ -449,7 +456,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
         const url = enclosure.atts.get('url');
         if (!url) callbacks.onWarning(enclosure, `Missing ${itemTagName} <enclosure> url attribute`, rssEnclosureOpts);
         if (url && !isUrl(url)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute value: ${url}, expected url`, rssEnclosureOpts);
-        if (url && !hasApplePodcastsSupportedFileExtension(url)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute file extension: ${url}, Apple Podcasts only supports .m4a, .mp3, .mov, .mp4, .m4v, and .pdf.`, itunesOpts2);
+        if (url && !hasApplePodcastsSupportedFileExtension(url) && itemTagName === 'item') callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute file extension: ${url}, Apple Podcasts only supports .m4a, .mp3, .mov, .mp4, .m4v, and .pdf.`, itunesOpts2);
 
         const length = enclosure.atts.get('length');
         if (!length) callbacks.onWarning(enclosure, `Missing ${itemTagName} <enclosure> length attribute`, rssEnclosureOpts);
@@ -476,7 +483,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     }
 
     // itunes:duration
-    ElementValidation.forSingleChild(itemTagName, item, callbacks, { ruleset: 'itunes', href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390' }, Qnames.Itunes.duration)
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, itunesPodcastersGuide, Qnames.Itunes.duration)
         .checkValue(isItunesDuration)
         .checkRemainingAttributes();
 

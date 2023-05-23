@@ -78,6 +78,7 @@ export class Qnames {
         NAMESPACE: ITUNES_NAMESPACE,
         of: (name: string) => _itunes(name),
         duration: _itunes('duration'),
+        type: _itunes('type'),
     }
 
 }

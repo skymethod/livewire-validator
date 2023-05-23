@@ -160,6 +160,13 @@ export function isItunesDuration(trimmedText: string): boolean {
     return /^(\d+:)?\d+:\d+$/.test(trimmedText) || isNonNegativeInteger(trimmedText);
 }
 
+export function isItunesType(trimmedText: string): boolean {
+    // The type of show
+    // If your show is Serial you must use this tag.
+    // episodic (default) or serial
+    return /^(episodic|serial)$/.test(trimmedText);
+}
+
 export function hasApplePodcastsSupportedFileExtension(url: string): boolean {
     const u = tryParseUrl(url);
     return u !== undefined && /\.(m4a|mp3|mov|mp4|m4v|pdf)$/i.test(u.pathname);

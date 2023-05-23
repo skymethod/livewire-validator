@@ -1181,7 +1181,8 @@ class Qnames {
     static Itunes = {
         NAMESPACE: ITUNES_NAMESPACE,
         of: (name)=>_itunes(name),
-        duration: _itunes('duration')
+        duration: _itunes('duration'),
+        type: _itunes('type')
     };
 }
 function checkEqual(name, value, expected) {
@@ -2677,6 +2678,9 @@ function isRssLanguage(trimmedText) {
 function isItunesDuration(trimmedText) {
     return /^(\d+:)?\d+:\d+$/.test(trimmedText) || isNonNegativeInteger(trimmedText);
 }
+function isItunesType(trimmedText) {
+    return /^(episodic|serial)$/.test(trimmedText);
+}
 function hasApplePodcastsSupportedFileExtension(url) {
     const u = tryParseUrl(url);
     return u !== undefined && /\.(m4a|mp3|mov|mp4|m4v|pdf)$/i.test(u.pathname);
@@ -2808,6 +2812,7 @@ function validateChannel(channel, callbacks) {
     ElementValidation.forSingleChild('channel', channel, callbacks, rssChannelOptional, {
         name: 'ttl'
     }).checkValue(isNonNegativeInteger).checkRemainingAttributes();
+    ElementValidation.forSingleChild('channel', channel, callbacks, itunesPodcastersGuide, Qnames.Itunes.type).checkValue(isItunesType).checkRemainingAttributes();
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid'), ...Qnames.PodcastIndex.guid).checkValue(isUuid, (guidText)=>{
         const version = guidText.charAt(14);
         if (version !== '5') {
@@ -2954,6 +2959,10 @@ function findFirstChildElement(node, qname, callbacks, opts = {}) {
     }
     return undefined;
 }
+const itunesPodcastersGuide = {
+    ruleset: 'itunes',
+    href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390'
+};
 function validateItem(item, callbacks, itemTagName) {
     const itunesOpts1 = {
         reference: {
@@ -2962,10 +2971,7 @@ function validateItem(item, callbacks, itemTagName) {
         }
     };
     const itunesOpts2 = {
-        reference: {
-            ruleset: 'itunes',
-            href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390'
-        }
+        reference: itunesPodcastersGuide
     };
     const title = findFirstChildElement(item, {
         name: 'title'
@@ -2986,7 +2992,7 @@ function validateItem(item, callbacks, itemTagName) {
         const url = enclosure.atts.get('url');
         if (!url) callbacks.onWarning(enclosure, `Missing ${itemTagName} <enclosure> url attribute`, rssEnclosureOpts);
         if (url && !isUrl(url)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute value: ${url}, expected url`, rssEnclosureOpts);
-        if (url && !hasApplePodcastsSupportedFileExtension(url)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute file extension: ${url}, Apple Podcasts only supports .m4a, .mp3, .mov, .mp4, .m4v, and .pdf.`, itunesOpts2);
+        if (url && !hasApplePodcastsSupportedFileExtension(url) && itemTagName === 'item') callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> url attribute file extension: ${url}, Apple Podcasts only supports .m4a, .mp3, .mov, .mp4, .m4v, and .pdf.`, itunesOpts2);
         const length = enclosure.atts.get('length');
         if (!length) callbacks.onWarning(enclosure, `Missing ${itemTagName} <enclosure> length attribute`, rssEnclosureOpts);
         if (length && !isNonNegativeInteger(length)) callbacks.onWarning(enclosure, `Bad ${itemTagName} <enclosure> length attribute value: ${length}, expected non-negative integer`, rssEnclosureOpts);
@@ -3014,10 +3020,7 @@ function validateItem(item, callbacks, itemTagName) {
         const isPermaLink = guid.atts.get('isPermaLink') || 'true';
         if (isPermaLink === 'true' && guidText && !isUrl(guidText) && misspellings.length === 0) callbacks.onWarning(guid, `Bad ${itemTagName} <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
     }
-    ElementValidation.forSingleChild(itemTagName, item, callbacks, {
-        ruleset: 'itunes',
-        href: 'https://help.apple.com/itc/podcasts_connect/#/itcb54353390'
-    }, Qnames.Itunes.duration).checkValue(isItunesDuration).checkRemainingAttributes();
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, itunesOpts2.reference, Qnames.Itunes.duration).checkValue(isItunesDuration).checkRemainingAttributes();
     const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);
     for (const transcript of transcripts){
         ElementValidation.forElement(itemTagName, transcript, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript')).checkRequiredAttribute('url', isUrl).checkRequiredAttribute('type', isMimeType).checkOptionalAttribute('language', isNotEmpty).checkOptionalAttribute('rel', isNotEmpty).checkRemainingAttributes();
