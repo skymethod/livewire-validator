@@ -1161,6 +1161,8 @@ class Qnames {
         medium: _podcastIndex('medium'),
         person: _podcastIndex('person'),
         podping: _podcastIndex('podping'),
+        podroll: _podcastIndex('podroll'),
+        remoteItem: _podcastIndex('remoteItem'),
         season: _podcastIndex('season'),
         social: _podcastIndex('social'),
         socialInteract: _podcastIndex('socialInteract'),
@@ -1170,8 +1172,10 @@ class Qnames {
         trailer: _podcastIndex('trailer'),
         transcript: _podcastIndex('transcript'),
         txt: _podcastIndex('txt'),
+        updateFrequency: _podcastIndex('updateFrequency'),
         value: _podcastIndex('value'),
-        valueRecipient: _podcastIndex('valueRecipient')
+        valueRecipient: _podcastIndex('valueRecipient'),
+        valueTimeSplit: _podcastIndex('valueTimeSplit')
     };
     static MediaRss = {
         NAMESPACE: MEDIA_RSS_NAMESPACE,
@@ -2392,7 +2396,7 @@ parser.parse;
 parser.parseToNimn;
 var validate$1 = parser.validate;
 function encodeXml(unencoded) {
-    return unencoded.replaceAll(/[&<>'']/g, (__char)=>{
+    return unencoded.replaceAll(/[&<>'"]/g, (__char)=>{
         return UNENCODED_CHARS_TO_ENTITIES[__char];
     });
 }
@@ -2563,6 +2567,9 @@ function checkTrue(name, value, test) {
 function isStringRecord(obj) {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
+function isString(obj) {
+    return typeof obj === 'string';
+}
 function isReadonlyArray(arg) {
     return Array.isArray(arg);
 }
@@ -2633,6 +2640,9 @@ function isNonNegativeInteger(trimmedText) {
 function isPositiveInteger(trimmedText) {
     return /^\d+$/.test(trimmedText) && parseInt(trimmedText) > 0 && parseInt(trimmedText).toString() === trimmedText;
 }
+function isIntegerBetween(startInclusive, endInclusive) {
+    return (trimmedText)=>/^\d+$/.test(trimmedText) && parseInt(trimmedText) >= startInclusive && parseInt(trimmedText) <= endInclusive && parseInt(trimmedText).toString() === trimmedText;
+}
 function isDecimal(trimmedText) {
     return /^\d+(\.\d+)?$/.test(trimmedText);
 }
@@ -2661,7 +2671,7 @@ function isPodcastValueTypeSlug(trimmedText) {
     return /^[a-z]+$/.test(trimmedText);
 }
 function isPodcastMedium(trimmedText) {
-    return /^[a-z]+$/.test(trimmedText);
+    return /^[a-z]+L?$/.test(trimmedText);
 }
 function isPodcastSocialInteractProtocol(trimmedText) {
     return /^(disabled|activitypub|twitter)$/.test(trimmedText);
@@ -2684,6 +2694,9 @@ function isItunesType(trimmedText) {
 function hasApplePodcastsSupportedFileExtension(url) {
     const u = tryParseUrl(url);
     return u !== undefined && /\.(m4a|mp3|mov|mp4|m4v|pdf)$/i.test(u.pathname);
+}
+function isRfc5545RecurrenceRule(trimmedText) {
+    return isNotEmpty(trimmedText);
 }
 function tryParseUrl(str, base) {
     try {
@@ -2849,6 +2862,20 @@ function validateChannel(channel, callbacks) {
     }
     ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastcomplete---discuss'), ...Qnames.PodcastIndex.complete).checkOptionalAttribute('archive', isUrl).checkValue(isYesNo).checkRemainingAttributes();
     checkPodcastTxt('channel', channel, callbacks);
+    checkPodcastRemoteItem('channel', channel, callbacks);
+    const podrollReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podroll');
+    const podroll = ElementValidation.forSingleChild('channel', channel, callbacks, podrollReference, ...Qnames.PodcastIndex.podroll).checkRemainingAttributes().node;
+    if (podroll) {
+        const level = 'podroll';
+        const remoteItems = checkPodcastRemoteItem(level, podroll, callbacks);
+        if (remoteItems.length === 0) callbacks.onWarning(channel, `Bad <${podroll.tagname}> value: must include at least one child <podcast:remoteItem> element`, {
+            reference: podrollReference
+        });
+    }
+    const updateFrequencyReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#update-frequency');
+    ElementValidation.forSingleChild('channel', channel, callbacks, updateFrequencyReference, ...Qnames.PodcastIndex.updateFrequency).checkValue(isAtMostCharacters(128)).checkOptionalAttribute('complete', isBoolean).checkOptionalAttribute('rrule', isRfc5545RecurrenceRule).checkOptionalAttribute('dtstart', isIso8601).checkRequiredAttribute('dtstart', isIso8601, (node)=>(node.atts.get('rrule') ?? '').includes('COUNT=')).checkRemainingAttributes();
+    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podping');
+    ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping).checkOptionalAttribute('usesPodping', isBoolean).checkRemainingAttributes();
     const socials = findChildElements(channel, ...Qnames.PodcastIndex.social);
     const socialReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#social-element');
     const socialSignUpReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#socialsignup-element');
@@ -2862,13 +2889,6 @@ function validateChannel(channel, callbacks) {
     const badSocialSignups = findChildElements(channel, ...Qnames.PodcastIndex.socialSignUp);
     if (badSocialSignups.length > 0) {
         callbacks.onWarning(badSocialSignups[0], `Bad <${badSocialSignups[0].tagname}>: should be a child of <podcast:social>, not channel`);
-    }
-    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/podping/podping.md#specification');
-    const podping = ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping).checkOptionalAttribute('usesPodping', isBoolean).checkRemainingAttributes().node;
-    if (podping) {
-        for (const hiveAccount of findChildElements(podping, ...Qnames.PodcastIndex.hiveAccount)){
-            ElementValidation.forElement('podping', hiveAccount, callbacks, podpingReference).checkRequiredAttribute('account', isNotEmpty).checkRemainingAttributes();
-        }
     }
     checkPodcastTagUsage(channel, callbacks);
     const items = channel.child.item || [];
@@ -2901,7 +2921,20 @@ function checkPodcastValue(level, node, callbacks) {
     const value = ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value'), ...Qnames.PodcastIndex.value).checkRequiredAttribute('type', isPodcastValueTypeSlug).checkRequiredAttribute('method', isNotEmpty).checkOptionalAttribute('suggested', isDecimal).checkRemainingAttributes().node;
     if (value) {
         for (const valueRecipient of findChildElements(value, ...Qnames.PodcastIndex.valueRecipient)){
-            ElementValidation.forElement('value', valueRecipient, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient')).checkOptionalAttribute('name', isNotEmpty).checkOptionalAttribute('customKey', isNotEmpty).checkOptionalAttribute('customValue', isNotEmpty).checkRequiredAttribute('type', isPodcastValueTypeSlug).checkRequiredAttribute('address', isNotEmpty).checkRequiredAttribute('split', isNonNegativeInteger).checkOptionalAttribute('fee', isBoolean).checkRemainingAttributes();
+            checkPodcastValueRecipient('value', valueRecipient, callbacks);
+        }
+        const valueTimeSplitReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-time-split');
+        for (const valueTimeSplit of findChildElements(value, ...Qnames.PodcastIndex.valueTimeSplit)){
+            ElementValidation.forElement('value', valueTimeSplit, callbacks, valueTimeSplitReference).checkRequiredAttribute('startTime', isDecimal).checkRequiredAttribute('duration', isDecimal).checkOptionalAttribute('remoteStartTime', isDecimal).checkOptionalAttribute('remotePercentage', isIntegerBetween(0, 100)).checkRemainingAttributes();
+            const remoteItems = checkPodcastRemoteItem('valueTimeSplit', valueTimeSplit, callbacks);
+            const valueRecipients = findChildElements(valueTimeSplit, ...Qnames.PodcastIndex.valueRecipient);
+            for (const valueRecipient of valueRecipients){
+                checkPodcastValueRecipient('valueTimeSplit', valueRecipient, callbacks);
+            }
+            const validValue = remoteItems.length === 1 && valueRecipients.length === 0 || remoteItems.length === 0 && valueRecipients.length > 0;
+            if (!validValue) callbacks.onWarning(node, `Bad <${node.tagname}> <podcast:valueTimeSplit> node value: expected a single <podcast:remoteItem> element OR one or more <podcast:valueRecipient> elements.`, {
+                reference: valueTimeSplitReference
+            });
         }
     }
 }
@@ -2914,6 +2947,17 @@ function checkPodcastTxt(level, node, callbacks) {
     for (const txt of txts){
         ElementValidation.forElement(level, txt, callbacks, txtReference).checkOptionalAttribute('purpose', isAtMostCharacters(128)).checkValue(isAtMostCharacters(4000)).checkRemainingAttributes();
     }
+}
+function checkPodcastRemoteItem(level, node, callbacks) {
+    const remoteItems = findChildElements(node, ...Qnames.PodcastIndex.remoteItem);
+    const remoteItemReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#remote-item');
+    for (const remoteItem of remoteItems){
+        ElementValidation.forElement(level, remoteItem, callbacks, remoteItemReference).checkOptionalAttribute('feedGuid', isNotEmpty).checkOptionalAttribute('feedUrl', isUrl).checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl').checkOptionalAttribute('itemGuid', isNotEmpty).checkOptionalAttribute('medium', isPodcastMedium).checkRemainingAttributes();
+    }
+    return remoteItems;
+}
+function checkPodcastValueRecipient(level, node, callbacks) {
+    ElementValidation.forElement(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient')).checkOptionalAttribute('name', isNotEmpty).checkOptionalAttribute('customKey', isNotEmpty).checkOptionalAttribute('customValue', isNotEmpty).checkRequiredAttribute('type', isPodcastValueTypeSlug).checkRequiredAttribute('address', isNotEmpty).checkRequiredAttribute('split', isNonNegativeInteger).checkOptionalAttribute('fee', isBoolean).checkRemainingAttributes();
 }
 function checkPodcastTagUsage(node, callbacks) {
     const known = new Set();
@@ -3020,7 +3064,7 @@ function validateItem(item, callbacks, itemTagName) {
         const isPermaLink = guid.atts.get('isPermaLink') || 'true';
         if (isPermaLink === 'true' && guidText && !isUrl(guidText) && misspellings.length === 0) callbacks.onWarning(guid, `Bad ${itemTagName} <guid> value: ${guidText}, expected url when isPermaLink="true" or unspecified`, rssGuidOpts);
     }
-    ElementValidation.forSingleChild(itemTagName, item, callbacks, itunesOpts2.reference, Qnames.Itunes.duration).checkValue(isItunesDuration).checkRemainingAttributes();
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, itunesPodcastersGuide, Qnames.Itunes.duration).checkValue(isItunesDuration).checkRemainingAttributes();
     const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);
     for (const transcript of transcripts){
         ElementValidation.forElement(itemTagName, transcript, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript')).checkRequiredAttribute('url', isUrl).checkRequiredAttribute('type', isMimeType).checkOptionalAttribute('language', isNotEmpty).checkOptionalAttribute('rel', isNotEmpty).checkRemainingAttributes();
@@ -3135,7 +3179,7 @@ class ElementValidation {
     checkRequiredAttribute(name, test, ifCondition = true) {
         const { node , callbacks , opts , level  } = this;
         if (node) {
-            if (ifCondition) {
+            if (typeof ifCondition === 'boolean' ? ifCondition : ifCondition(node)) {
                 const value = node.atts.get(name);
                 if (!value) callbacks.onWarning(node, `Missing ${level} <${node.tagname}> ${name} attribute`, opts);
                 if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
@@ -3150,6 +3194,14 @@ class ElementValidation {
             const value = node.atts.get(name);
             if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
             this.remainingAttNames.delete(name);
+        }
+        return this;
+    }
+    checkAtLeastOneAttributeRequired(...names) {
+        const { node , callbacks , opts , level  } = this;
+        if (node) {
+            const values = names.map((v)=>node.atts.get(v)).filter(isString);
+            if (values.length === 0) callbacks.onWarning(node, `Bad ${level} <${node.tagname}>: At least one of these attributes must be present: ${names.join(', ')}`, opts);
         }
         return this;
     }

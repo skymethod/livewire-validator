@@ -92,6 +92,13 @@ export function isPositiveInteger(trimmedText: string): boolean {
         && parseInt(trimmedText).toString() === trimmedText;
 }
 
+export function isIntegerBetween(startInclusive: number, endInclusive: number): (trimmedText: string) => boolean {
+    return trimmedText => /^\d+$/.test(trimmedText) 
+        && parseInt(trimmedText) >= startInclusive
+        && parseInt(trimmedText) <= endInclusive
+        && parseInt(trimmedText).toString() === trimmedText;
+}
+
 export function isDecimal(trimmedText: string): boolean {
     return /^\d+(\.\d+)?$/.test(trimmedText);
 }
@@ -132,7 +139,7 @@ export function isPodcastValueTypeSlug(trimmedText: string): boolean {
 
 export function isPodcastMedium(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium
-    return /^[a-z]+$/.test(trimmedText);
+    return /^[a-z]+L?$/.test(trimmedText);
 }
 
 export function isPodcastSocialInteractProtocol(trimmedText: string): boolean {
@@ -170,6 +177,12 @@ export function isItunesType(trimmedText: string): boolean {
 export function hasApplePodcastsSupportedFileExtension(url: string): boolean {
     const u = tryParseUrl(url);
     return u !== undefined && /\.(m4a|mp3|mov|mp4|m4v|pdf)$/i.test(u.pathname);
+}
+
+export function isRfc5545RecurrenceRule(trimmedText: string): boolean {
+    // https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10
+    // TODO maybe someday
+    return isNotEmpty(trimmedText);
 }
 
 //

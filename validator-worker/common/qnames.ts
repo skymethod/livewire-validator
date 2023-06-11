@@ -55,6 +55,8 @@ export class Qnames {
         medium: _podcastIndex('medium'),
         person: _podcastIndex('person'),
         podping: _podcastIndex('podping'),
+        podroll: _podcastIndex('podroll'),
+        remoteItem: _podcastIndex('remoteItem'),
         season: _podcastIndex('season'),
         social: _podcastIndex('social'),
         socialInteract: _podcastIndex('socialInteract'),
@@ -64,8 +66,10 @@ export class Qnames {
         trailer: _podcastIndex('trailer'),
         transcript: _podcastIndex('transcript'),
         txt: _podcastIndex('txt'),
+        updateFrequency: _podcastIndex('updateFrequency'),
         value: _podcastIndex('value'),
         valueRecipient: _podcastIndex('valueRecipient'),
+        valueTimeSplit: _podcastIndex('valueTimeSplit'),
     }
 
     static readonly MediaRss = {

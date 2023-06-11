@@ -17,8 +17,10 @@ export function checkTrue<T>(name: string, value: T, test: boolean) {
     if (!test) throw new Error(`Bad ${name}: ${value}`);
 }
 
-// deno-lint-ignore no-explicit-any
-export function isStringRecord(obj: any): obj is Record<string, unknown> {
+export function isStringRecord(obj: unknown): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
+export function isString(obj: unknown): obj is string {
+    return typeof obj === 'string';
+}

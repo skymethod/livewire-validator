@@ -1,5 +1,5 @@
-import { checkTrue } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration, hasApplePodcastsSupportedFileExtension, isItunesType } from './validation_functions.ts';
+import { checkTrue, isString } from './check.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration, hasApplePodcastsSupportedFileExtension, isItunesType, isIso8601, isRfc5545RecurrenceRule, isIntegerBetween } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
@@ -260,6 +260,36 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     // podcast:txt
     checkPodcastTxt('channel', channel, callbacks);
 
+    // podcast:remoteItem
+    checkPodcastRemoteItem('channel', channel, callbacks);
+
+    // podcast:podroll
+    const podrollReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podroll');
+    const podroll = ElementValidation.forSingleChild('channel', channel, callbacks, podrollReference, ...Qnames.PodcastIndex.podroll)
+        .checkRemainingAttributes().node;
+    if (podroll) {
+        const level = 'podroll';
+        const remoteItems = checkPodcastRemoteItem(level, podroll, callbacks);
+        if (remoteItems.length === 0) callbacks.onWarning(channel, `Bad <${podroll.tagname}> value: must include at least one child <podcast:remoteItem> element`, { reference: podrollReference });
+    }
+
+    // podcast:updateFrequency
+    const updateFrequencyReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#update-frequency');
+    ElementValidation.forSingleChild('channel', channel, callbacks, updateFrequencyReference, ...Qnames.PodcastIndex.updateFrequency)
+        .checkValue(isAtMostCharacters(128))
+        .checkOptionalAttribute('complete', isBoolean)
+        .checkOptionalAttribute('rrule', isRfc5545RecurrenceRule)
+        .checkOptionalAttribute('dtstart', isIso8601)
+        .checkRequiredAttribute('dtstart', isIso8601, node => (node.atts.get('rrule') ?? '').includes('COUNT=')) // "If the rrule contains a value for COUNT, then this attribute is required."
+        .checkRemainingAttributes();
+
+
+    // podcast:podping
+    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podping');
+    ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping)
+        .checkOptionalAttribute('usesPodping', isBoolean)
+        .checkRemainingAttributes();
+
     // PROPOSALS
 
     // podcast:social
@@ -287,20 +317,6 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     const badSocialSignups = findChildElements(channel, ...Qnames.PodcastIndex.socialSignUp);
     if (badSocialSignups.length > 0) {
         callbacks.onWarning(badSocialSignups[0], `Bad <${badSocialSignups[0].tagname}>: should be a child of <podcast:social>, not channel`);
-    }
-
-    // podcast:podping
-    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/podping/podping.md#specification');
-    const podping = ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping)
-        .checkOptionalAttribute('usesPodping', isBoolean)
-        .checkRemainingAttributes()
-        .node;
-    if (podping) {
-        for (const hiveAccount of findChildElements(podping, ...Qnames.PodcastIndex.hiveAccount)) {
-            ElementValidation.forElement('podping', hiveAccount, callbacks, podpingReference)
-                .checkRequiredAttribute('account', isNotEmpty)
-                .checkRemainingAttributes();
-        }
     }
 
     checkPodcastTagUsage(channel, callbacks);
@@ -360,15 +376,25 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
 
     if (value) {
         for (const valueRecipient of findChildElements(value, ...Qnames.PodcastIndex.valueRecipient)) {
-            ElementValidation.forElement('value', valueRecipient, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient'))
-                .checkOptionalAttribute('name', isNotEmpty)
-                .checkOptionalAttribute('customKey', isNotEmpty)
-                .checkOptionalAttribute('customValue', isNotEmpty)
-                .checkRequiredAttribute('type', isPodcastValueTypeSlug)
-                .checkRequiredAttribute('address', isNotEmpty)
-                .checkRequiredAttribute('split', isNonNegativeInteger)
-                .checkOptionalAttribute('fee', isBoolean)
+            checkPodcastValueRecipient('value', valueRecipient, callbacks);
+        }
+
+        const valueTimeSplitReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-time-split');
+        for (const valueTimeSplit of findChildElements(value, ...Qnames.PodcastIndex.valueTimeSplit)) {
+            ElementValidation.forElement('value', valueTimeSplit, callbacks, valueTimeSplitReference)
+                .checkRequiredAttribute('startTime', isDecimal)
+                .checkRequiredAttribute('duration', isDecimal)
+                .checkOptionalAttribute('remoteStartTime', isDecimal)
+                .checkOptionalAttribute('remotePercentage', isIntegerBetween(0, 100))
                 .checkRemainingAttributes();
+
+            const remoteItems = checkPodcastRemoteItem('valueTimeSplit', valueTimeSplit, callbacks);
+            const valueRecipients = findChildElements(valueTimeSplit, ...Qnames.PodcastIndex.valueRecipient);
+            for (const valueRecipient of valueRecipients) {
+                checkPodcastValueRecipient('valueTimeSplit', valueRecipient, callbacks);
+            }
+            const validValue = remoteItems.length === 1 && valueRecipients.length === 0 || remoteItems.length === 0 && valueRecipients.length > 0;
+            if (!validValue) callbacks.onWarning(node, `Bad <${node.tagname}> <podcast:valueTimeSplit> node value: expected a single <podcast:remoteItem> element OR one or more <podcast:valueRecipient> elements.`, { reference: valueTimeSplitReference });
         }
     }
 }
@@ -388,6 +414,33 @@ function checkPodcastTxt(level: Level, node: ExtendedXmlNode, callbacks: Validat
             .checkValue(isAtMostCharacters(4000))
             .checkRemainingAttributes();
     }
+}
+
+function checkPodcastRemoteItem(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks): readonly ExtendedXmlNode[] {
+    const remoteItems = findChildElements(node, ...Qnames.PodcastIndex.remoteItem);
+    const remoteItemReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#remote-item');
+    for (const remoteItem of remoteItems) {
+        ElementValidation.forElement(level, remoteItem, callbacks, remoteItemReference)
+            .checkOptionalAttribute('feedGuid', isNotEmpty)
+            .checkOptionalAttribute('feedUrl', isUrl)
+            .checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl')
+            .checkOptionalAttribute('itemGuid', isNotEmpty)
+            .checkOptionalAttribute('medium', isPodcastMedium)
+            .checkRemainingAttributes();
+    }
+    return remoteItems;
+}
+
+function checkPodcastValueRecipient(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    ElementValidation.forElement(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient'))
+        .checkOptionalAttribute('name', isNotEmpty)
+        .checkOptionalAttribute('customKey', isNotEmpty)
+        .checkOptionalAttribute('customValue', isNotEmpty)
+        .checkRequiredAttribute('type', isPodcastValueTypeSlug)
+        .checkRequiredAttribute('address', isNotEmpty)
+        .checkRequiredAttribute('split', isNonNegativeInteger)
+        .checkOptionalAttribute('fee', isBoolean)
+        .checkRemainingAttributes();
 }
 
 function checkPodcastTagUsage(node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
@@ -674,10 +727,10 @@ class ElementValidation {
         return this;
     }
 
-    checkRequiredAttribute(name: string, test: (value: string) => boolean, ifCondition = true): ElementValidation {
+    checkRequiredAttribute(name: string, test: (value: string) => boolean, ifCondition: (boolean | ((node: ExtendedXmlNode) => boolean)) = true): ElementValidation {
         const { node, callbacks, opts, level } = this;
         if (node) {
-            if (ifCondition) {
+            if (typeof ifCondition === 'boolean' ? ifCondition : ifCondition(node)) {
                 const value = node.atts.get(name);
                 if (!value) callbacks.onWarning(node, `Missing ${level} <${node.tagname}> ${name} attribute`, opts);
                 if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
@@ -693,6 +746,15 @@ class ElementValidation {
             const value = node.atts.get(name);
             if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
             this.remainingAttNames.delete(name);
+        }
+        return this;
+    }
+
+    checkAtLeastOneAttributeRequired(...names: string[]): ElementValidation {
+        const { node, callbacks, opts, level } = this;
+        if (node) {
+            const values = names.map(v => node.atts.get(v)).filter(isString);
+            if (values.length === 0) callbacks.onWarning(node, `Bad ${level} <${node.tagname}>: At least one of these attributes must be present: ${names.join(', ')}`, opts);
         }
         return this;
     }
