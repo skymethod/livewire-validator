@@ -3227,6 +3227,9 @@ function setIntersect(lhs, rhs) {
     }
     return rt;
 }
+function isNonEmpty(value) {
+    return value.trim().length > 0;
+}
 function isStringRecord1(obj) {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
@@ -3842,6 +3845,9 @@ function computeLanguageTaggedValues(obj, stringProp, mapProp) {
     if (mapVal !== undefined) return mapVal;
     if (stringVal !== undefined) return {
         und: stringVal
+    };
+    if (obj.type === 'Video' && typeof obj.name === 'string' && isNonEmpty(obj.name)) return {
+        und: obj.name
     };
 }
 function computeAttachments(object) {

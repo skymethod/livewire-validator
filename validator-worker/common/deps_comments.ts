@@ -1,2 +1,2 @@
-export { makeRateLimitedFetcher, makeThreadcap, updateThreadcap, InMemoryCache } from 'https://raw.githubusercontent.com/skymethod/minipub/5e8a8387c907d195c67e4c493eaed98644492323/src/threadcap/threadcap.ts';
-export type { Comment, Threadcap, Cache, Instant, Callbacks, Fetcher, Commenter } from 'https://raw.githubusercontent.com/skymethod/minipub/5e8a8387c907d195c67e4c493eaed98644492323/src/threadcap/threadcap.ts';
+export { makeRateLimitedFetcher, makeThreadcap, updateThreadcap, InMemoryCache } from 'https://raw.githubusercontent.com/skymethod/minipub/736b9494e946c669752866d6c7bd91e33b07e3d0/src/threadcap/threadcap.ts';
+export type { Comment, Threadcap, Cache, Instant, Callbacks, Fetcher, Commenter } from 'https://raw.githubusercontent.com/skymethod/minipub/736b9494e946c669752866d6c7bd91e33b07e3d0/src/threadcap/threadcap.ts';
