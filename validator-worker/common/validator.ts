@@ -271,6 +271,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
         const level = 'podroll';
         const remoteItems = checkPodcastRemoteItem(level, podroll, callbacks);
         if (remoteItems.length === 0) callbacks.onWarning(channel, `Bad <${podroll.tagname}> value: must include at least one child <podcast:remoteItem> element`, { reference: podrollReference });
+        checkPodcastTagUsage(podroll, callbacks);
     }
 
     // podcast:updateFrequency
@@ -395,7 +396,9 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
             }
             const validValue = remoteItems.length === 1 && valueRecipients.length === 0 || remoteItems.length === 0 && valueRecipients.length > 0;
             if (!validValue) callbacks.onWarning(node, `Bad <${node.tagname}> <podcast:valueTimeSplit> node value: expected a single <podcast:remoteItem> element OR one or more <podcast:valueRecipient> elements.`, { reference: valueTimeSplitReference });
+            checkPodcastTagUsage(valueTimeSplit, callbacks);
         }
+        checkPodcastTagUsage(value, callbacks);
     }
 }
 

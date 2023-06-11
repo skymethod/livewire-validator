@@ -2871,6 +2871,7 @@ function validateChannel(channel, callbacks) {
         if (remoteItems.length === 0) callbacks.onWarning(channel, `Bad <${podroll.tagname}> value: must include at least one child <podcast:remoteItem> element`, {
             reference: podrollReference
         });
+        checkPodcastTagUsage(podroll, callbacks);
     }
     const updateFrequencyReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#update-frequency');
     ElementValidation.forSingleChild('channel', channel, callbacks, updateFrequencyReference, ...Qnames.PodcastIndex.updateFrequency).checkValue(isAtMostCharacters(128)).checkOptionalAttribute('complete', isBoolean).checkOptionalAttribute('rrule', isRfc5545RecurrenceRule).checkOptionalAttribute('dtstart', isIso8601).checkRequiredAttribute('dtstart', isIso8601, (node)=>(node.atts.get('rrule') ?? '').includes('COUNT=')).checkRemainingAttributes();
@@ -2935,7 +2936,9 @@ function checkPodcastValue(level, node, callbacks) {
             if (!validValue) callbacks.onWarning(node, `Bad <${node.tagname}> <podcast:valueTimeSplit> node value: expected a single <podcast:remoteItem> element OR one or more <podcast:valueRecipient> elements.`, {
                 reference: valueTimeSplitReference
             });
+            checkPodcastTagUsage(valueTimeSplit, callbacks);
         }
+        checkPodcastTagUsage(value, callbacks);
     }
 }
 function checkPodcastImages(level, node, callbacks) {
