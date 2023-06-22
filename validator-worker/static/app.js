@@ -2919,26 +2919,28 @@ function checkPodcastLicense(level, node, callbacks) {
     ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#license'), ...Qnames.PodcastIndex.license).checkOptionalAttribute('url', isUrl).checkValue(isNotEmpty).checkValue(isAtMostCharacters(128)).checkRemainingAttributes();
 }
 function checkPodcastValue(level, node, callbacks) {
-    const value = ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value'), ...Qnames.PodcastIndex.value).checkRequiredAttribute('type', isPodcastValueTypeSlug).checkRequiredAttribute('method', isNotEmpty).checkOptionalAttribute('suggested', isDecimal).checkRemainingAttributes().node;
-    if (value) {
-        for (const valueRecipient of findChildElements(value, ...Qnames.PodcastIndex.valueRecipient)){
-            checkPodcastValueRecipient('value', valueRecipient, callbacks);
-        }
-        const valueTimeSplitReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-time-split');
-        for (const valueTimeSplit of findChildElements(value, ...Qnames.PodcastIndex.valueTimeSplit)){
-            ElementValidation.forElement('value', valueTimeSplit, callbacks, valueTimeSplitReference).checkRequiredAttribute('startTime', isDecimal).checkRequiredAttribute('duration', isDecimal).checkOptionalAttribute('remoteStartTime', isDecimal).checkOptionalAttribute('remotePercentage', isIntegerBetween(0, 100)).checkRemainingAttributes();
-            const remoteItems = checkPodcastRemoteItem('valueTimeSplit', valueTimeSplit, callbacks);
-            const valueRecipients = findChildElements(valueTimeSplit, ...Qnames.PodcastIndex.valueRecipient);
-            for (const valueRecipient of valueRecipients){
-                checkPodcastValueRecipient('valueTimeSplit', valueRecipient, callbacks);
+    for (const valueElement of findChildElements(node, ...Qnames.PodcastIndex.value)){
+        const value = ElementValidation.forElement(level, valueElement, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value')).checkRequiredAttribute('type', isPodcastValueTypeSlug).checkRequiredAttribute('method', isNotEmpty).checkOptionalAttribute('suggested', isDecimal).checkRemainingAttributes().node;
+        if (value) {
+            for (const valueRecipient of findChildElements(value, ...Qnames.PodcastIndex.valueRecipient)){
+                checkPodcastValueRecipient('value', valueRecipient, callbacks);
             }
-            const validValue = remoteItems.length === 1 && valueRecipients.length === 0 || remoteItems.length === 0 && valueRecipients.length > 0;
-            if (!validValue) callbacks.onWarning(node, `Bad <${node.tagname}> <podcast:valueTimeSplit> node value: expected a single <podcast:remoteItem> element OR one or more <podcast:valueRecipient> elements.`, {
-                reference: valueTimeSplitReference
-            });
-            checkPodcastTagUsage(valueTimeSplit, callbacks);
+            const valueTimeSplitReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-time-split');
+            for (const valueTimeSplit of findChildElements(value, ...Qnames.PodcastIndex.valueTimeSplit)){
+                ElementValidation.forElement('value', valueTimeSplit, callbacks, valueTimeSplitReference).checkRequiredAttribute('startTime', isDecimal).checkRequiredAttribute('duration', isDecimal).checkOptionalAttribute('remoteStartTime', isDecimal).checkOptionalAttribute('remotePercentage', isIntegerBetween(0, 100)).checkRemainingAttributes();
+                const remoteItems = checkPodcastRemoteItem('valueTimeSplit', valueTimeSplit, callbacks);
+                const valueRecipients = findChildElements(valueTimeSplit, ...Qnames.PodcastIndex.valueRecipient);
+                for (const valueRecipient of valueRecipients){
+                    checkPodcastValueRecipient('valueTimeSplit', valueRecipient, callbacks);
+                }
+                const validValue = remoteItems.length === 1 && valueRecipients.length === 0 || remoteItems.length === 0 && valueRecipients.length > 0;
+                if (!validValue) callbacks.onWarning(valueElement, `Bad <${valueElement.tagname}> <podcast:valueTimeSplit> node value: expected a single <podcast:remoteItem> element OR one or more <podcast:valueRecipient> elements.`, {
+                    reference: valueTimeSplitReference
+                });
+                checkPodcastTagUsage(valueTimeSplit, callbacks);
+            }
+            checkPodcastTagUsage(value, callbacks);
         }
-        checkPodcastTagUsage(value, callbacks);
     }
 }
 function checkPodcastImages(level, node, callbacks) {
@@ -4640,7 +4642,7 @@ class ValidationJobVM {
                         const piReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md');
                         const tagString = (set)=>[
                                 ...set
-                            ].map((v)=>`<podcast:${v}>`).join(', ');
+                            ].toSorted().map((v)=>`<podcast:${v}>`).join(', ');
                         if (knownPiTags.size > 0) {
                             addMessage('good', `Found ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, {
                                 reference: piReference
