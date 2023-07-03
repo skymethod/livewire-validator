@@ -4642,7 +4642,7 @@ class ValidationJobVM {
                         const piReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md');
                         const tagString = (set)=>[
                                 ...set
-                            ].toSorted().map((v)=>`<podcast:${v}>`).join(', ');
+                            ].sort().map((v)=>`<podcast:${v}>`).join(', ');
                         if (knownPiTags.size > 0) {
                             addMessage('good', `Found ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, {
                                 reference: piReference

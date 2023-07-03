@@ -273,7 +273,7 @@ export class ValidationJobVM {
                             xmlSummaryText = `${itemsWithEnclosuresCount > 1 ? 'Podcast feed' : 'Feed'} structure`;
                         }
                         const piReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md');
-                        const tagString = (set: ReadonlySet<string>) => [...set].toSorted().map(v => `<podcast:${v}>`).join(', ');
+                        const tagString = (set: ReadonlySet<string>) => [...set].sort().map(v => `<podcast:${v}>`).join(', ');
                         if (knownPiTags.size > 0) {
                             addMessage('good', `Found ${unitString(knownPiTags.size, 'podcast namespace tag')}: ${tagString(knownPiTags)}`, { reference: piReference });
                         }
