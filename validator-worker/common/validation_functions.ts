@@ -72,7 +72,7 @@ export function isSeconds(trimmedText: string): boolean {
 }
 
 export function isGeoLatLon(trimmedText: string): boolean {
-    return /^geo:-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/.test(trimmedText);
+    return /^geo:-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?(;(u=\d+|crs=\w+))?$/.test(trimmedText);
 }
 
 export function isOpenStreetMapIdentifier(trimmedText: string): boolean {
