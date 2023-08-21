@@ -37,7 +37,7 @@ class Template {
         let lastPartIndex = 0;
         let index = -1;
         let partIndex = 0;
-        const { strings , values: { length  }  } = result;
+        const { strings, values: { length } } = result;
         while(partIndex < length){
             const node = walker.nextNode();
             if (node === null) {
@@ -48,7 +48,7 @@ class Template {
             if (node.nodeType === 1) {
                 if (node.hasAttributes()) {
                     const attributes = node.attributes;
-                    const { length: length2  } = attributes;
+                    const { length: length2 } = attributes;
                     let count = 0;
                     for(let i = 0; i < length2; i++){
                         if (endsWith(attributes[i].name, boundAttributeSuffix)) {
@@ -2431,7 +2431,7 @@ function validateXml(xml) {
     return rt === true ? rt : rt.err;
 }
 function parseXml(xml, opts = {}) {
-    const { additionalEntities  } = opts;
+    const { additionalEntities } = opts;
     const tagValueProcessor = (tagName)=>decodeXml(tagName, additionalEntities);
     const rt = getTraversalObj$1(xml, {
         ignoreAttributes: false,
@@ -2655,7 +2655,7 @@ function isIso8601AllowTimezone(trimmedText) {
     });
 }
 function isIso8601(trimmedText, opts = {}) {
-    const { allowTimezone  } = opts;
+    const { allowTimezone } = opts;
     const m = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-](\d{2}|\d{4}|\d{2}:\d{2}))$/.exec(trimmedText);
     if (!m) return false;
     const tz = m[2];
@@ -3169,7 +3169,7 @@ class ElementValidation {
         });
     }
     checkValue(test, additionalTest) {
-        const { node , callbacks , opts  } = this;
+        const { node, callbacks, opts } = this;
         if (node) {
             const trimmedText = checkText(node, test, callbacks, opts);
             if (trimmedText && additionalTest) {
@@ -3182,7 +3182,7 @@ class ElementValidation {
         return this;
     }
     checkRequiredAttribute(name, test, ifCondition = true) {
-        const { node , callbacks , opts , level  } = this;
+        const { node, callbacks, opts, level } = this;
         if (node) {
             if (typeof ifCondition === 'boolean' ? ifCondition : ifCondition(node)) {
                 const value = node.atts.get(name);
@@ -3194,7 +3194,7 @@ class ElementValidation {
         return this;
     }
     checkOptionalAttribute(name, test) {
-        const { node , callbacks , opts , level  } = this;
+        const { node, callbacks, opts, level } = this;
         if (node) {
             const value = node.atts.get(name);
             if (value && !test(value)) callbacks.onWarning(node, `Bad ${level} <${node.tagname}> ${name} attribute value: ${value}`, opts);
@@ -3203,7 +3203,7 @@ class ElementValidation {
         return this;
     }
     checkAtLeastOneAttributeRequired(...names) {
-        const { node , callbacks , opts , level  } = this;
+        const { node, callbacks, opts, level } = this;
         if (node) {
             const values = names.map((v)=>node.atts.get(v)).filter(isString);
             if (values.length === 0) callbacks.onWarning(node, `Bad ${level} <${node.tagname}>: At least one of these attributes must be present: ${names.join(', ')}`, opts);
@@ -3211,7 +3211,7 @@ class ElementValidation {
         return this;
     }
     checkRemainingAttributes() {
-        const { remainingAttNames , callbacks , node , opts , level  } = this;
+        const { remainingAttNames, callbacks, node, opts, level } = this;
         if (node) {
             if (remainingAttNames.size > 0) {
                 callbacks.onWarning(node, `Bad ${level} <${node.tagname}> attribute name${remainingAttNames.size > 1 ? 's' : ''}: ${[
@@ -3535,7 +3535,7 @@ var Day;
 })(Day || (Day = {}));
 async function findOrFetchJson(url, after, fetcher, cache, opts) {
     const response = await findOrFetchTextResponse(url, after, fetcher, cache, opts);
-    const { status , headers , bodyText  } = response;
+    const { status, headers, bodyText } = response;
     if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
     const contentType = headers['content-type'] || '<none>';
     const foundJson = contentType.toLowerCase().includes('json') || contentType === '<none>' && bodyText.startsWith('{"');
@@ -3545,7 +3545,7 @@ async function findOrFetchJson(url, after, fetcher, cache, opts) {
 async function findOrFetchTextResponse(url, after, fetcher, cache, opts) {
     const existing = await cache.get(url, after);
     if (existing) return existing;
-    const { accept , authorization  } = opts;
+    const { accept, authorization } = opts;
     const headers = {
         accept
     };
@@ -3578,10 +3578,10 @@ const ActivityPubProtocolImplementation = {
     fetchReplies: fetchActivityPubReplies
 };
 async function mastodonFindReplies(id, opts) {
-    const { after , fetcher , cache , debug  } = opts;
+    const { after, fetcher, cache, debug } = opts;
     const statusId = await mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, debug);
     if (!statusId) return [];
-    const { origin  } = new URL(id);
+    const { origin } = new URL(id);
     const url = new URL(origin);
     url.pathname = `/api/v1/statuses/${statusId}/context`;
     const obj = await findOrFetchJson(url.toString(), after, fetcher, cache, {
@@ -3604,9 +3604,9 @@ async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
     });
 }
 async function initActivityPubThreadcap(url, opts) {
-    const { fetcher , cache  } = opts;
+    const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
-    const { id , type  } = object;
+    const { id, type } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
     if (!/^(Note|Article|Video|PodcastEpisode|Question)$/.test(type)) throw new Error(`Unexpected type: ${type}`);
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
@@ -3620,17 +3620,17 @@ async function initActivityPubThreadcap(url, opts) {
     };
 }
 async function fetchActivityPubComment(id, opts) {
-    const { fetcher , cache , updateTime , callbacks  } = opts;
+    const { fetcher, cache, updateTime, callbacks } = opts;
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     return computeComment(object, id, callbacks);
 }
 async function fetchActivityPubCommenter(attributedTo, opts) {
-    const { fetcher , cache , updateTime  } = opts;
+    const { fetcher, cache, updateTime } = opts;
     const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
     return computeCommenter(object, updateTime);
 }
 async function fetchActivityPubReplies(id, opts) {
-    const { fetcher , cache , updateTime , callbacks , debug  } = opts;
+    const { fetcher, cache, updateTime, callbacks, debug } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies ?? object.comments;
@@ -3749,7 +3749,7 @@ function collectRepliesFromItems(items, outReplies, nodeId, url, callbacks) {
             outReplies.push(item);
         } else {
             const itemObj = typeof item === 'string' ? JSON.parse(item) : item;
-            const { id  } = itemObj;
+            const { id } = itemObj;
             if (typeof id !== 'string') throw new Error(`Expected item 'id' to be a string, found ${JSON.stringify(itemObj)}`);
             outReplies.push(id);
             if (typeof item === 'string') {
@@ -3770,7 +3770,7 @@ function computeComment(object, id, callbacks) {
     const summary = computeSummary(object);
     const attachments = computeAttachments(object);
     const url = computeUrl(object.url) || id;
-    const { published  } = object;
+    const { published } = object;
     const attributedTo = computeAttributedTo(object.attributedTo);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
     const questionOptions = computeQuestionOptions(object);
@@ -3868,7 +3868,7 @@ function computeAttachments(object) {
 }
 function computeAttachment(object) {
     if (typeof object !== 'object' || object.type !== 'Document' && object.type !== 'Image') throw new Error(`Expected attachment 'type' of Document or Image, found ${JSON.stringify(object.type)}`);
-    const { mediaType , width , height , url  } = object;
+    const { mediaType, width, height, url } = object;
     if (typeof mediaType !== 'string') throw new Error(`Expected attachment 'mediaType' to be a string, found ${JSON.stringify(mediaType)}`);
     if (width !== undefined && typeof width !== 'number') throw new Error(`Expected attachment 'width' to be a number, found ${JSON.stringify(width)}`);
     if (height !== undefined && typeof height !== 'number') throw new Error(`Expected attachment 'height' to be a number, found ${JSON.stringify(height)}`);
@@ -3886,7 +3886,7 @@ function computeCommenter(person, asof) {
         if (typeof person.icon !== 'object' || isReadonlyArray1(person.icon) || person.icon.type !== 'Image') throw new Error(`Expected person 'icon' to be an object, found: ${JSON.stringify(person.icon)}`);
         icon = computeIcon(person.icon);
     }
-    const { name , preferredUsername , url: apUrl , id  } = person;
+    const { name, preferredUsername, url: apUrl, id } = person;
     if (name !== undefined && typeof name !== 'string') throw new Error(`Expected person 'name' to be a string, found: ${JSON.stringify(person)}`);
     if (preferredUsername !== undefined && typeof preferredUsername !== 'string') throw new Error(`Expected person 'preferredUsername' to be a string, found: ${JSON.stringify(person)}`);
     const nameOrPreferredUsername = name || preferredUsername;
@@ -3904,7 +3904,7 @@ function computeCommenter(person, asof) {
     };
 }
 function computeIcon(image) {
-    const { url , mediaType  } = image;
+    const { url, mediaType } = image;
     if (typeof url !== 'string') throw new Error(`Expected icon 'url' to be a string, found: ${JSON.stringify(url)}`);
     if (mediaType !== undefined && typeof mediaType !== 'string') throw new Error(`Expected icon 'mediaType' to be a string, found: ${JSON.stringify(mediaType)}`);
     return {
@@ -3920,7 +3920,7 @@ function computeFqUsername(url, preferredUsername) {
     return `${username}@${u.hostname}`;
 }
 async function mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, debug) {
-    const { origin  } = new URL(id);
+    const { origin } = new URL(id);
     const url = new URL(origin);
     url.pathname = '/api/v2/search';
     url.searchParams.set('q', id);
@@ -3939,8 +3939,8 @@ async function mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, d
 }
 const TwitterProtocolImplementation = {
     async initThreadcap (url, opts) {
-        const { debug  } = opts;
-        const { hostname , pathname  } = new URL(url);
+        const { debug } = opts;
+        const { hostname, pathname } = new URL(url);
         const m = /^\/.*?\/status\/(\d+)$/.exec(pathname);
         if (!/^(mobile\.)?twitter\.com$/.test(hostname) || !m) throw new Error(`Unexpected tweet url: ${url}`);
         const [_, id] = m;
@@ -3957,7 +3957,7 @@ const TwitterProtocolImplementation = {
         };
     },
     async fetchComment (id, opts) {
-        const { updateTime , debug , state  } = opts;
+        const { updateTime, debug, state } = opts;
         if (typeof state.conversationId === 'string') {
             const conversation = await findOrFetchConversation(state.conversationId, opts);
             const tweetId = id.split('/').pop();
@@ -3972,7 +3972,7 @@ const TwitterProtocolImplementation = {
         return computeCommentFromTweetObj(obj.data);
     },
     async fetchCommenter (attributedTo, opts) {
-        const { updateTime , debug , state  } = opts;
+        const { updateTime, debug, state } = opts;
         if (typeof state.conversationId === 'string') {
             const conversation = await findOrFetchConversation(state.conversationId, opts);
             const userId = attributedTo.split('/').pop();
@@ -4031,7 +4031,7 @@ function computeCommentFromTweetObj(obj) {
     };
 }
 async function findOrFetchTwitter(url, after, opts) {
-    const { fetcher , cache , bearerToken  } = opts;
+    const { fetcher, cache, bearerToken } = opts;
     const obj = await findOrFetchJson(url, after, fetcher, cache, {
         accept: 'application/json',
         authorization: `Bearer ${bearerToken}`
@@ -4039,8 +4039,8 @@ async function findOrFetchTwitter(url, after, opts) {
     return obj;
 }
 async function findOrFetchConversation(tweetId, opts) {
-    const { updateTime , state , debug  } = opts;
-    let { conversation  } = state;
+    const { updateTime, state, debug } = opts;
+    let { conversation } = state;
     if (!conversation) {
         const conversationId = await findOrFetchConversationId(tweetId, opts);
         state.conversationId = conversationId;
@@ -4088,8 +4088,8 @@ async function findOrFetchConversation(tweetId, opts) {
     return conversation;
 }
 async function findOrFetchConversationId(tweetId, opts) {
-    const { updateTime , state , debug  } = opts;
-    let { conversationId  } = state;
+    const { updateTime, state, debug } = opts;
+    let { conversationId } = state;
     if (typeof conversationId === 'string') return conversationId;
     const url = new URL(`https://api.twitter.com/2/tweets/${tweetId}`);
     url.searchParams.set('tweet.fields', 'conversation_id');
@@ -4101,7 +4101,7 @@ async function findOrFetchConversationId(tweetId, opts) {
     return conversationId;
 }
 async function makeThreadcap(url, opts) {
-    const { cache , userAgent , protocol , bearerToken , debug  } = opts;
+    const { cache, userAgent, protocol, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
     return await implementation.initThreadcap(url, {
@@ -4112,7 +4112,7 @@ async function makeThreadcap(url, opts) {
     });
 }
 async function updateThreadcap(threadcap, opts) {
-    const { userAgent , cache , updateTime , callbacks , maxLevels , maxNodes: maxNodesInput , startNode , keepGoing , bearerToken , debug  } = opts;
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? 1000 : Math.round(maxLevels), 0), 1000);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
@@ -4175,7 +4175,7 @@ class InMemoryCache {
     map = new Map();
     onReturningCachedResponse;
     get(id, after) {
-        const { response , fetched  } = this.map.get(id) || {};
+        const { response, fetched } = this.map.get(id) || {};
         if (response && fetched && fetched > after) {
             if (this.onReturningCachedResponse) this.onReturningCachedResponse(id, after, fetched, response);
             return Promise.resolve(response);
@@ -4191,21 +4191,21 @@ class InMemoryCache {
     }
 }
 function computeDefaultMillisToWait(input) {
-    const { remaining , millisTillReset  } = input;
+    const { remaining, millisTillReset } = input;
     if (remaining >= 100) return 0;
     return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
 }
 function makeRateLimitedFetcher(fetcher, opts = {}) {
-    const { callbacks  } = opts;
+    const { callbacks } = opts;
     const computeMillisToWait = opts.computeMillisToWait || computeDefaultMillisToWait;
     const endpointLimits = new Map();
     return async (url, opts)=>{
-        const { hostname , pathname  } = new URL(url);
+        const { hostname, pathname } = new URL(url);
         const twitterEndpoint = computeTwitterEndpoint(hostname, pathname);
         const endpoint = twitterEndpoint || hostname;
         const limits = endpointLimits.get(endpoint);
         if (limits) {
-            const { limit , remaining , reset  } = limits;
+            const { limit, remaining, reset } = limits;
             const millisTillReset = new Date(reset).getTime() - Date.now();
             const millisToWait = computeMillisToWait({
                 endpoint,
@@ -4269,7 +4269,7 @@ function computeProtocolImplementation(protocol) {
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 async function processNode(id, processReplies, threadcap, implementation, opts) {
-    const { updateTime , callbacks  } = opts;
+    const { updateTime, callbacks } = opts;
     let node = threadcap.nodes[id];
     if (!node) {
         node = {};
@@ -4279,7 +4279,7 @@ async function processNode(id, processReplies, threadcap, implementation, opts) 
     if (updateComment) {
         try {
             node.comment = await implementation.fetchComment(id, opts);
-            const { attributedTo  } = node.comment;
+            const { attributedTo } = node.comment;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
                 threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, opts);
@@ -4366,7 +4366,7 @@ class ValidationJobVM {
         return this.currentJob?.commentsResults;
     }
     constructor(opts){
-        const { localFetcher , remoteFetcher , piSearchFetcher , threadcapUserAgent  } = opts;
+        const { localFetcher, remoteFetcher, piSearchFetcher, threadcapUserAgent } = opts;
         this.fetchers = {
             localFetcher,
             remoteFetcher
@@ -4376,7 +4376,7 @@ class ValidationJobVM {
     }
     onChange = ()=>{};
     continueWith(url) {
-        const { currentJob  } = this;
+        const { currentJob } = this;
         if (currentJob) {
             currentJob.done = false;
             currentJob.search = false;
@@ -4421,8 +4421,8 @@ class ValidationJobVM {
         }
     }
     async fetch(url, opts) {
-        const { headers  } = opts;
-        const { fetchers  } = this;
+        const { headers } = opts;
+        const { fetchers } = this;
         return await localOrRemoteFetch(url, {
             fetchers,
             headers
@@ -4430,9 +4430,9 @@ class ValidationJobVM {
     }
     async validateAsync(input, job) {
         input = normalizeInput(input);
-        const { messages  } = job;
+        const { messages } = job;
         const setStatus = (text, opts = {})=>{
-            const { url , type  } = opts;
+            const { url, type } = opts;
             messages[0] = {
                 type: type || messages[0].type,
                 text,
@@ -4441,7 +4441,7 @@ class ValidationJobVM {
             this.onChange();
         };
         const addMessage = (type, text, opts = {})=>{
-            const { url , tag , comment , reference  } = opts;
+            const { url, tag, comment, reference } = opts;
             messages.push({
                 type,
                 text,
@@ -4461,7 +4461,7 @@ class ValidationJobVM {
         };
         let continueWithUrl;
         const jobStart = Date.now();
-        const { fetchers , piSearchFetcher  } = this;
+        const { fetchers, piSearchFetcher } = this;
         try {
             input = input.trim();
             if (input === '') throw new Error(`No input`);
@@ -4470,7 +4470,7 @@ class ValidationJobVM {
                     ...headers
                 };
                 delete tcoHeaders['User-Agent'];
-                const { response  } = await localOrRemoteFetch(input, {
+                const { response } = await localOrRemoteFetch(input, {
                     fetchers,
                     headers: tcoHeaders,
                     useSide: 'remote'
@@ -4494,7 +4494,7 @@ class ValidationJobVM {
                 if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
                     delete headers['User-Agent'];
                 }
-                const { response , side , fetchTime  } = await localOrRemoteFetch(inputUrl.toString(), {
+                const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), {
                     fetchers,
                     headers
                 });
@@ -4549,7 +4549,7 @@ class ValidationJobVM {
                     try {
                         const result = validateXml(text);
                         if (result !== true) {
-                            const { code , col , line , msg  } = result;
+                            const { code, col, line, msg } = result;
                             throw new Error(`${code} (at line ${line}, col ${col}): ${msg}`);
                         }
                         xml = parseXml(text);
@@ -4628,7 +4628,7 @@ class ValidationJobVM {
                         validateFeedXml(xml, callbacks);
                         job.times.validateTime = Date.now() - start;
                         if (rssItemInfo) {
-                            const { itemsCount , itemsWithEnclosuresCount  } = rssItemInfo;
+                            const { itemsCount, itemsWithEnclosuresCount } = rssItemInfo;
                             const itemsWithoutEnclosuresCount = itemsCount - itemsWithEnclosuresCount;
                             const pieces = [
                                 `Found ${unitString(itemsWithEnclosuresCount, 'episode')}`
@@ -4689,14 +4689,14 @@ class ValidationJobVM {
                         };
                         let activityPubCalls = 0;
                         const fetchActivityPubOrMastodon = async (url, opts)=>{
-                            const { headers  } = opts || {};
+                            const { headers } = opts || {};
                             const localOrRemoteFetchFunction = headers && headers.accept === 'application/json' ? localOrRemoteFetchJson : localOrRemoteFetchActivityPub;
-                            let { response , side  } = await localOrRemoteFetchFunction(url, fetchers, computeUseSide(url), 0);
+                            let { response, side } = await localOrRemoteFetchFunction(url, fetchers, computeUseSide(url), 0);
                             let obj = await response.clone().json();
                             console.log(JSON.stringify(obj, undefined, 2));
                             if (url.includes('/api/v1/statuses') && typeof obj.uri === 'string') {
                                 url = obj.uri;
-                                const { response: response2 , side: side2  } = await localOrRemoteFetchFunction(url, fetchers, computeUseSide(url), 0);
+                                const { response: response2, side: side2 } = await localOrRemoteFetchFunction(url, fetchers, computeUseSide(url), 0);
                                 response = response2.clone();
                                 obj = await response2.json();
                                 side = side2;
@@ -4719,7 +4719,7 @@ class ValidationJobVM {
                         const callbacks = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
-                                    const { message , url  } = event;
+                                    const { message, url } = event;
                                     addMessage('warning', message, {
                                         url
                                     });
@@ -4789,7 +4789,7 @@ class ValidationJobVM {
                         const keepGoing = ()=>!job.done;
                         let twitterCommentsCalls = 0;
                         const fetchTwitterComments = async (url)=>{
-                            const { response  } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
+                            const { response } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
                             twitterCommentsCalls++;
                             return response;
                         };
@@ -4797,7 +4797,7 @@ class ValidationJobVM {
                         const callbacks = {
                             onEvent: (event)=>{
                                 if (event.kind === 'warning') {
-                                    const { message , url  } = event;
+                                    const { message, url } = event;
                                     addMessage('warning', message, {
                                         url
                                     });
@@ -4964,7 +4964,7 @@ function sleep1(ms) {
 }
 async function localOrRemoteFetchActivityPub(url, fetchers, useSide, sleepMillisBetweenCalls) {
     if (sleepMillisBetweenCalls > 0) await sleep1(sleepMillisBetweenCalls);
-    const { response , side  } = await localOrRemoteFetch(url, {
+    const { response, side } = await localOrRemoteFetch(url, {
         fetchers,
         headers: {
             'Accept': 'application/activity+json'
@@ -4986,7 +4986,7 @@ async function localOrRemoteFetchActivityPub(url, fetchers, useSide, sleepMillis
 }
 async function localOrRemoteFetchJson(url, fetchers, useSide, sleepMillisBetweenCalls) {
     if (sleepMillisBetweenCalls > 0) await sleep1(sleepMillisBetweenCalls);
-    const { response , side  } = await localOrRemoteFetch(url, {
+    const { response, side } = await localOrRemoteFetch(url, {
         fetchers,
         headers: {
             'Accept': 'application/json'
@@ -5007,7 +5007,7 @@ async function localOrRemoteFetchJson(url, fetchers, useSide, sleepMillisBetween
     };
 }
 async function localOrRemoteFetch(url, opts) {
-    const { fetchers , headers , useSide  } = opts;
+    const { fetchers, headers, useSide } = opts;
     if (useSide !== 'remote') {
         try {
             console.log(`local fetch: ${url}`);
@@ -5050,7 +5050,7 @@ function isOauthObtainTokenResponse(obj) {
     return isStringRecord(obj) && typeof obj.access_token === 'string' && typeof obj.token_type === 'string' && typeof obj.scope === 'string' && typeof obj.created_at === 'number';
 }
 const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
-async function verifyJsonResponse(res, bodyVerifier, { allow202  } = {}) {
+async function verifyJsonResponse(res, bodyVerifier, { allow202 } = {}) {
     if (!(res.status === 200 || allow202 && res.status === 202)) throw new Error(`Unexpected http response status: ${res.status}, expected 200${allow202 ? ' or 202' : ''}, body=${await res.text()}`);
     const contentType = res.headers.get('content-type');
     if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected response content-type: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
@@ -5059,7 +5059,7 @@ async function verifyJsonResponse(res, bodyVerifier, { allow202  } = {}) {
     return body;
 }
 async function statusesPublish(apiBase, accessToken, opts) {
-    const { idempotencyKey , status , in_reply_to_id , visibility , media_ids  } = opts;
+    const { idempotencyKey, status, in_reply_to_id, visibility, media_ids } = opts;
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${accessToken}`);
     if (idempotencyKey) headers.set('Idempotency-Key', idempotencyKey);
@@ -5137,19 +5137,19 @@ class ValidatorAppVM {
     async sendReply(reply, replyToUrl) {
         reply = reply.trim();
         if (reply === '') throw new Error('Bad reply: <empty>');
-        const { origin  } = new URL(replyToUrl);
+        const { origin } = new URL(replyToUrl);
         const info = loadLoginInfo(origin);
         if (!info) throw new Error(`No login for ${origin}`);
         if (computeExpired(info.tokenResponse)) throw new Error(`Login expired for ${origin}`);
         console.log(`replyToUrl`, replyToUrl);
         const mastodonId = await computeMastodonIdForUrl(replyToUrl, async (url, headers)=>{
-            const { response  } = await this.job.fetch(url, {
+            const { response } = await this.job.fetch(url, {
                 headers
             });
             return response;
         });
         console.log(`mastodonId`, mastodonId);
-        const { url  } = await statusesPublish(origin, info.tokenResponse.access_token, {
+        const { url } = await statusesPublish(origin, info.tokenResponse.access_token, {
             status: reply,
             in_reply_to_id: mastodonId
         });
@@ -5168,14 +5168,14 @@ function loadLoginInfo(origin) {
     return isLoginInfo(obj) ? obj : undefined;
 }
 function saveLoginInfo(info) {
-    const { origin  } = info;
+    const { origin } = info;
     localStorage.setItem(computeLoginInfoLocalStorageKey(origin), JSON.stringify(info));
 }
 function deleteLoginInfo(origin) {
     localStorage.removeItem(computeLoginInfoLocalStorageKey(origin));
 }
 async function computeMastodonIdForUrl(replyToUrl, fetcher) {
-    const { pathname  } = new URL(replyToUrl);
+    const { pathname } = new URL(replyToUrl);
     const m = /^\/.*?\/(\d+)$/.exec(pathname);
     if (m) return m[1];
     if (/^.*?\/objects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(new URL(replyToUrl).pathname)) {
@@ -5451,7 +5451,7 @@ function renderComments(results, commentsOutput, vm) {
 function renderNode(nodeId, threadcap, containerElement, level, vm) {
     const node = threadcap.nodes[nodeId];
     if (!node) return;
-    const { comment , commentError , repliesError  } = node;
+    const { comment, commentError, repliesError } = node;
     const commentDiv = document.createElement('div');
     commentDiv.classList.add('comment');
     if (level > 0) commentDiv.style.marginLeft = `${level * 4}em`;
@@ -5608,7 +5608,7 @@ function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm) {
                 const w = window.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
                 if (w) {
                     globalThis.onmessage = (e)=>{
-                        const { data  } = e;
+                        const { data } = e;
                         console.log('onmessage', data);
                         if (typeof data.origin === 'string' && isOauthObtainTokenResponse(data.tokenResponse)) {
                             vm.acceptLogin(data.origin, data.tokenResponse);
@@ -5755,7 +5755,7 @@ function initForm(document1, vm, staticData, droppedFiles) {
     document1.ondrop = async (e)=>{
         e.preventDefault();
         try {
-            const { name , text  } = await getDroppedFileContents(e);
+            const { name, text } = await getDroppedFileContents(e);
             if (!vm.validating) {
                 const fileUrl = `file://(dropped)/${name}`;
                 droppedFiles.set(new URL(fileUrl).toString(), text);
@@ -5769,7 +5769,7 @@ function initForm(document1, vm, staticData, droppedFiles) {
             console.log('Error in getDroppedFileText', e);
         }
     };
-    const { searchParams  } = new URL(document1.URL);
+    const { searchParams } = new URL(document1.URL);
     const validate = searchParams.get('validate') || undefined;
     const input = searchParams.get('input') || undefined;
     const nocomments = searchParams.has('nocomments');
@@ -5923,7 +5923,7 @@ function icon(type) {
 function filterDuplicates() {
     const tagUrls = new Set();
     return (message)=>{
-        const { tag , url  } = message;
+        const { tag, url } = message;
         if (tag && url) {
             const tagUrl = `${tag}|${url}`;
             if (tagUrls.has(tagUrl)) return false;
@@ -6038,7 +6038,7 @@ function renderXml(xml, xmlOutput, xmlSummaryText) {
     if (xml) renderNode1(xml, xmlOutput, 0, new Set(), undefined, xmlSummaryText);
 }
 function renderNode1(node, containerElement, level, context, itemNumber, xmlSummaryText) {
-    const { atts  } = node;
+    const { atts } = node;
     const details = document.createElement('details');
     const text = node.val || '';
     details.open = !context.has('found-item') || text.length > 0;
