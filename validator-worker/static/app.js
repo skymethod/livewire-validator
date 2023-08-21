@@ -2629,7 +2629,7 @@ function isSeconds(trimmedText) {
     return /^\d+(\.\d+)?$/.test(trimmedText);
 }
 function isGeoLatLon(trimmedText) {
-    return /^geo:-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/.test(trimmedText);
+    return /^geo:-?\d+(\.\d+)?,-?\d+(\.\d+)?(,?\d+(\.\d+)?)?(;crs=[a-zA-Z0-9-]+)?(;u=\d+(\.\d+)?)?(;[a-zA-Z0-9-]+(=([\[\]:&+$_.!~*'()a-zA-Z0-9-]|%[0-9a-fA-F]{2})+)?)*$/.test(trimmedText);
 }
 function isOpenStreetMapIdentifier(trimmedText) {
     return /^[NWR]\d+(#\d+)?$/.test(trimmedText);

@@ -1,5 +1,5 @@
 import { assert } from 'https://deno.land/std@0.199.0/testing/asserts.ts';
-import { isIso8601, isPodcastImagesSrcSet, isRfc2822 } from './validation_functions.ts';
+import { isGeoLatLon, isIso8601, isPodcastImagesSrcSet, isRfc2822 } from './validation_functions.ts';
 
 Deno.test('isPodcastImagesSrcSet', () => {
     const good = [
@@ -94,6 +94,35 @@ Deno.test('isIso8601', () => {
 
     for (const date of badTz) {
         assert(!isIso8601(date, { allowTimezone: true }), `expected bad: ${date}`);
+    }
+
+});
+
+Deno.test('isGeoLatLon', () => {
+    const good = [
+        'geo:37.786971,-122.399677',
+        'geo:37.786971,-122.399677,250',
+        'geo:37.786971,-122.399677;u=350',
+        'geo:40.416944,-3.703333;u=1000000',
+        'geo:48.198634,16.371648;crs=wgs84;u=40',
+        'geo:90,-22.43;crs=WGS84',
+        'geo:66,30;u=6.500;FOo=this%2dthat',
+        'geo:66.0,30;u=6.5;foo=this-that',
+        'geo:70,20;foo=1.00;bar=white',
+    ];
+
+    const bad = [
+        '', 'a', 'paris',
+        '41.936398872846596,-84.96875275111405',
+        'geo:70,20;foo=1.00; bar=white',
+    ];
+
+    for (const date of good) {
+        assert(isGeoLatLon(date), `expected good: ${date}`);
+    }
+
+    for (const date of bad) {
+        assert(!isGeoLatLon(date), `expected bad: ${date}`);
     }
 
 });

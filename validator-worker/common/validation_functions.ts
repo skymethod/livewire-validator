@@ -72,7 +72,8 @@ export function isSeconds(trimmedText: string): boolean {
 }
 
 export function isGeoLatLon(trimmedText: string): boolean {
-    return /^geo:-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/.test(trimmedText);
+    // https://datatracker.ietf.org/doc/html/rfc5870#section-3.3
+    return /^geo:-?\d+(\.\d+)?,-?\d+(\.\d+)?(,?\d+(\.\d+)?)?(;crs=[a-zA-Z0-9-]+)?(;u=\d+(\.\d+)?)?(;[a-zA-Z0-9-]+(=([\[\]:&+$_.!~*'()a-zA-Z0-9-]|%[0-9a-fA-F]{2})+)?)*$/.test(trimmedText);
 }
 
 export function isOpenStreetMapIdentifier(trimmedText: string): boolean {
