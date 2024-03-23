@@ -3362,177 +3362,7 @@ function base64Decode(str, urlSafe) {
 function cryptoSubtle() {
     return crypto.subtle;
 }
-function createLiteralTestFunction(value) {
-    return (string)=>{
-        return string.startsWith(value) ? {
-            value,
-            length: value.length
-        } : undefined;
-    };
-}
-function createMatchTestFunction(match) {
-    return (string)=>{
-        const result = match.exec(string);
-        if (result) return {
-            value: result,
-            length: result[0].length
-        };
-    };
-}
-[
-    {
-        test: createLiteralTestFunction("yyyy"),
-        fn: ()=>({
-                type: "year",
-                value: "numeric"
-            })
-    },
-    {
-        test: createLiteralTestFunction("yy"),
-        fn: ()=>({
-                type: "year",
-                value: "2-digit"
-            })
-    },
-    {
-        test: createLiteralTestFunction("MM"),
-        fn: ()=>({
-                type: "month",
-                value: "2-digit"
-            })
-    },
-    {
-        test: createLiteralTestFunction("M"),
-        fn: ()=>({
-                type: "month",
-                value: "numeric"
-            })
-    },
-    {
-        test: createLiteralTestFunction("dd"),
-        fn: ()=>({
-                type: "day",
-                value: "2-digit"
-            })
-    },
-    {
-        test: createLiteralTestFunction("d"),
-        fn: ()=>({
-                type: "day",
-                value: "numeric"
-            })
-    },
-    {
-        test: createLiteralTestFunction("HH"),
-        fn: ()=>({
-                type: "hour",
-                value: "2-digit"
-            })
-    },
-    {
-        test: createLiteralTestFunction("H"),
-        fn: ()=>({
-                type: "hour",
-                value: "numeric"
-            })
-    },
-    {
-        test: createLiteralTestFunction("hh"),
-        fn: ()=>({
-                type: "hour",
-                value: "2-digit",
-                hour12: true
-            })
-    },
-    {
-        test: createLiteralTestFunction("h"),
-        fn: ()=>({
-                type: "hour",
-                value: "numeric",
-                hour12: true
-            })
-    },
-    {
-        test: createLiteralTestFunction("mm"),
-        fn: ()=>({
-                type: "minute",
-                value: "2-digit"
-            })
-    },
-    {
-        test: createLiteralTestFunction("m"),
-        fn: ()=>({
-                type: "minute",
-                value: "numeric"
-            })
-    },
-    {
-        test: createLiteralTestFunction("ss"),
-        fn: ()=>({
-                type: "second",
-                value: "2-digit"
-            })
-    },
-    {
-        test: createLiteralTestFunction("s"),
-        fn: ()=>({
-                type: "second",
-                value: "numeric"
-            })
-    },
-    {
-        test: createLiteralTestFunction("SSS"),
-        fn: ()=>({
-                type: "fractionalSecond",
-                value: 3
-            })
-    },
-    {
-        test: createLiteralTestFunction("SS"),
-        fn: ()=>({
-                type: "fractionalSecond",
-                value: 2
-            })
-    },
-    {
-        test: createLiteralTestFunction("S"),
-        fn: ()=>({
-                type: "fractionalSecond",
-                value: 1
-            })
-    },
-    {
-        test: createLiteralTestFunction("a"),
-        fn: (value)=>({
-                type: "dayPeriod",
-                value: value
-            })
-    },
-    {
-        test: createMatchTestFunction(/^(')(?<value>\\.|[^\']*)\1/),
-        fn: (match)=>({
-                type: "literal",
-                value: match.groups.value
-            })
-    },
-    {
-        test: createMatchTestFunction(/^.+?\s*/),
-        fn: (match)=>({
-                type: "literal",
-                value: match[0]
-            })
-    }
-];
-var Day;
-(function(Day) {
-    Day[Day["Sun"] = 0] = "Sun";
-    Day[Day["Mon"] = 1] = "Mon";
-    Day[Day["Tue"] = 2] = "Tue";
-    Day[Day["Wed"] = 3] = "Wed";
-    Day[Day["Thu"] = 4] = "Thu";
-    Day[Day["Fri"] = 5] = "Fri";
-    Day[Day["Sat"] = 6] = "Sat";
-})(Day || (Day = {}));
+new TextEncoder();
 async function findOrFetchJson(url, after, fetcher, cache, opts) {
     const response = await findOrFetchTextResponse(url, after, fetcher, cache, opts);
     const { status, headers, bodyText } = response;
@@ -3541,6 +3371,18 @@ async function findOrFetchJson(url, after, fetcher, cache, opts) {
     const foundJson = contentType.toLowerCase().includes('json') || contentType === '<none>' && bodyText.startsWith('{"');
     if (!foundJson) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
     return JSON.parse(bodyText);
+}
+function destructureThreadcapUrl(url) {
+    const m = /^(at:\/\/)([^/]+)(\/.*?)$/.exec(url);
+    const tmpUrl = m ? `${m[1]}${m[2].replaceAll(':', '%3A')}${m[3]}` : undefined;
+    const { protocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl ?? url);
+    const hostname = tmpUrl ? tmpHostname.replaceAll('%3A', ':') : tmpHostname;
+    return {
+        protocol,
+        hostname,
+        pathname,
+        searchParams
+    };
 }
 async function findOrFetchTextResponse(url, after, fetcher, cache, opts) {
     const existing = await cache.get(url, after);
@@ -3937,6 +3779,251 @@ async function mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, d
     }
     return undefined;
 }
+const BlueskyProtocolImplementation = {
+    async initThreadcap (url, opts) {
+        const { uri, nodes, commenters } = await getThread(url, opts, 1000);
+        return {
+            protocol: 'bluesky',
+            roots: [
+                uri
+            ],
+            nodes,
+            commenters
+        };
+    },
+    async fetchComment (id, opts) {
+        const { uri, nodes } = await getThread(id, opts, 0);
+        const node = nodes[uri];
+        if (!node) throw new Error(`fetchComment: no node!`);
+        if (!node.comment) throw new Error(`fetchComment: no node comment!`);
+        return node.comment;
+    },
+    async fetchCommenter (attributedTo, opts) {
+        const { updateTime, fetcher, cache, bearerToken } = opts;
+        const res = await getProfile(attributedTo, {
+            updateTime,
+            fetcher,
+            cache,
+            bearerToken
+        });
+        return computeCommenter1(res, updateTime);
+    },
+    async fetchReplies (id, opts) {
+        const { uri, nodes } = await getThread(id, opts, 1);
+        const node = nodes[uri];
+        if (!node) throw new Error(`fetchReplies: no node!`);
+        if (!node.replies) throw new Error(`fetchReplies: no node replies!`);
+        return node.replies;
+    }
+};
+function makeUrl(url, queryParams) {
+    const u = new URL(url);
+    Object.entries(queryParams).forEach(([n, v])=>u.searchParams.set(n, v.toString()));
+    return u.toString();
+}
+function isGetPostThreadResponse(obj) {
+    return isStringRecord1(obj) && isThreadViewPost(obj.thread);
+}
+function isThreadViewPost(obj) {
+    return isStringRecord1(obj) && obj['$type'] === 'app.bsky.feed.defs#threadViewPost' && isStringRecord1(obj.post) && typeof obj.post.uri === 'string' && isStringRecord1(obj.post.author) && typeof obj.post.author.did === 'string' && typeof obj.post.author.handle === 'string' && (obj.post.author.displayName === undefined || typeof obj.post.author.displayName === 'string') && (obj.post.author.avatar === undefined || typeof obj.post.author.avatar === 'string') && Array.isArray(obj.post.author.labels) && isStringRecord1(obj.post.record) && obj.post.record['$type'] === 'app.bsky.feed.post' && typeof obj.post.record.text === 'string' && (obj.post.replyCount === undefined || typeof obj.post.replyCount === 'number') && (obj.replies === undefined || Array.isArray(obj.replies) && obj.replies.every(isThreadViewPost));
+}
+function isGetProfileResponse(obj) {
+    return isStringRecord1(obj) && typeof obj.did === 'string' && typeof obj.handle === 'string' && typeof obj.displayName === 'string' && (obj.avatar === undefined || typeof obj.avatar === 'string');
+}
+async function fetchAppviewJson(url, { updateTime, fetcher, cache, bearerToken }) {
+    return await findOrFetchJson(url, updateTime, fetcher, cache, {
+        accept: 'application/json',
+        authorization: bearerToken ? `Bearer ${bearerToken}` : undefined
+    });
+}
+async function getProfile(handleOrDid, { updateTime, fetcher, cache, bearerToken }) {
+    const res = await fetchAppviewJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile', {
+        actor: handleOrDid
+    }), {
+        updateTime,
+        fetcher,
+        cache,
+        bearerToken
+    });
+    if (!isGetProfileResponse(res)) throw new Error(JSON.stringify(res, undefined, 2));
+    return res;
+}
+async function getThread(url, opts, depth) {
+    const { debug, fetcher, updateTime = new Date().toISOString(), cache, bearerToken } = opts;
+    const { protocol, pathname } = destructureThreadcapUrl(url);
+    const resolveDid = async (handleOrDid)=>{
+        if (handleOrDid.startsWith('did:')) return handleOrDid;
+        const res = await getProfile(handleOrDid, {
+            updateTime,
+            fetcher,
+            cache,
+            bearerToken
+        });
+        return res.did;
+    };
+    const atUri = await (async ()=>{
+        if (protocol === 'at:') return url;
+        if (protocol === 'https:') {
+            const [_, handleOrDid, postId] = /^\/profile\/([^/]+)\/post\/([^/]+)$/.exec(pathname) ?? [];
+            if (handleOrDid && postId) return `at://${await resolveDid(handleOrDid)}/app.bsky.feed.post/${postId}`;
+        }
+        throw new Error(`Unexpected bluesky url: ${url}`);
+    })();
+    const res = await fetchAppviewJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread', {
+        uri: atUri,
+        depth,
+        parentHeight: 0
+    }), {
+        updateTime,
+        fetcher,
+        cache,
+        bearerToken
+    });
+    if (!isGetPostThreadResponse(res)) throw new Error(`Expected GetPostThreadResponse: ${JSON.stringify(res, undefined, 2)}`);
+    if (debug) console.log(JSON.stringify(res, undefined, 2));
+    const nodes = {};
+    const commenters = {};
+    const processThread = (thread)=>{
+        const { uri, author, replyCount } = thread.post;
+        let replies;
+        let repliesAsof;
+        if (replyCount === undefined) {
+            if (thread.replies !== undefined) throw new Error(`Expected no thread.replies for undefined replyCount`);
+        } else {
+            const diff = replyCount - (thread.replies?.length ?? 0);
+            if (diff < 0 || diff > 1) throw new Error(`Expected thread.replies.length ${thread.replies?.length} for replyCount ${replyCount}`);
+            if (thread.replies !== undefined) {
+                replies = [];
+                for (const reply of thread.replies){
+                    const replyUri = processThread(reply);
+                    replies.push(replyUri);
+                }
+                repliesAsof = updateTime;
+            }
+        }
+        nodes[uri] = {
+            replies,
+            repliesAsof,
+            comment: {
+                attachments: [],
+                content: {
+                    und: thread.post.record.text
+                },
+                attributedTo: author.did
+            },
+            commentAsof: updateTime
+        };
+        commenters[author.did] = computeCommenter1(author, updateTime);
+        return uri;
+    };
+    const uri = processThread(res.thread);
+    return {
+        uri,
+        nodes,
+        commenters
+    };
+}
+function computeCommenter1(author, updateTime) {
+    return {
+        asof: updateTime,
+        name: author.displayName ?? author.handle,
+        fqUsername: author.handle,
+        icon: author.avatar ? {
+            url: author.avatar
+        } : undefined
+    };
+}
+const NostrProtocolImplementation = {
+    async initThreadcap (url, opts) {
+        const { debug } = opts;
+        const { protocol, hostname, searchParams } = destructureThreadcapUrl(url);
+        const m = /^30311:([0-9a-f]{64}):(.*?)$/.exec(searchParams.get('space') ?? '');
+        if (protocol !== 'nostr:' || !m) throw new Error(`Threadcap nostr urls should be in this form: nostr://<relay-server>?space=30311:<64-hexchars>:<identifer>`);
+        const [_, _hexchars, identifier] = m;
+        const subscriptionId = crypto.randomUUID();
+        let resolvePromise;
+        let rejectPromise;
+        const p = new Promise((resolve, reject)=>{
+            resolvePromise = resolve;
+            rejectPromise = reject;
+        });
+        const ws = new WebSocket(`wss://${hostname}`);
+        const send = (arr)=>{
+            const json = JSON.stringify(arr);
+            if (debug) console.log(`send: ${json}`);
+            ws.send(json);
+        };
+        ws.onmessage = ({ data })=>{
+            if (debug) console.log(`onmessage: ${JSON.stringify(data)}`);
+            let parsed;
+            try {
+                if (typeof data !== 'string') throw new Error(`Unexpected data type: ${typeof data} ${data}`);
+                parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) throw new Error(`Unexpected payload`);
+                const [first, ...rest] = parsed;
+                if (first === 'EOSE') {
+                    const [sub] = rest;
+                    if (typeof sub !== 'string') throw new Error(`Bad sub: ${sub}`);
+                    if (sub === subscriptionId) {
+                        send([
+                            'CLOSE',
+                            subscriptionId
+                        ]);
+                    } else {
+                        throw new Error(`Unexpected sub: ${sub}`);
+                    }
+                }
+            } catch (e) {
+                rejectPromise(`onmessage: ${e.message}${parsed ? ` (${JSON.stringify(parsed)})` : ''}`);
+            }
+        };
+        ws.onclose = ()=>{
+            if (debug) console.log('onclose');
+            resolvePromise(undefined);
+        };
+        ws.onopen = ()=>{
+            if (debug) console.log('onopen');
+            send([
+                'REQ',
+                subscriptionId,
+                {
+                    kinds: [
+                        1311,
+                        30311
+                    ],
+                    '#d': [
+                        identifier
+                    ]
+                }
+            ]);
+        };
+        await p;
+        throw new Error(`initThreadcap(${JSON.stringify({
+            url
+        })}) not implemented`);
+    },
+    async fetchComment (id, opts) {
+        await Promise.resolve();
+        throw new Error(`fetchComment(${JSON.stringify({
+            id,
+            opts
+        })}) not implemented`);
+    },
+    async fetchCommenter (attributedTo, opts) {
+        await Promise.resolve();
+        throw new Error(`fetchCommenter(${JSON.stringify({
+            attributedTo,
+            opts
+        })}) not implemented`);
+    },
+    async fetchReplies (id, opts) {
+        await Promise.resolve();
+        throw new Error(`fetchReplies(${JSON.stringify({
+            id,
+            opts
+        })}) not implemented`);
+    }
+};
 const TwitterProtocolImplementation = {
     async initThreadcap (url, opts) {
         const { debug } = opts;
@@ -4101,12 +4188,13 @@ async function findOrFetchConversationId(tweetId, opts) {
     return conversationId;
 }
 async function makeThreadcap(url, opts) {
-    const { cache, userAgent, protocol, bearerToken, debug } = opts;
+    const { cache, updateTime, userAgent, protocol, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
     return await implementation.initThreadcap(url, {
         fetcher,
         cache,
+        updateTime,
         bearerToken,
         debug
     });
@@ -4266,6 +4354,8 @@ function makeFetcherWithUserAgent(fetcher, userAgent) {
 function computeProtocolImplementation(protocol) {
     if (protocol === undefined || protocol === 'activitypub') return ActivityPubProtocolImplementation;
     if (protocol === 'twitter') return TwitterProtocolImplementation;
+    if (protocol === 'nostr') return NostrProtocolImplementation;
+    if (protocol === 'bluesky') return BlueskyProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 async function processNode(id, processReplies, threadcap, implementation, opts) {
@@ -4276,9 +4366,13 @@ async function processNode(id, processReplies, threadcap, implementation, opts) 
         threadcap.nodes[id] = node;
     }
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
-    if (updateComment) {
+    const existingCommenter = node.comment ? threadcap.commenters[node.comment.attributedTo] : undefined;
+    const updateCommenter = !existingCommenter || existingCommenter.asof < updateTime;
+    if (updateComment || updateCommenter) {
         try {
-            node.comment = await implementation.fetchComment(id, opts);
+            if (updateComment) {
+                node.comment = await implementation.fetchComment(id, opts);
+            }
             const { attributedTo } = node.comment;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
@@ -4523,8 +4617,15 @@ class ValidationJobVM {
                     } else {
                         addMessage('info', 'Found html, will try again as ActivityPub');
                         validateFeed = false;
+                        let url = input;
+                        if (inputUrl.hostname.endsWith('threads.net')) {
+                            const html = await response.text();
+                            const apUrl = /<link rel="alternate" href="(https:\/\/(www\.)?threads\.net\/ap\/[^"]+)" type="application\/activity\+json" \/>/.exec(html)?.at(1);
+                            addMessage('info', `apUrl: ${apUrl}`);
+                            url = apUrl ?? url;
+                        }
                         activityPubs.push({
-                            url: input,
+                            url,
                             subject: 'input url'
                         });
                     }

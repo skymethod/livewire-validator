@@ -169,7 +169,14 @@ export class ValidationJobVM {
                     } else {
                         addMessage('info', 'Found html, will try again as ActivityPub');
                         validateFeed = false;
-                        activityPubs.push({ url: input, subject: 'input url' });
+                        let url = input;
+                        if (inputUrl.hostname.endsWith('threads.net')) {
+                            const html = await response.text();
+                            const apUrl = /<link rel="alternate" href="(https:\/\/(www\.)?threads\.net\/ap\/[^"]+)" type="application\/activity\+json" \/>/.exec(html)?.at(1);
+                            addMessage('info', `apUrl: ${apUrl}`);
+                            url = apUrl ?? url;
+                        }
+                        activityPubs.push({ url, subject: 'input url' });
                     }
                 }
                 if (contentType && contentType.startsWith('application/activity+json')) {
