@@ -107,6 +107,7 @@ export class ValidationJobVM {
         // deno-lint-ignore no-explicit-any
         const activityPubs: { url: string, subject: string, obj?: any }[] = [];
         let twitter: { url: string, subject: string } | undefined;
+        let bluesky: { url: string, subject: string } | undefined;
         const headers: Record<string, string> = { 'Accept-Encoding': 'gzip', 'User-Agent': job.options.userAgent, 'Cache-Control': 'no-store' };
         let continueWithUrl: string | undefined;
         const jobStart = Date.now();
@@ -166,6 +167,10 @@ export class ValidationJobVM {
                         addMessage('info', 'Found html, will try again as Twitter');
                         validateFeed = false;
                         twitter = { url: input, subject: 'input url' };
+                    } else if (inputUrl.hostname.endsWith('bsky.app')) {
+                        addMessage('info', 'Found html, will try again as Bluesky');
+                        validateFeed = false;
+                        bluesky = { url: input, subject: 'input url' };
                     } else {
                         addMessage('info', 'Found html, will try again as ActivityPub');
                         validateFeed = false;
@@ -226,6 +231,10 @@ export class ValidationJobVM {
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         twitter = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
+                                    }
+                                    if (attributes.get('protocol')?.toLowerCase() === 'bluesky') {
+                                        const episodeTitle = findEpisodeTitle(node)
+                                        bluesky = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
                                 }
                             }
@@ -302,7 +311,7 @@ export class ValidationJobVM {
                     }
                 }
 
-                const hasComments = activityPubs.length > 0 || twitter;
+                const hasComments = activityPubs.length > 0 || twitter || bluesky;
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
@@ -420,6 +429,50 @@ export class ValidationJobVM {
                         job.commentsResults = [...results, { threadcap, subject: twitter!.subject }];
                         this.onChange();
                         results.push({ threadcap, subject: twitter!.subject });
+                    }
+
+                    if (bluesky) {
+                        const sleepMillisBetweenCalls = 0;
+                        setStatus(`Validating Bluesky Comments for ${bluesky.subject}`, { url: bluesky.url });
+                        addMessage('info', 'Fetching Bluesky comments', { url: bluesky.url });
+                        const keepGoing = () => !job.done;
+                        let blueskyCommentsCalls = 0;
+                        const fetchBlueskyComments = async (url: string) => {
+                            const { response } = await localOrRemoteFetchJson(url, fetchers, 'remote', sleepMillisBetweenCalls); 
+                            blueskyCommentsCalls++;
+                            return response;
+                        };
+                        const start = Date.now();
+                        const callbacks: Callbacks = {
+                            onEvent: event => {
+                                if (event.kind === 'warning') {
+                                    const { message, url} = event;
+                                    addMessage('warning', message, { url });
+                                } else if (event.kind === 'node-processed') {
+                                    job.commentsResults = [...results, { threadcap, subject: bluesky!.subject }];
+                                    this.onChange();
+                                } else {
+                                    console.log('callbacks.event', event);
+                                }
+                            }
+                        };
+                        const fetcher = makeRateLimitedFetcher(fetchBlueskyComments, { callbacks });
+                        const cache = new InMemoryCache();
+                        const userAgent = this.threadcapUserAgent;
+                    
+                        const updateTime = new Date().toISOString();
+                        const threadcap = await makeThreadcap(bluesky.url, { userAgent, fetcher, cache, updateTime, protocol: 'bluesky' });
+                        job.commentsResults = [...results, { threadcap, subject: bluesky!.subject }];
+                        this.onChange();
+                        
+                        await updateThreadcap(threadcap, { updateTime, keepGoing, userAgent, fetcher, cache, callbacks });
+                        // console.log(JSON.stringify(threadcap, undefined, 2));
+                        job.times.commentsTime = Date.now() - start;
+                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter(v => v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(blueskyCommentsCalls, 'Bluesky Comments call')}`);
+
+                        job.commentsResults = [...results, { threadcap, subject: bluesky!.subject }];
+                        this.onChange();
+                        results.push({ threadcap, subject: bluesky!.subject });
                     }
                    
                 }

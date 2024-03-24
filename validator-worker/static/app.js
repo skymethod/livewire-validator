@@ -3890,8 +3890,6 @@ async function getThread(url, opts, depth) {
         if (replyCount === undefined) {
             if (thread.replies !== undefined) throw new Error(`Expected no thread.replies for undefined replyCount`);
         } else {
-            const diff = replyCount - (thread.replies?.length ?? 0);
-            if (diff < 0 || diff > 1) throw new Error(`Expected thread.replies.length ${thread.replies?.length} for replyCount ${replyCount}`);
             if (thread.replies !== undefined) {
                 replies = [];
                 for (const reply of thread.replies){
@@ -4548,6 +4546,7 @@ class ValidationJobVM {
         };
         const activityPubs = [];
         let twitter;
+        let bluesky;
         const headers = {
             'Accept-Encoding': 'gzip',
             'User-Agent': job.options.userAgent,
@@ -4611,6 +4610,13 @@ class ValidationJobVM {
                         addMessage('info', 'Found html, will try again as Twitter');
                         validateFeed = false;
                         twitter = {
+                            url: input,
+                            subject: 'input url'
+                        };
+                    } else if (inputUrl.hostname.endsWith('bsky.app')) {
+                        addMessage('info', 'Found html, will try again as Bluesky');
+                        validateFeed = false;
+                        bluesky = {
                             url: input,
                             subject: 'input url'
                         };
@@ -4681,6 +4687,13 @@ class ValidationJobVM {
                                     if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
                                         const episodeTitle = findEpisodeTitle(node);
                                         twitter = {
+                                            url: uri,
+                                            subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
+                                        };
+                                    }
+                                    if (attributes.get('protocol')?.toLowerCase() === 'bluesky') {
+                                        const episodeTitle = findEpisodeTitle(node);
+                                        bluesky = {
                                             url: uri,
                                             subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
                                         };
@@ -4770,7 +4783,7 @@ class ValidationJobVM {
                         }
                     }
                 }
-                const hasComments = activityPubs.length > 0 || twitter;
+                const hasComments = activityPubs.length > 0 || twitter || bluesky;
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
@@ -4957,6 +4970,86 @@ class ValidationJobVM {
                         results.push({
                             threadcap,
                             subject: twitter.subject
+                        });
+                    }
+                    if (bluesky) {
+                        setStatus(`Validating Bluesky Comments for ${bluesky.subject}`, {
+                            url: bluesky.url
+                        });
+                        addMessage('info', 'Fetching Bluesky comments', {
+                            url: bluesky.url
+                        });
+                        const keepGoing = ()=>!job.done;
+                        let blueskyCommentsCalls = 0;
+                        const fetchBlueskyComments = async (url)=>{
+                            const { response } = await localOrRemoteFetchJson(url, fetchers, 'remote', 0);
+                            blueskyCommentsCalls++;
+                            return response;
+                        };
+                        const start = Date.now();
+                        const callbacks = {
+                            onEvent: (event)=>{
+                                if (event.kind === 'warning') {
+                                    const { message, url } = event;
+                                    addMessage('warning', message, {
+                                        url
+                                    });
+                                } else if (event.kind === 'node-processed') {
+                                    job.commentsResults = [
+                                        ...results,
+                                        {
+                                            threadcap,
+                                            subject: bluesky.subject
+                                        }
+                                    ];
+                                    this.onChange();
+                                } else {
+                                    console.log('callbacks.event', event);
+                                }
+                            }
+                        };
+                        const fetcher = makeRateLimitedFetcher(fetchBlueskyComments, {
+                            callbacks
+                        });
+                        const cache = new InMemoryCache();
+                        const userAgent = this.threadcapUserAgent;
+                        const updateTime = new Date().toISOString();
+                        const threadcap = await makeThreadcap(bluesky.url, {
+                            userAgent,
+                            fetcher,
+                            cache,
+                            updateTime,
+                            protocol: 'bluesky'
+                        });
+                        job.commentsResults = [
+                            ...results,
+                            {
+                                threadcap,
+                                subject: bluesky.subject
+                            }
+                        ];
+                        this.onChange();
+                        await updateThreadcap(threadcap, {
+                            updateTime,
+                            keepGoing,
+                            userAgent,
+                            fetcher,
+                            cache,
+                            callbacks
+                        });
+                        job.times.commentsTime = Date.now() - start;
+                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}, made ${unitString(blueskyCommentsCalls, 'Bluesky Comments call')}`);
+                        job.commentsResults = [
+                            ...results,
+                            {
+                                threadcap,
+                                subject: bluesky.subject
+                            }
+                        ];
+                        this.onChange();
+                        results.push({
+                            threadcap,
+                            subject: bluesky.subject
                         });
                     }
                 }
@@ -5746,7 +5839,7 @@ const REPLY_BOX = html`
 const FORM_HTML = html`
 <header>${CHECKLIST_ICON}<h1>Livewire Podcast Validator <span id="version">v0.2</span></h1></header>
 <form id="form">
-    <input id="text-input" type="text" spellcheck="false" placeholder="Podcast feed url, ActivityPub url, Apple Podcasts url, search text (or drop a local file onto the page)" autocomplete="url" required>
+    <input id="text-input" type="text" spellcheck="false" placeholder="Podcast feed url, ActivityPub url, Bluesky url, Apple Podcasts url, search text (or drop a local file onto the page)" autocomplete="url" required>
     <button id="submit" type="submit">Validate</button>
 </form>
 `;
