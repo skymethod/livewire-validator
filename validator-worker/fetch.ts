@@ -4,11 +4,12 @@ export async function computeFetch(request: Request, { twitterCredentials, actor
     try {
         if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
         const { url, headers = {} } = await request.json();
-        if (new URL(url).hostname === 'www.threads.net') {
-            delete headers['User-Agent']; // threads doesn't like non-browsers with a browser UA
+        const hostname = new URL(url).hostname;
+        if (hostname === 'threads.net' || hostname === 'www.threads.net') {
+            headers['User-Agent'] = 'Mozilla/1.0'; // threads doesn't like non-browsers with a browser UA
         }
         console.log(`Fetching ${url}`, headers);
-        if (new URL(url).hostname === 'api.twitter.com' && twitterCredentials) {
+        if (hostname === 'api.twitter.com' && twitterCredentials) {
             headers.authorization = `Bearer ${twitterCredentials.split(':')[1]}`;
         }
         let rt = await fetch(new URL(url).toString(), { headers });
