@@ -186,6 +186,11 @@ export function isRfc5545RecurrenceRule(trimmedText: string): boolean {
     return isNotEmpty(trimmedText);
 }
 
+export function isFullyQualifiedDomainName(value: string): boolean {
+    const u = tryParseUrl(`http://${value}`);
+    return !!u && u.hostname === value;
+}
+
 //
 
 function tryParseUrl(str: string, base?: string | URL | undefined): URL | undefined {

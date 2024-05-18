@@ -1146,6 +1146,7 @@ class Qnames {
         alternateEnclosure: _podcastIndex('alternateEnclosure'),
         block: _podcastIndex('block'),
         chapters: _podcastIndex('chapters'),
+        chat: _podcastIndex('chat'),
         complete: _podcastIndex('complete'),
         contentLink: _podcastIndex('contentLink'),
         episode: _podcastIndex('episode'),
@@ -1162,6 +1163,7 @@ class Qnames {
         person: _podcastIndex('person'),
         podping: _podcastIndex('podping'),
         podroll: _podcastIndex('podroll'),
+        publisher: _podcastIndex('publisher'),
         remoteItem: _podcastIndex('remoteItem'),
         season: _podcastIndex('season'),
         social: _podcastIndex('social'),
@@ -2698,6 +2700,10 @@ function hasApplePodcastsSupportedFileExtension(url) {
 function isRfc5545RecurrenceRule(trimmedText) {
     return isNotEmpty(trimmedText);
 }
+function isFullyQualifiedDomainName(value) {
+    const u = tryParseUrl(`http://${value}`);
+    return !!u && u.hostname === value;
+}
 function tryParseUrl(str, base) {
     try {
         return new URL(str, base);
@@ -2877,6 +2883,13 @@ function validateChannel(channel, callbacks) {
     ElementValidation.forSingleChild('channel', channel, callbacks, updateFrequencyReference, ...Qnames.PodcastIndex.updateFrequency).checkValue(isAtMostCharacters(128)).checkOptionalAttribute('complete', isBoolean).checkOptionalAttribute('rrule', isRfc5545RecurrenceRule).checkOptionalAttribute('dtstart', isIso8601).checkRequiredAttribute('dtstart', isIso8601, (node)=>(node.atts.get('rrule') ?? '').includes('COUNT=')).checkRemainingAttributes();
     const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podping');
     ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping).checkOptionalAttribute('usesPodping', isBoolean).checkRemainingAttributes();
+    checkPodcastChat('channel', channel, callbacks);
+    checkPodcastSocialInteract('channel', channel, callbacks);
+    const publisherReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#publisher');
+    const value = ElementValidation.forSingleChild('channel', channel, callbacks, publisherReference, ...Qnames.PodcastIndex.publisher).checkRemainingAttributes().node;
+    if (value) {
+        checkPodcastRemoteItem('podcast:publisher', value, callbacks, publisherReference);
+    }
     const socials = findChildElements(channel, ...Qnames.PodcastIndex.social);
     const socialReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#social-element');
     const socialSignUpReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/proposal-docs/social/social.md#socialsignup-element');
@@ -2906,6 +2919,10 @@ function validateChannel(channel, callbacks) {
         if (elements.length > 0) itemsWithEnclosuresCount++;
     }
     callbacks.onRssItemsFound(items.length, itemsWithEnclosuresCount);
+}
+function checkPodcastChat(level, node, callbacks) {
+    const chatReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#chat');
+    ElementValidation.forSingleChild(level, node, callbacks, chatReference, ...Qnames.PodcastIndex.chat).checkRequiredAttribute('server', isFullyQualifiedDomainName).checkRequiredAttribute('protocol', (v)=>/^irc|xmpp|nostr|matrix$/.test(v)).checkOptionalAttribute('accountId', isNotEmpty).checkOptionalAttribute('space', isNotEmpty).checkRemainingAttributes();
 }
 function checkPodcastPerson(level, node, callbacks) {
     for (const person of findChildElements(node, ...Qnames.PodcastIndex.person)){
@@ -2953,16 +2970,34 @@ function checkPodcastTxt(level, node, callbacks) {
         ElementValidation.forElement(level, txt, callbacks, txtReference).checkOptionalAttribute('purpose', isAtMostCharacters(128)).checkValue(isAtMostCharacters(4000)).checkRemainingAttributes();
     }
 }
-function checkPodcastRemoteItem(level, node, callbacks) {
+function checkPodcastRemoteItem(level, node, callbacks, publisherReference) {
     const remoteItems = findChildElements(node, ...Qnames.PodcastIndex.remoteItem);
     const remoteItemReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#remote-item');
+    if (publisherReference && remoteItems.length > 1) {
+        callbacks.onWarning(node, `Expected a single podcast:remoteItem`, {
+            reference: publisherReference
+        });
+        return [];
+    }
     for (const remoteItem of remoteItems){
-        ElementValidation.forElement(level, remoteItem, callbacks, remoteItemReference).checkOptionalAttribute('feedGuid', isNotEmpty).checkOptionalAttribute('feedUrl', isUrl).checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl').checkOptionalAttribute('itemGuid', isNotEmpty).checkOptionalAttribute('medium', isPodcastMedium).checkRemainingAttributes();
+        const val = ElementValidation.forElement(level, remoteItem, callbacks, remoteItemReference).checkOptionalAttribute('feedGuid', isNotEmpty).checkOptionalAttribute('feedUrl', isUrl).checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl').checkOptionalAttribute('itemGuid', isNotEmpty).checkOptionalAttribute('medium', isPodcastMedium).checkRemainingAttributes();
+        if (publisherReference) val.checkRequiredAttribute('feedUrl', isUrl).checkRequiredAttribute('medium', (v)=>v === 'publisher');
     }
     return remoteItems;
 }
 function checkPodcastValueRecipient(level, node, callbacks) {
     ElementValidation.forElement(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient')).checkOptionalAttribute('name', isNotEmpty).checkOptionalAttribute('customKey', isNotEmpty).checkOptionalAttribute('customValue', isNotEmpty).checkRequiredAttribute('type', isPodcastValueTypeSlug).checkRequiredAttribute('address', isNotEmpty).checkRequiredAttribute('split', isNonNegativeInteger).checkOptionalAttribute('fee', isBoolean).checkRemainingAttributes();
+}
+function checkPodcastSocialInteract(level, node, callbacks) {
+    const socialInteracts = findChildElements(node, ...Qnames.PodcastIndex.socialInteract);
+    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#social-interact');
+    for (const socialInteract of socialInteracts){
+        ElementValidation.forElement(level, socialInteract, callbacks, socialInteractReference).checkRequiredAttribute('uri', isUri, socialInteract.atts.get('protocol') !== 'disabled').checkRequiredAttribute('protocol', isPodcastSocialInteractProtocol).checkOptionalAttribute('accountId', isNotEmpty).checkOptionalAttribute('accountUrl', isUrl).checkOptionalAttribute('priority', isNonNegativeInteger).checkRemainingAttributes();
+        callbacks.onGood(socialInteract, `Found ${level} <podcast:socialInteract>, nice!`, {
+            tag: 'social-interact',
+            reference: socialInteractReference
+        });
+    }
 }
 function checkPodcastTagUsage(node, callbacks) {
     const known = new Set();
@@ -3101,16 +3136,10 @@ function validateItem(item, callbacks, itemTagName) {
             ElementValidation.forElement(itemTagName, contentLink, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#content-link')).checkRequiredAttribute('href', isUrl).checkValue(isNotEmpty).checkRemainingAttributes();
         }
     }
-    const socialInteracts = findChildElements(item, ...Qnames.PodcastIndex.socialInteract);
-    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#social-interact');
-    for (const socialInteract of socialInteracts){
-        ElementValidation.forElement(itemTagName, socialInteract, callbacks, socialInteractReference).checkRequiredAttribute('uri', isUri, socialInteract.atts.get('protocol') !== 'disabled').checkRequiredAttribute('protocol', isPodcastSocialInteractProtocol).checkOptionalAttribute('accountId', isNotEmpty).checkOptionalAttribute('accountUrl', isUrl).checkOptionalAttribute('priority', isNonNegativeInteger).checkRemainingAttributes();
-        callbacks.onGood(socialInteract, `Found ${itemTagName} <podcast:socialInteract>, nice!`, {
-            tag: 'social-interact',
-            reference: socialInteractReference
-        });
-    }
+    checkPodcastSocialInteract('item', item, callbacks);
     checkPodcastTxt('item', item, callbacks);
+    checkPodcastChat('item', item, callbacks);
+    checkPodcastRemoteItem('item', item, callbacks);
     checkPodcastTagUsage(item, callbacks);
 }
 class ElementValidation {
