@@ -3375,8 +3375,11 @@ async function findOrFetchJson(url, after, fetcher, cache, opts) {
 function destructureThreadcapUrl(url) {
     const m = /^(at:\/\/)([^/]+)(\/.*?)$/.exec(url);
     const tmpUrl = m ? `${m[1]}${m[2].replaceAll(':', '%3A')}${m[3]}` : undefined;
-    const { protocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl ?? url);
-    const hostname = tmpUrl ? tmpHostname.replaceAll('%3A', ':') : tmpHostname;
+    const m2 = /^(nostr:\/\/)(.+?)$/.exec(url);
+    const tmpUrl2 = m2 ? `https://${m2[2]}` : undefined;
+    const { protocol: tmpProtocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl2 ?? tmpUrl ?? url);
+    const protocol = m2 ? 'nostr:' : tmpProtocol;
+    const hostname = tmpUrl2 ? tmpHostname : tmpUrl ? tmpHostname.replaceAll('%3A', ':') : tmpHostname;
     return {
         protocol,
         hostname,
@@ -3933,72 +3936,154 @@ function computeCommenter1(author, updateTime) {
 }
 const NostrProtocolImplementation = {
     async initThreadcap (url, opts) {
-        const { debug } = opts;
+        const { debug, updateTime = new Date().toISOString() } = opts;
         const { protocol, hostname, searchParams } = destructureThreadcapUrl(url);
         const m = /^30311:([0-9a-f]{64}):(.*?)$/.exec(searchParams.get('space') ?? '');
         if (protocol !== 'nostr:' || !m) throw new Error(`Threadcap nostr urls should be in this form: nostr://<relay-server>?space=30311:<64-hexchars>:<identifer>`);
-        const [_, _hexchars, identifier] = m;
-        const subscriptionId = crypto.randomUUID();
-        let resolvePromise;
-        let rejectPromise;
-        const p = new Promise((resolve, reject)=>{
-            resolvePromise = resolve;
-            rejectPromise = reject;
-        });
-        const ws = new WebSocket(`wss://${hostname}`);
-        const send = (arr)=>{
-            const json = JSON.stringify(arr);
-            if (debug) console.log(`send: ${json}`);
-            ws.send(json);
+        const [space, _, identifier] = m;
+        const limit = parseInt(searchParams.get('limit') ?? '1000');
+        const dumpActivities = (searchParams.get('dump') ?? '').includes('activities');
+        const nodes = {};
+        const commenters = {};
+        const makeUri = ({ message })=>{
+            const u = new URL(`${protocol}//${hostname}`);
+            u.searchParams.set('space', space);
+            if (message !== undefined) u.searchParams.set('message', message);
+            return u.toString();
         };
-        ws.onmessage = ({ data })=>{
-            if (debug) console.log(`onmessage: ${JSON.stringify(data)}`);
-            let parsed;
-            try {
-                if (typeof data !== 'string') throw new Error(`Unexpected data type: ${typeof data} ${data}`);
-                parsed = JSON.parse(data);
-                if (!Array.isArray(parsed)) throw new Error(`Unexpected payload`);
-                const [first, ...rest] = parsed;
-                if (first === 'EOSE') {
-                    const [sub] = rest;
-                    if (typeof sub !== 'string') throw new Error(`Bad sub: ${sub}`);
-                    if (sub === subscriptionId) {
-                        send([
-                            'CLOSE',
-                            subscriptionId
-                        ]);
-                    } else {
-                        throw new Error(`Unexpected sub: ${sub}`);
-                    }
-                }
-            } catch (e) {
-                rejectPromise(`onmessage: ${e.message}${parsed ? ` (${JSON.stringify(parsed)})` : ''}`);
+        const state = {};
+        const pubkeys = new Set();
+        const messages = await query({
+            kinds: [
+                1311
+            ],
+            limit,
+            tags: {
+                '#a': [
+                    space
+                ]
             }
+        }, {
+            hostname,
+            debug,
+            state
+        });
+        for (const message of messages){
+            const uri = makeUri({
+                message: message.id
+            });
+            nodes[uri] = {
+                comment: {
+                    attachments: [],
+                    attributedTo: message.pubkey,
+                    content: {
+                        un: message.content
+                    },
+                    published: new Date(message.created_at * 1000).toISOString()
+                },
+                commentAsof: updateTime,
+                replies: [],
+                repliesAsof: updateTime
+            };
+            pubkeys.add(message.pubkey);
+        }
+        const activities = await query({
+            kinds: [
+                30311
+            ],
+            limit: 1000,
+            tags: dumpActivities ? undefined : {
+                '#d': [
+                    identifier
+                ]
+            }
+        }, {
+            hostname,
+            debug,
+            state
+        });
+        if (dumpActivities) console.log(activities.map((v)=>`activity: ${v.tags.find((v)=>v[0] === 'd')?.at(1)}\t${v.tags.find((v)=>v[0] === 'title')?.at(1)}`).join('\n'));
+        const activity = activities.find((v)=>v.tags.some((v)=>v[0] === 'd' && v[1] === identifier));
+        const rootUri = makeUri({
+            message: undefined
+        });
+        nodes[rootUri] = {
+            comment: {
+                attachments: [],
+                attributedTo: activity ? activity.pubkey : '',
+                content: {
+                    un: activity?.tags.find((v)=>v[0] === 'title')?.at(1) ?? ''
+                },
+                published: activity ? new Date(activity.created_at * 1000).toISOString() : undefined
+            },
+            commentAsof: updateTime,
+            replies: Object.keys(nodes).sort((lhs, rhs)=>nodes[lhs].comment.published.localeCompare(nodes[rhs].comment.published)),
+            repliesAsof: updateTime
         };
-        ws.onclose = ()=>{
-            if (debug) console.log('onclose');
-            resolvePromise(undefined);
+        if (activity) pubkeys.add(activity.pubkey);
+        const relaysForProfiles = [
+            hostname,
+            'relay.primal.net',
+            'relay.damus.io',
+            'relay.snort.social'
+        ];
+        const remainingPubkeys = new Set(pubkeys);
+        const allProfiles = [];
+        const resolvedByHostname = {};
+        for (const relayForProfiles of relaysForProfiles){
+            let resolved = 0;
+            const profiles = await query({
+                kinds: [
+                    0
+                ],
+                authors: [
+                    ...remainingPubkeys
+                ]
+            }, {
+                hostname: relayForProfiles,
+                state,
+                debug
+            });
+            allProfiles.push(...profiles);
+            for (const profile of profiles){
+                remainingPubkeys.delete(profile.pubkey);
+                resolved++;
+            }
+            resolvedByHostname[relayForProfiles] = resolved;
+            if (remainingPubkeys.size === 0) break;
+        }
+        resolvedByHostname['unresolved'] = pubkeys.size - Object.values(resolvedByHostname).reduce((prev, cur)=>prev + cur, 0);
+        for (const pubkey of pubkeys){
+            const profile = allProfiles.find((v)=>v.pubkey === pubkey);
+            if (profile) {
+                const { name, display_name, picture, website, lud16 } = JSON.parse(profile.content);
+                commenters[pubkey] = {
+                    name: display_name ?? name ?? pubkey,
+                    fqUsername: lud16,
+                    icon: picture ? {
+                        url: picture
+                    } : undefined,
+                    url: website,
+                    asof: updateTime
+                };
+            } else {
+                commenters[pubkey] = {
+                    name: pubkey,
+                    asof: updateTime
+                };
+            }
+        }
+        if (debug) console.log(JSON.stringify({
+            resolvedByHostname
+        }));
+        return {
+            protocol: 'nostr',
+            roots: [
+                rootUri
+            ],
+            nodes,
+            commenters
         };
-        ws.onopen = ()=>{
-            if (debug) console.log('onopen');
-            send([
-                'REQ',
-                subscriptionId,
-                {
-                    kinds: [
-                        1311,
-                        30311
-                    ],
-                    '#d': [
-                        identifier
-                    ]
-                }
-            ]);
-        };
-        await p;
-        throw new Error(`initThreadcap(${JSON.stringify({
-            url
-        })}) not implemented`);
     },
     async fetchComment (id, opts) {
         await Promise.resolve();
@@ -4009,10 +4094,10 @@ const NostrProtocolImplementation = {
     },
     async fetchCommenter (attributedTo, opts) {
         await Promise.resolve();
-        throw new Error(`fetchCommenter(${JSON.stringify({
-            attributedTo,
-            opts
-        })}) not implemented`);
+        return {
+            name: attributedTo,
+            asof: opts.updateTime
+        };
     },
     async fetchReplies (id, opts) {
         await Promise.resolve();
@@ -4022,6 +4107,103 @@ const NostrProtocolImplementation = {
         })}) not implemented`);
     }
 };
+function promiseWithResolvers() {
+    let resolve = ()=>{};
+    let reject = ()=>{};
+    let done = false;
+    const promise = new Promise(function(resolve_, reject_) {
+        resolve = (value)=>{
+            done = true;
+            resolve_(value);
+        };
+        reject = (reason)=>{
+            done = true;
+            reject_(reason);
+        };
+    });
+    return {
+        resolve,
+        reject,
+        promise,
+        done: ()=>done
+    };
+}
+async function query(filter, opts) {
+    const { hostname, debug, state } = opts;
+    const ws = await (async ()=>{
+        const stateKey = `ws-${hostname}`;
+        const existing = state[stateKey];
+        if (existing) return existing;
+        const { resolve, reject, promise } = promiseWithResolvers();
+        const ws = new WebSocket(`wss://${hostname}`);
+        state[stateKey] = ws;
+        ws.onopen = ()=>{
+            if (debug) console.log('onopen');
+            resolve(undefined);
+        };
+        ws.addEventListener('error', ()=>reject());
+        ws.addEventListener('close', ()=>reject());
+        await promise;
+        return ws;
+    })();
+    const subscriptionId = crypto.randomUUID();
+    const { resolve, reject, promise, done } = promiseWithResolvers();
+    const send = (arr)=>{
+        const json = JSON.stringify(arr);
+        if (debug) console.log(`send: ${ws.readyState} ${json}`);
+        ws.send(json);
+    };
+    const rt = [];
+    ws.addEventListener('message', ({ data })=>{
+        if (done()) return;
+        if (debug) console.log(`onmessage: ${typeof data === 'string' && data.startsWith('[') && data.endsWith(']') ? JSON.stringify(JSON.parse(data), undefined, 2) : JSON.stringify(data)}`);
+        let parsed;
+        try {
+            if (typeof data !== 'string') throw new Error(`Unexpected data type: ${typeof data} ${data}`);
+            parsed = JSON.parse(data);
+            if (!Array.isArray(parsed)) throw new Error(`Unexpected payload`);
+            const [first, ...rest] = parsed;
+            if (first === 'EOSE') {
+                const [sub] = rest;
+                if (sub === subscriptionId) send([
+                    'CLOSE',
+                    subscriptionId
+                ]);
+                resolve(rt);
+            } else if (first === 'CLOSED') {
+                const [sub, reason] = rest;
+                if (sub === subscriptionId) throw new Error(`relay closed subscription: ${reason}`);
+            } else if (first === 'EVENT') {
+                const [sub, event] = rest;
+                if (sub === subscriptionId) rt.push(event);
+            }
+        } catch (e) {
+            reject(`onmessage: ${e.message}${parsed ? ` (${JSON.stringify(parsed)})` : ''}`);
+        }
+    });
+    ws.addEventListener('close', ({ code, reason, wasClean })=>{
+        if (done()) return;
+        const msg = `onclose ${subscriptionId} ${JSON.stringify({
+            code,
+            reason,
+            wasClean
+        })}`;
+        if (debug) console.log(msg);
+        reject(msg);
+    });
+    const { kinds, limit, tags, authors } = filter;
+    send([
+        'REQ',
+        subscriptionId,
+        {
+            kinds,
+            limit,
+            ...tags,
+            authors
+        }
+    ]);
+    return promise;
+}
 const TwitterProtocolImplementation = {
     async initThreadcap (url, opts) {
         const { debug } = opts;
@@ -4352,8 +4534,8 @@ function makeFetcherWithUserAgent(fetcher, userAgent) {
 function computeProtocolImplementation(protocol) {
     if (protocol === undefined || protocol === 'activitypub') return ActivityPubProtocolImplementation;
     if (protocol === 'twitter') return TwitterProtocolImplementation;
-    if (protocol === 'nostr') return NostrProtocolImplementation;
     if (protocol === 'bluesky') return BlueskyProtocolImplementation;
+    if (protocol === 'nostr') return NostrProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 async function processNode(id, processReplies, threadcap, implementation, opts) {
@@ -4547,6 +4729,7 @@ class ValidationJobVM {
         const activityPubs = [];
         let twitter;
         let bluesky;
+        let nostr;
         const headers = {
             'Accept-Encoding': 'gzip',
             'User-Agent': job.options.userAgent,
@@ -4576,36 +4759,45 @@ class ValidationJobVM {
                         input = normalizeInput(input);
                     }
                 }
-            }
-            if (/^(https?|file):\/\/.+/i.test(input)) {
+            } else if (/^(https?|file|nostr):\/\/.+/i.test(input)) {
                 const inputUrl = tryParseUrl1(input);
                 if (!inputUrl) throw new Error(`Bad url: ${input}`);
-                checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file):$/);
-                if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
-                    inputUrl.searchParams.set('_t', Date.now().toString());
-                }
-                if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
-                    delete headers['User-Agent'];
-                }
-                const { response, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), {
-                    fetchers,
-                    headers
-                });
-                if (job.done) return;
-                job.times.fetchTime = fetchTime;
-                if (side === 'local') {
-                    if (inputUrl.protocol === 'file:') {
-                        addMessage('good', `Local file contents loaded`);
-                    } else {
-                        addMessage('good', `Local fetch succeeded (CORS enabled)`, {
-                            url: input
-                        });
+                checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file|nostr):$/);
+                let contentType;
+                let response;
+                if (inputUrl.protocol === 'nostr:') {
+                    nostr = {
+                        url: input,
+                        subject: 'input url'
+                    };
+                } else {
+                    if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
+                        inputUrl.searchParams.set('_t', Date.now().toString());
                     }
+                    if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
+                        delete headers['User-Agent'];
+                    }
+                    const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), {
+                        fetchers,
+                        headers
+                    });
+                    if (job.done) return;
+                    job.times.fetchTime = fetchTime;
+                    if (side === 'local') {
+                        if (inputUrl.protocol === 'file:') {
+                            addMessage('good', `Local file contents loaded`);
+                        } else {
+                            addMessage('good', `Local fetch succeeded (CORS enabled)`, {
+                                url: input
+                            });
+                        }
+                    }
+                    checkEqual1(`${inputUrl.host} response status`, r.status, 200);
+                    contentType = r.headers.get('Content-Type') ?? undefined;
+                    response = r;
                 }
-                checkEqual1(`${inputUrl.host} response status`, response.status, 200);
-                const contentType = response.headers.get('Content-Type');
                 let validateFeed = true;
-                if (contentType && contentType.includes('/html')) {
+                if (response && contentType && contentType.includes('/html')) {
                     if (inputUrl.hostname.endsWith('twitter.com')) {
                         addMessage('info', 'Found html, will try again as Twitter');
                         validateFeed = false;
@@ -4636,7 +4828,7 @@ class ValidationJobVM {
                         });
                     }
                 }
-                if (contentType && contentType.startsWith('application/activity+json')) {
+                if (response && contentType && contentType.startsWith('application/activity+json')) {
                     addMessage('info', 'Found ActivityPub json');
                     const obj = await response.json();
                     validateFeed = false;
@@ -4646,7 +4838,7 @@ class ValidationJobVM {
                         obj
                     });
                 }
-                if (validateFeed) {
+                if (response && validateFeed) {
                     let start = Date.now();
                     const text = await response.text();
                     if (job.done) return;
@@ -4783,7 +4975,10 @@ class ValidationJobVM {
                         }
                     }
                 }
-                const hasComments = activityPubs.length > 0 || twitter || bluesky;
+                const hasComments = activityPubs.length > 0 || twitter || bluesky || nostr;
+                console.log({
+                    hasComments
+                });
                 const validateComments = job.options.validateComments !== undefined ? job.options.validateComments : true;
                 if (hasComments && !validateComments) {
                     addMessage('info', 'Comments validation disabled, not fetching comments');
@@ -4894,7 +5089,7 @@ class ValidationJobVM {
                         });
                     }
                     if (twitter) {
-                        setStatus(`Validating Twitter Comments for ${twitter.subject}`, {
+                        setStatus(`Validating Twitter comments for ${twitter.subject}`, {
                             url: twitter.url
                         });
                         addMessage('info', 'Fetching Twitter comments', {
@@ -4973,7 +5168,7 @@ class ValidationJobVM {
                         });
                     }
                     if (bluesky) {
-                        setStatus(`Validating Bluesky Comments for ${bluesky.subject}`, {
+                        setStatus(`Validating Bluesky comments for ${bluesky.subject}`, {
                             url: bluesky.url
                         });
                         addMessage('info', 'Fetching Bluesky comments', {
@@ -5050,6 +5245,85 @@ class ValidationJobVM {
                         results.push({
                             threadcap,
                             subject: bluesky.subject
+                        });
+                    }
+                    if (nostr) {
+                        const { subject } = nostr;
+                        console.log({
+                            inputUrl: inputUrl.toString()
+                        });
+                        setStatus(`Validating Nostr comments for ${subject}`, {
+                            url: nostr.url
+                        });
+                        addMessage('info', 'Fetching Nostr comments', {
+                            url: nostr.url
+                        });
+                        const keepGoing = ()=>!job.done;
+                        const start = Date.now();
+                        const callbacks = {
+                            onEvent: (event)=>{
+                                if (event.kind === 'warning') {
+                                    const { message, url } = event;
+                                    addMessage('warning', message, {
+                                        url
+                                    });
+                                } else if (event.kind === 'node-processed') {
+                                    job.commentsResults = [
+                                        ...results,
+                                        {
+                                            threadcap,
+                                            subject
+                                        }
+                                    ];
+                                    this.onChange();
+                                } else {
+                                    console.log('callbacks.event', event);
+                                }
+                            }
+                        };
+                        const cache = new InMemoryCache();
+                        const userAgent = this.threadcapUserAgent;
+                        const updateTime = new Date().toISOString();
+                        const fetcher = fetch;
+                        console.log({
+                            nostrUrl: nostr.url
+                        });
+                        const threadcap = await makeThreadcap(nostr.url, {
+                            userAgent,
+                            fetcher,
+                            cache,
+                            updateTime,
+                            protocol: 'nostr'
+                        });
+                        job.commentsResults = [
+                            ...results,
+                            {
+                                threadcap,
+                                subject
+                            }
+                        ];
+                        this.onChange();
+                        await updateThreadcap(threadcap, {
+                            updateTime,
+                            keepGoing,
+                            userAgent,
+                            fetcher,
+                            cache,
+                            callbacks
+                        });
+                        job.times.commentsTime = Date.now() - start;
+                        addMessage('info', `Found ${unitString(Object.values(threadcap.nodes).filter((v)=>v.comment).length, 'comment')} and ${unitString(Object.keys(threadcap.commenters).length, 'participant')}`);
+                        job.commentsResults = [
+                            ...results,
+                            {
+                                threadcap,
+                                subject
+                            }
+                        ];
+                        this.onChange();
+                        results.push({
+                            threadcap,
+                            subject
                         });
                     }
                 }

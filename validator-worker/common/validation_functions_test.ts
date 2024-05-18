@@ -1,4 +1,4 @@
-import { assert } from 'https://deno.land/std@0.199.0/testing/asserts.ts';
+import { assert } from 'https://deno.land/std@0.224.0/testing/asserts.ts';
 import { isGeoLatLon, isIso8601, isPodcastImagesSrcSet, isRfc2822 } from './validation_functions.ts';
 
 Deno.test('isPodcastImagesSrcSet', () => {

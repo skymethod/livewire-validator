@@ -1,4 +1,5 @@
-import { assert, assertMatch } from 'https://deno.land/std@0.199.0/testing/asserts.ts';
+import { assert } from 'https://deno.land/std@0.224.0/assert/assert.ts';
+import { assertMatch } from 'https://deno.land/std@0.224.0/assert/assert_match.ts';
 import { computeOauthPkceCodeVerifier } from './login.ts';
 
 Deno.test('computeOauthPkceCodeVerifier', () => {
