@@ -462,6 +462,7 @@ function checkPodcastRemoteItem(level: Level, node: ExtendedXmlNode, callbacks: 
             .checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl')
             .checkOptionalAttribute('itemGuid', isNotEmpty)
             .checkOptionalAttribute('medium', isPodcastMedium)
+            .checkOptionalAttribute('title', isNotEmpty)
             .checkRemainingAttributes();
 
         if (publisherReference) val

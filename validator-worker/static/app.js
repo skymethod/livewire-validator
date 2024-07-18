@@ -2980,7 +2980,7 @@ function checkPodcastRemoteItem(level, node, callbacks, publisherReference) {
         return [];
     }
     for (const remoteItem of remoteItems){
-        const val = ElementValidation.forElement(level, remoteItem, callbacks, remoteItemReference).checkOptionalAttribute('feedGuid', isNotEmpty).checkOptionalAttribute('feedUrl', isUrl).checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl').checkOptionalAttribute('itemGuid', isNotEmpty).checkOptionalAttribute('medium', isPodcastMedium).checkRemainingAttributes();
+        const val = ElementValidation.forElement(level, remoteItem, callbacks, remoteItemReference).checkOptionalAttribute('feedGuid', isNotEmpty).checkOptionalAttribute('feedUrl', isUrl).checkAtLeastOneAttributeRequired('feedGuid', 'feedUrl').checkOptionalAttribute('itemGuid', isNotEmpty).checkOptionalAttribute('medium', isPodcastMedium).checkOptionalAttribute('title', isNotEmpty).checkRemainingAttributes();
         if (publisherReference) val.checkRequiredAttribute('feedUrl', isUrl).checkRequiredAttribute('medium', (v)=>v === 'publisher');
     }
     return remoteItems;
