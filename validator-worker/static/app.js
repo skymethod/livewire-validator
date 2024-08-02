@@ -3130,11 +3130,9 @@ function validateItem(item, callbacks, itemTagName) {
     }
     checkPodcastValue(itemTagName, item, callbacks);
     checkPodcastImages(itemTagName, item, callbacks);
-    if (itemTagName === 'liveItem') {
-        const contentLinks = findChildElements(item, ...Qnames.PodcastIndex.contentLink);
-        for (const contentLink of contentLinks){
-            ElementValidation.forElement(itemTagName, contentLink, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#content-link')).checkRequiredAttribute('href', isUrl).checkValue(isNotEmpty).checkRemainingAttributes();
-        }
+    const contentLinks = findChildElements(item, ...Qnames.PodcastIndex.contentLink);
+    for (const contentLink of contentLinks){
+        ElementValidation.forElement(itemTagName, contentLink, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#content-link')).checkRequiredAttribute('href', isUrl).checkValue(isNotEmpty).checkRemainingAttributes();
     }
     checkPodcastSocialInteract('item', item, callbacks);
     checkPodcastTxt('item', item, callbacks);
