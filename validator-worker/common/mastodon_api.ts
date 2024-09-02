@@ -1,108 +1,22 @@
 // deno-lint-ignore-file camelcase
 
 import { isStringRecord } from './check.ts';
-import { isOauthObtainTokenResponse, OauthObtainTokenResponse } from './oauth.ts';
-
-const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
-
-async function verifyJsonResponse<T>(res: Response, bodyVerifier: (body: unknown) => body is T, { allow202 }: { allow202?: boolean } = { }): Promise<T> {
-    if (!(res.status === 200 || allow202 && res.status === 202)) throw new Error(`Unexpected http response status: ${res.status}, expected 200${allow202 ? ' or 202' : ''}, body=${await res.text()}`);
-    const contentType = res.headers.get('content-type');
-    if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected response content-type: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
-    const body = await res.json();
-    if (!bodyVerifier(body)) throw new Error(`Unexpected body: ${JSON.stringify(body, undefined, 2)}`);
-    return body;
-}
+import { computeOauthUserAuthorizationUrl, fetchJson, oauthObtainToken, OauthObtainTokenOpts, OauthObtainTokenResponse, OauthUserAuthorizationOpts } from './oauth.ts';
 
 // https://docs.joinmastodon.org/methods/apps/oauth/#authorize-a-user
 
-export interface OauthUserAuthorizationOpts {
-    /** Should be set equal to `code`. */
-    readonly response_type: string;
+export type MastodonOauthUserAuthorizationOpts = Omit<OauthUserAuthorizationOpts, 'authorization_endpoint'>;
 
-    /** Client ID, obtained during app registration. */
-    readonly client_id: string;
-
-    /** Set a URI to redirect the user to.
-     * 
-     * If this parameter is set to `urn:ietf:wg:oauth:2.0:oob` then the authorization code will be shown instead. Must match one of the redirect URIs declared during app registration. */
-    readonly redirect_uri: string;
-
-    /** List of requested OAuth scopes, separated by spaces.
-     * 
-     * Must be a subset of scopes declared during app registration. If not provided, defaults to `read`. */
-    readonly scope?: string;
-
-    /** Added in 2.6.0. Forces the user to re-login, which is necessary for authorizing with multiple accounts from the same instance. */
-    readonly force_login?: boolean;
-
-    // standard oauth
-    readonly state?: string;
-
-    // oauth PKCE: base64url(SHA256(code verifier))
-    readonly code_challenge?: string;
-
-    // oauth PKCE: whether the challenge is the plain code verifier string or the SHA256 hash of the string.
-    readonly code_challenge_method?: 'S256' | 'plain';
-}
-
-export function computeOauthUserAuthorizationUrl(apiBase: string, opts: OauthUserAuthorizationOpts): string {
-    const { response_type, client_id, redirect_uri, scope, force_login, state, code_challenge, code_challenge_method } = opts;
-    const url = new URL(`${apiBase}/oauth/authorize`);
-    url.searchParams.set('response_type', response_type);
-    url.searchParams.set('client_id', client_id);
-    url.searchParams.set('redirect_uri', redirect_uri);
-    if (scope) url.searchParams.set('scope', scope);
-    if (typeof force_login === 'boolean') url.searchParams.set('force_login', `${force_login}`);
-    if (state) url.searchParams.set('state', state);
-    if (code_challenge) url.searchParams.set('code_challenge', code_challenge);
-    if (code_challenge_method) url.searchParams.set('code_challenge_method', code_challenge_method);
-    return url.toString();
+export function computeMastodonOauthUserAuthorizationUrl(apiBase: string, opts: MastodonOauthUserAuthorizationOpts): string {
+    return computeOauthUserAuthorizationUrl({ ...opts, authorization_endpoint: `${apiBase}/oauth/authorize` });
 }
 
 // https://docs.joinmastodon.org/methods/apps/oauth/#obtain-a-token
 
-export interface OauthObtainTokenOpts {
-    /** Set equal to `authorization_code` if `code` is provided in order to gain user-level access.
-     * 
-     * Otherwise, set equal to `client_credentials` to obtain app-level access only. */
-    readonly grant_type: string;
+export type MastodonOauthObtainTokenOpts = Omit<OauthObtainTokenOpts, 'token_endpoint' | 'client_secret'> & { client_secret: string };
 
-    /** Client ID, obtained during app registration */
-    readonly client_id: string;
-
-    /** Client secret, obtained during app registration */
-    readonly client_secret: string;
-
-    /** Set a URI to redirect the user to.
-     * 
-     * If this parameter is set to `urn:ietf:wg:oauth:2.0:oob` then the token will be shown instead. Must match one of the redirect URIs declared during app registration. */
-    readonly redirect_uri: string;
-
-    /** List of requested OAuth scopes, separated by spaces. 
-     * 
-     * Must be a subset of scopes declared during app registration. If not provided, defaults to `read`. */
-    readonly scope?: string;
-
-    /** A user authorization code, obtained via /oauth/authorize */
-    readonly code?: string;
-
-    /** Oauth PKCE: The code verifier for the request, that the app originally generated before the authorization request. */
-    readonly code_verifier?: string;
-}
-
-export async function oauthObtainToken(apiBase: string, opts: OauthObtainTokenOpts): Promise<OauthObtainTokenResponse> {
-    const { grant_type, client_id, client_secret, redirect_uri, scope, code, code_verifier } = opts;
-    const data = new FormData();
-    data.set('grant_type', grant_type);
-    data.set('client_id', client_id);
-    data.set('client_secret', client_secret);
-    data.set('redirect_uri', redirect_uri);
-    if (code) data.set('code', code);
-    if (scope) data.set('scope', scope);
-    if (code_verifier) data.set('code_verifier', code_verifier);
-    const res = await fetch(new Request(`${apiBase}/oauth/token`, { method: 'POST', body: data }));
-    return verifyJsonResponse(res, isOauthObtainTokenResponse);
+export async function mastodonOauthObtainToken(apiBase: string, opts: MastodonOauthObtainTokenOpts): Promise<OauthObtainTokenResponse> {
+    return await oauthObtainToken({ ...opts, token_endpoint: `${apiBase}/oauth/token` });
 }
 
 // https://docs.joinmastodon.org/methods/apps/
@@ -140,8 +54,7 @@ export async function appsCreateApplication(apiBase: string, opts: AppsCreateApp
     data.set('redirect_uris', redirect_uris);
     if (scopes) data.set('scopes', scopes);
     if (website) data.set('website', website);
-    const res = await fetch(new Request(`${apiBase}/api/v1/apps`, { method: 'POST', body: data }));
-    return verifyJsonResponse(res, isAppsCreateApplicationResponse);
+    return await fetchJson(new Request(`${apiBase}/api/v1/apps`, { method: 'POST', body: data }), isAppsCreateApplicationResponse);
 }
 
 export interface AppsCreateApplicationResponse {
@@ -173,8 +86,7 @@ function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreateApplica
  * Returns: the user's own Account with Source
  */
 export async function accountsVerifyCredentials(apiBase: string, accessToken: string): Promise<AccountsVerifyCredentialsResponse> {
-    const res = await fetch(`${apiBase}/api/v1/accounts/verify_credentials`, { headers: { 'Authorization': `Bearer ${accessToken}`} });
-    return verifyJsonResponse(res, isAccountsVerifyCredentialsResponse);
+    return await fetchJson(new Request(`${apiBase}/api/v1/accounts/verify_credentials`, { headers: { 'Authorization': `Bearer ${accessToken}`} }), isAccountsVerifyCredentialsResponse);
 }
 
 export interface AccountsVerifyCredentialsResponse extends Account {
@@ -191,8 +103,7 @@ function isAccountsVerifyCredentialsResponse(obj: unknown): obj is AccountsVerif
 
 /** Information about the server. */
 export async function instanceInformation(apiBase: string): Promise<Instance> {
-    const res = await fetch(`${apiBase}/api/v1/instance`);
-    return verifyJsonResponse(res, isInstance);
+    return await fetchJson(`${apiBase}/api/v1/instance`, isInstance);
 }
 
 // https://docs.joinmastodon.org/methods/statuses/
@@ -235,16 +146,14 @@ export async function statusesPublish(apiBase: string, accessToken: string, opts
     if (visibility) data.set('visibility', visibility);
     if (media_ids) media_ids.forEach(v => data.append('media_ids[]', v));
     
-    const res = await fetch(`${apiBase}/api/v1/statuses`, { method: 'POST', body: data, headers });
-    return verifyJsonResponse(res, isStatus);
+    return await fetchJson(new Request(`${apiBase}/api/v1/statuses`, { method: 'POST', body: data, headers }), isStatus);
 }
 
 export async function statusesViewById(apiBase: string, accessToken: string, id: string): Promise<Status> {
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${accessToken}`);
     
-    const res = await fetch(`${apiBase}/api/v1/statuses/${id}`, { headers });
-    return verifyJsonResponse(res, isStatus);
+    return await fetchJson(new Request(`${apiBase}/api/v1/statuses/${id}`, { headers }), isStatus);
 }
 
 // https://docs.joinmastodon.org/methods/media/#v2
@@ -268,8 +177,7 @@ export async function mediaUploadAsync(apiBase: string, accessToken: string, opt
     data.set('file', file);
     if (typeof description === 'string' && description !== '') data.set('description', description);
     
-    const res = await fetch(`${apiBase}/api/v2/media`, { method: 'POST', body: data, headers });
-    return verifyJsonResponse(res, isMediaAttachment, { allow202: true });
+    return await fetchJson(new Request(`${apiBase}/api/v2/media`, { method: 'POST', body: data, headers }), isMediaAttachment, { allow202: true });
 }
 
 // Api Entities

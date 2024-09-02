@@ -5544,11 +5544,11 @@ function findEpisodeTitle(socialInteract) {
 function isOauthObtainTokenResponse(obj) {
     return isStringRecord(obj) && typeof obj.access_token === 'string' && typeof obj.token_type === 'string' && typeof obj.scope === 'string' && typeof obj.created_at === 'number';
 }
-const APPLICATION_JSON_CHARSET_UTF8 = 'application/json; charset=utf-8';
-async function verifyJsonResponse(res, bodyVerifier, { allow202 } = {}) {
-    if (!(res.status === 200 || allow202 && res.status === 202)) throw new Error(`Unexpected http response status: ${res.status}, expected 200${allow202 ? ' or 202' : ''}, body=${await res.text()}`);
-    const contentType = res.headers.get('content-type');
-    if (contentType !== APPLICATION_JSON_CHARSET_UTF8) throw new Error(`Unexpected response content-type: ${contentType}, expected ${APPLICATION_JSON_CHARSET_UTF8}, body=${await res.text()}`);
+async function fetchJson(req, bodyVerifier, { allow202, fetcher = fetch } = {}) {
+    const res = await fetcher(req);
+    if (!(res.status === 200 || allow202 && res.status === 202)) throw new Error(`Unexpected response status: ${res.status}, expected 200${allow202 ? ' or 202' : ''}, body=${await res.text()}`);
+    const contentType = res.headers.get('content-type') ?? undefined;
+    if (!/json/i.test(contentType ?? '')) throw new Error(`Unexpected response content-type: ${contentType}, expected json, body=${await res.text()}`);
     const body = await res.json();
     if (!bodyVerifier(body)) throw new Error(`Unexpected body: ${JSON.stringify(body, undefined, 2)}`);
     return body;
@@ -5563,12 +5563,11 @@ async function statusesPublish(apiBase, accessToken, opts) {
     if (in_reply_to_id) data.set('in_reply_to_id', in_reply_to_id);
     if (visibility) data.set('visibility', visibility);
     if (media_ids) media_ids.forEach((v)=>data.append('media_ids[]', v));
-    const res = await fetch(`${apiBase}/api/v1/statuses`, {
+    return await fetchJson(new Request(`${apiBase}/api/v1/statuses`, {
         method: 'POST',
         body: data,
         headers
-    });
-    return verifyJsonResponse(res, isStatus);
+    }), isStatus);
 }
 function isStatus(obj) {
     return isStringRecord(obj) && typeof obj.id === 'string' && typeof obj.uri === 'string' && typeof obj.created_at === 'string' && typeof obj.content === 'string' && typeof obj.visibility === 'string' && (obj.url === undefined || typeof obj.url === 'string') && (obj.in_reply_to_id === undefined || obj.in_reply_to_id === null || typeof obj.in_reply_to_id === 'string');

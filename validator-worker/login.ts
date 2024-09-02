@@ -1,6 +1,6 @@
 import { checkMatchesReturnMatcher } from './common/check.ts';
 import { Bytes } from './deps_worker.ts';
-import { appsCreateApplication, AppsCreateApplicationOpts, AppsCreateApplicationResponse, computeOauthUserAuthorizationUrl, eqAppsCreateApplicationOpts, instanceInformation, oauthObtainToken } from './common/mastodon_api.ts';
+import { appsCreateApplication, AppsCreateApplicationOpts, AppsCreateApplicationResponse, computeMastodonOauthUserAuthorizationUrl, eqAppsCreateApplicationOpts, instanceInformation, mastodonOauthObtainToken } from './common/mastodon_api.ts';
 import { Storage } from './storage.ts';
 
 export async function computeLogin(_request: Request, url: URL, storage: Storage, config: LoginConfig): Promise<Response> {
@@ -26,7 +26,7 @@ export async function computeLogin(_request: Request, url: URL, storage: Storage
             const codeChallenge = encodeTrimmedUrlsafeBase64(await Bytes.ofUtf8(codeVerifier).sha256());
             await saveOauthRequestInfo(storage, { id: oauthRequestId, origin, codeVerifier });
             const state = packOauthRequestId(oauthRequestId);
-            const oauthLoginUrl = computeOauthUserAuthorizationUrl(origin, { 
+            const oauthLoginUrl = computeMastodonOauthUserAuthorizationUrl(origin, { 
                 response_type: 'code',
                 client_id: applicationResponse.client_id,
                 redirect_uri: applicationResponse.redirect_uri,
@@ -54,7 +54,7 @@ export async function computeLogin(_request: Request, url: URL, storage: Storage
             
             await deleteOauthRequestInfo(oauthRequestId, storage);
 
-            const tokenResponse = await oauthObtainToken(origin, {
+            const tokenResponse = await mastodonOauthObtainToken(origin, {
                 grant_type: 'authorization_code',
                 client_id: info.applicationResponse.client_id,
                 client_secret: info.applicationResponse.client_secret,

@@ -1,4 +1,4 @@
-import { accountsVerifyCredentials, appsCreateApplication, computeOauthUserAuthorizationUrl, instanceInformation, mediaUploadAsync, oauthObtainToken, statusesPublish, statusesViewById } from './common/mastodon_api.ts';
+import { accountsVerifyCredentials, appsCreateApplication, computeMastodonOauthUserAuthorizationUrl, instanceInformation, mediaUploadAsync, mastodonOauthObtainToken, statusesPublish, statusesViewById } from './common/mastodon_api.ts';
 import { parseJsonc } from './deps_cli.ts';
 
 export async function mastodon(args: (string | number)[]) {
@@ -31,7 +31,7 @@ export async function mastodon(args: (string | number)[]) {
     if (action === 'oauth-authorize-url') {
         if (!clientId) throw new Error(`clientId is required`);
 
-        const url = computeOauthUserAuthorizationUrl(apiBase, { 
+        const url = computeMastodonOauthUserAuthorizationUrl(apiBase, { 
             response_type: 'code',
             client_id: clientId,
             redirect_uri: redirectUri,
@@ -46,7 +46,7 @@ export async function mastodon(args: (string | number)[]) {
         if (!clientSecret) throw new Error(`clientSecret is required`);
         if (!code) throw new Error(`code is required`);
 
-        const res = await oauthObtainToken(apiBase, {
+        const res = await mastodonOauthObtainToken(apiBase, {
             grant_type: 'authorization_code',
             client_id: clientId,
             client_secret: clientSecret,
