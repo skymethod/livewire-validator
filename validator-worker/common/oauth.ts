@@ -202,10 +202,14 @@ export interface OauthObtainTokenOpts {
 
     /** Oauth PKCE: The code verifier for the request, that the app originally generated before the authorization request. */
     readonly code_verifier?: string;
+
+    readonly useFormData?: boolean; // default json
+
+    readonly fetcher?: typeof fetch;
 }
 
 export async function oauthObtainToken(opts: OauthObtainTokenOpts): Promise<OauthObtainTokenResponse> {
-    const { grant_type, client_id, client_secret, redirect_uri, scope, code, code_verifier, token_endpoint } = opts;
+    const { grant_type, client_id, client_secret, redirect_uri, scope, code, code_verifier, token_endpoint, fetcher, useFormData } = opts;
     const data = new Map<string, string>();
     data.set('grant_type', grant_type);
     data.set('client_id', client_id);
@@ -214,8 +218,13 @@ export async function oauthObtainToken(opts: OauthObtainTokenOpts): Promise<Oaut
     if (code) data.set('code', code);
     if (scope) data.set('scope', scope);
     if (code_verifier) data.set('code_verifier', code_verifier);
-    const body = JSON.stringify(Object.fromEntries([...data]));
-    return await fetchJson(new Request(token_endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body }), isOauthObtainTokenResponse);
+
+    const body = useFormData ? (() => {
+        const rt = new URLSearchParams();
+        data.forEach((v, k) => rt.append(k, v));
+        return rt.toString();
+    })() : JSON.stringify(Object.fromEntries([...data]));
+    return await fetchJson(new Request(token_endpoint, { method: 'POST', headers: { 'content-type': useFormData ? 'application/x-www-form-urlencoded' : 'application/json' }, body }), isOauthObtainTokenResponse, { fetcher });
 }
 
 
