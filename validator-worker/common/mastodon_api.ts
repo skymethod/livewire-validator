@@ -67,7 +67,7 @@ export interface AppsCreateApplicationResponse {
     readonly vapid_key: string;
 }
 
-function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreateApplicationResponse {
+export function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreateApplicationResponse {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
         && typeof obj.name === 'string'
@@ -86,7 +86,7 @@ function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreateApplica
  * Returns: the user's own Account with Source
  */
 export async function accountsVerifyCredentials(apiBase: string, accessToken: string): Promise<AccountsVerifyCredentialsResponse> {
-    return await fetchJson(new Request(`${apiBase}/api/v1/accounts/verify_credentials`, { headers: { 'Authorization': `Bearer ${accessToken}`} }), isAccountsVerifyCredentialsResponse);
+    return await fetchJson(new Request(`${apiBase}/api/v1/accounts/verify_credentials`, { headers: { 'Authorization': `Bearer ${accessToken}` } }), isAccountsVerifyCredentialsResponse);
 }
 
 export interface AccountsVerifyCredentialsResponse extends Account {
@@ -97,6 +97,128 @@ function isAccountsVerifyCredentialsResponse(obj: unknown): obj is AccountsVerif
     return isStringRecord(obj) 
         && isSource(obj.source)
         && isAccount(obj);
+}
+
+// https://docs.joinmastodon.org/methods/accounts/#request-10
+export interface AccountsFollowAccountOpts {
+    /**  The ID of the Account in the database. */
+    readonly id: string;
+
+    /** Receive this account’s reblogs in home timeline? Defaults to true. */
+    readonly reblogs?: boolean;
+
+    /** Receive notifications when this account posts a status? Defaults to false. */
+    readonly notify?: boolean;
+
+    /** Array of String (ISO 639-1 language two-letter code). Filter received statuses for these languages. If not provided, you will receive this account’s posts in all languages. */
+    readonly languages?: string[];
+}
+
+export async function accountsFollowAccount(apiBase: string, accessToken: string, opts: AccountsFollowAccountOpts, fetcher?: typeof fetch): Promise<AccountsFollowAccountResponse> {
+    const { id, reblogs, notify, languages} = opts;
+    const data = new FormData();
+    if (reblogs !== undefined) data.set('reblogs', reblogs.toString());
+    if (notify) data.set('notify', notify.toString());
+    if (languages) languages.forEach(v => data.append('languages[]', v));
+    return await fetchJson(new Request(`${apiBase}/api/v1/accounts/${id}/follow`, { method: 'POST', body: data, headers: { 'Authorization': `Bearer ${accessToken}` } }), isAccountsFollowAccountResponse, { fetcher });
+}
+
+// https://docs.joinmastodon.org/methods/accounts/#200-ok-10
+export interface AccountsFollowAccountResponse {
+    readonly id: string;
+    readonly following: boolean;
+    readonly showing_reblogs: boolean;
+    readonly notifying: boolean;
+    readonly followed_by: boolean;
+    readonly blocking: boolean;
+    readonly blocked_by: boolean;
+    readonly muting: boolean;
+    readonly muting_notifications: boolean;
+    readonly requested: boolean;
+    readonly domain_blocking: boolean;
+    readonly endorsed: boolean;
+}
+
+function isAccountsFollowAccountResponse(obj: unknown): obj is AccountsFollowAccountResponse {
+    return isStringRecord(obj) 
+        && typeof obj.id === 'string'
+        ;
+}
+
+// https://docs.joinmastodon.org/methods/accounts/#lookup
+export async function accountsLookup(apiBase: string, opts: AccountsLookupOpts, fetcher?: typeof fetch): Promise<AccountsLookupResponse> {
+    const { acct } = opts;
+    const u = new URL(`${apiBase}/api/v1/accounts/lookup`);
+    u.searchParams.set('acct', acct);
+    return await fetchJson(u.toString(), isAccountsLookupResponse, { fetcher });
+}
+
+export interface AccountsLookupOpts {
+    /** The username or Webfinger address to lookup. */
+    readonly acct: string;
+}
+
+export interface AccountsLookupResponse {
+    readonly id: string;
+    readonly username: string;
+    readonly acct: string;
+    readonly display_name: string;
+    // TODO others
+}
+
+function isAccountsLookupResponse(obj: unknown): obj is AccountsLookupResponse {
+    return isStringRecord(obj) 
+        && typeof obj.id === 'string'
+        ;
+}
+
+// https://docs.joinmastodon.org/methods/accounts/#search
+export async function accountsSearch(apiBase: string, accessToken: string, opts: AccountsSearchOpts, fetcher?: typeof fetch): Promise<AccountsSearchResponse> {
+    const { q, limit, offset, resolve, following } = opts;
+    const u = new URL(`${apiBase}/api/v1/accounts/search`);
+    u.searchParams.set('q', q);
+    if (limit !== undefined) u.searchParams.set('limit', limit.toString());
+    if (offset !== undefined) u.searchParams.set('offset', offset.toString());
+    if (resolve !== undefined) u.searchParams.set('resolve', resolve.toString());
+    if (following !== undefined) u.searchParams.set('following', following.toString());
+    return await fetchJson(new Request(u.toString(), { headers: { 'Authorization': `Bearer ${accessToken}` } }), isAccountsSearchResponse, { fetcher });
+}
+
+export interface AccountsSearchOpts {
+    /** Search query for accounts. */
+    readonly q: string;
+
+    /** Maximum number of results. Defaults to 40 accounts. Max 80 accounts. */
+    readonly limit?: number;
+
+    /** Skip the first n results. */
+    readonly offset?: number;
+
+    /** Attempt WebFinger lookup. Defaults to false. Use this when q is an exact address. */
+    readonly resolve?: boolean;
+
+    /** Limit the search to users you are following. Defaults to false. */
+    readonly following?: boolean;
+}
+
+export type AccountsSearchResponse = AccountsSearchResponseItem[];
+
+function isAccountsSearchResponse(obj: unknown): obj is AccountsSearchResponse {
+    return Array.isArray(obj) && obj.every(isAccountsSearchResponseItem);
+}
+
+export interface AccountsSearchResponseItem {
+    readonly id: string;
+    readonly username: string;
+    readonly acct: string;
+    readonly display_name: string;
+    // TODO others
+}
+
+function isAccountsSearchResponseItem(obj: unknown): obj is AccountsSearchResponseItem {
+    return isStringRecord(obj) 
+        && typeof obj.id === 'string'
+        ;
 }
 
 // https://docs.joinmastodon.org/methods/instance/

@@ -319,7 +319,7 @@ function toggleReplyBox(anchor: HTMLAnchorElement, fieldsetContainer: HTMLDivEle
                 update();
             } else {
                 // start login flow in a another tab, listen for a message to close it
-                const w = window.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
+                const w = globalThis.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
                 if (w) {
                     globalThis.onmessage = e => {
                         const { data } = e;

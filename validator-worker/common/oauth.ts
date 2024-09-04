@@ -1,4 +1,4 @@
-import { isOptionalString, isOptionalStringArray, isStringRecord } from './check.ts';
+import { isOptionalString, isOptionalStringArray, isOptionalNumber, isStringRecord } from './check.ts';
 
 // OAuth 2.0 Authorization Server Metadata
 // https://datatracker.ietf.org/doc/html/rfc8414#section-3
@@ -121,6 +121,8 @@ function isAuthorizationServerMetadata(obj: unknown): obj is AuthorizationServer
 
 // OAuth 2.0 Compute authorization url
 
+export const OOB_REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob';
+
 export interface OauthUserAuthorizationOpts {
 
     readonly authorization_endpoint: string;
@@ -230,9 +232,10 @@ export interface OauthObtainTokenResponse {
 
     /** OPTIONAL, if identical to the scope requested by the client; otherwise, REQUIRED.  
      * The scope of the access token as described by Section 3.3. */
-    readonly scope: string; // e.g. write:statuses read:accounts
+    readonly scope?: string; // e.g. write:statuses read:accounts
 
-    readonly created_at: number; // epoch seconds
+    // additional fields found only in Mastodon
+    readonly created_at?: number; // epoch seconds
 
     // additional fields found only in Pleroma:
 
@@ -259,8 +262,27 @@ export function isOauthObtainTokenResponse(obj: any): obj is OauthObtainTokenRes
         && typeof obj.access_token === 'string'
         && typeof obj.token_type === 'string'
         && typeof obj.scope === 'string'
-        && typeof obj.created_at === 'number'
+        && isOptionalNumber(obj.created_at)
         ;
+}
+
+// OAuth 2.0 Revoke token
+
+export interface OauthRevokeTokenOpts {
+    readonly revocation_endpoint: string;
+    readonly client_id: string;
+    readonly client_secret?: string;
+    readonly token: string;
+}
+
+export async function oauthRevokeToken(opts: OauthRevokeTokenOpts): Promise<void> {
+    const { revocation_endpoint, client_id, client_secret, token } = opts;
+    const data = new Map<string, string>();
+    data.set('client_id', client_id);
+    data.set('token', token);
+    if (client_secret) data.set('client_secret', client_secret);
+    const body = JSON.stringify(Object.fromEntries([...data]));
+    await fetchJson(new Request(revocation_endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body }), isStringRecord);
 }
 
 //

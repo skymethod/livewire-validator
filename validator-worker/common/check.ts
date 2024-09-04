@@ -36,3 +36,11 @@ export function isStringArray(obj: unknown): obj is string[] {
 export function isOptionalStringArray(obj: unknown): obj is string[] | undefined {
     return isStringArray(obj) || obj === undefined;
 }
+
+export function isOptionalBoolean(obj: unknown): obj is boolean | undefined {
+    return typeof obj === 'boolean' || obj === undefined;
+}
+
+export function isOptionalNumber(obj: unknown): obj is number | undefined {
+    return typeof obj === 'number' || obj === undefined;
+}

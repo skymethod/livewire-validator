@@ -6099,7 +6099,7 @@ function toggleReplyBox(anchor, fieldsetContainer, replyToUrl, vm) {
                 vm.expireLogin(origin);
                 update();
             } else {
-                const w = window.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
+                const w = globalThis.open(`/login?origin=${encodeURIComponent(origin)}`, 'login');
                 if (w) {
                     globalThis.onmessage = (e)=>{
                         const { data } = e;
