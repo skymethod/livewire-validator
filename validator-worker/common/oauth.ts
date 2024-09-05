@@ -102,7 +102,7 @@ export interface AuthorizationServerMetadata {
     readonly token_endpoint_auth_methods_supported?: readonly string[];
 };
 
-function isAuthorizationServerMetadata(obj: unknown): obj is AuthorizationServerMetadata {
+export function isAuthorizationServerMetadata(obj: unknown): obj is AuthorizationServerMetadata {
     return isStringRecord(obj)
         && typeof obj.authorization_endpoint === 'string'
         && typeof obj.token_endpoint === 'string'

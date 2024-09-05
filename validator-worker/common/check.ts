@@ -44,3 +44,7 @@ export function isOptionalBoolean(obj: unknown): obj is boolean | undefined {
 export function isOptionalNumber(obj: unknown): obj is number | undefined {
     return typeof obj === 'number' || obj === undefined;
 }
+
+export function isOptional<T>(obj: unknown, validator: (v: unknown) => v is T): obj is T | undefined {
+    return obj === undefined || validator(obj);
+}
