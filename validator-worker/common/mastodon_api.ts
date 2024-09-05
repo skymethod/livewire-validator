@@ -60,11 +60,11 @@ export async function appsCreateApplication(apiBase: string, opts: AppsCreateApp
 export interface AppsCreateApplicationResponse {
     readonly id: string; // e.g. "123"
     readonly name: string;
-    readonly website?: string;
+    readonly website?: string | null;
     readonly redirect_uri: string;
     readonly client_id: string;
     readonly client_secret: string;
-    readonly vapid_key: string;
+    readonly vapid_key: string | null;
 }
 
 export function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreateApplicationResponse {
@@ -75,7 +75,7 @@ export function isAppsCreateApplicationResponse(obj: unknown): obj is AppsCreate
         && typeof obj.redirect_uri === 'string'
         && typeof obj.client_id === 'string'
         && typeof obj.client_secret === 'string'
-        && typeof obj.vapid_key === 'string'
+        && (obj.vapid_key === undefined || obj.vapid_key === null || typeof obj.vapid_key === 'string')
         ;
 }
 
@@ -467,5 +467,89 @@ function isMediaAttachment(obj: unknown): obj is MediaAttachment {
         && typeof obj.type === 'string'
         && typeof obj.preview_url === 'string'
         && (obj.url === null || typeof obj.url === 'string')
+        ;
+}
+
+
+// Perform a search (v2)
+// https://docs.joinmastodon.org/methods/search/
+
+export async function search(apiBase: string, opts: SearchOpts, fetcher?: typeof fetch): Promise<SearchResponse> {
+    const { q, type, resolve, following, account_id, exclude_unreviewed, max_id, min_id, limit, offset, accessToken } = opts;
+    const u = new URL(`${apiBase}/api/v2/search `);
+    u.searchParams.set('q', q);
+    if (type !== undefined) u.searchParams.set('type', type);
+    if (resolve !== undefined) u.searchParams.set('resolve', resolve.toString());
+    if (following !== undefined) u.searchParams.set('following', following.toString());
+    if (account_id !== undefined) u.searchParams.set('account_id', account_id);
+    if (exclude_unreviewed !== undefined) u.searchParams.set('exclude_unreviewed', exclude_unreviewed.toString());
+    if (max_id !== undefined) u.searchParams.set('max_id', max_id);
+    if (min_id !== undefined) u.searchParams.set('min_id', min_id);
+    if (limit !== undefined) u.searchParams.set('limit', limit.toString());
+    if (offset !== undefined) u.searchParams.set('offset', offset.toString());
+    return await fetchJson(new Request(u.toString(), { headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {} }), isSearchResponse, { fetcher });
+}
+
+export type SearchOpts = {
+    /** The search query. */
+    readonly q: string;
+
+    /** Specify whether to search for only accounts, hashtags, statuses */
+    readonly type?: string;
+
+    /** Only relevant if type includes accounts.
+     * 
+     * If true and (a) the search query is for a remote account (e.g., someaccount@someother.server) and (b) the local server does not know about the account, WebFinger is used to try and resolve the account at someother.server.
+     * 
+     * This provides the best recall at higher latency. If false only accounts the server knows about are returned. */
+    readonly resolve?: boolean;
+
+    /** Only include accounts that the user is following? Defaults to false. */
+    readonly following?: boolean;
+
+    /** If provided, will only return statuses authored by this account. */
+    readonly account_id?: string;
+
+    /** Filter out unreviewed tags? Defaults to false. Use true when trying to find trending tags. */
+    readonly exclude_unreviewed?: boolean;
+
+    /** All results returned will be lesser than this ID. In effect, sets an upper bound on results. */
+    readonly max_id?: string;
+
+    /** Returns results immediately newer than this ID. In effect, sets a cursor at this ID and paginates forward. */
+    readonly min_id?: string;
+
+    /** Maximum number of results to return, per type. Defaults to 20 results per category. Max 40 results per category. */
+    readonly limit?: number;
+
+    /** Skip the first n results. */
+    readonly offset?: number;
+
+    /** required for 'resolve' or 'offset' */
+    readonly accessToken?: string;
+
+}
+
+export interface SearchResponse {
+    readonly accounts: readonly SearchAccountItem[];
+    // readonly hashtags: readonly unknown[];
+    // readonly statuses: readonly unknown[];
+}
+
+function isSearchResponse(obj: unknown): obj is SearchResponse {
+    return isStringRecord(obj) 
+        && Array.isArray(obj.accounts) && obj.accounts.every(isSearchAccountItem)
+        ;
+}
+
+export interface SearchAccountItem {
+    readonly id: string;
+    // TODO others
+
+}
+
+function isSearchAccountItem(obj: unknown): obj is SearchAccountItem {
+    return isStringRecord(obj) 
+        && typeof obj.id === 'string'
         ;
 }

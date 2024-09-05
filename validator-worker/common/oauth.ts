@@ -270,8 +270,10 @@ export function isOauthObtainTokenResponse(obj: any): obj is OauthObtainTokenRes
     return isStringRecord(obj) 
         && typeof obj.access_token === 'string'
         && typeof obj.token_type === 'string'
-        && typeof obj.scope === 'string'
+        && isOptionalString(obj.scope)
         && isOptionalNumber(obj.created_at)
+        && isOptionalNumber(obj.expires_in)
+        && isOptionalString(obj.refresh_token)
         ;
 }
 
