@@ -224,7 +224,9 @@ export async function oauthObtainToken(opts: OauthObtainTokenOpts): Promise<Oaut
         data.forEach((v, k) => rt.append(k, v));
         return rt.toString();
     })() : JSON.stringify(Object.fromEntries([...data]));
-    return await fetchJson(new Request(token_endpoint, { method: 'POST', headers: { 'content-type': useFormData ? 'application/x-www-form-urlencoded' : 'application/json' }, body }), isOauthObtainTokenResponse, { fetcher });
+    const req = new Request(token_endpoint, { method: 'POST', headers: { 'content-type': useFormData ? 'application/x-www-form-urlencoded' : 'application/json' }, body });
+    (req as any)._bodystring = body; // temp for firefox
+    return await fetchJson(req, isOauthObtainTokenResponse, { fetcher });
 }
 
 
