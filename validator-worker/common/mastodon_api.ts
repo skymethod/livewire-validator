@@ -1,6 +1,6 @@
 // deno-lint-ignore-file camelcase
 
-import { isStringRecord } from './check.ts';
+import { isOptionalString, isStringRecord } from './check.ts';
 import { computeOauthUserAuthorizationUrl, fetchJson, oauthObtainToken, OauthObtainTokenOpts, OauthObtainTokenResponse, OauthUserAuthorizationOpts } from './oauth.ts';
 
 // https://docs.joinmastodon.org/methods/apps/oauth/#authorize-a-user
@@ -212,12 +212,14 @@ export interface AccountsSearchResponseItem {
     readonly username: string;
     readonly acct: string;
     readonly display_name: string;
+    readonly uri?: string;
     // TODO others
 }
 
 function isAccountsSearchResponseItem(obj: unknown): obj is AccountsSearchResponseItem {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
+        && isOptionalString(obj.uri)
         ;
 }
 
@@ -544,6 +546,7 @@ function isSearchResponse(obj: unknown): obj is SearchResponse {
 
 export interface SearchAccountItem {
     readonly id: string;
+    readonly uri: string;
     // TODO others
 
 }
@@ -551,5 +554,6 @@ export interface SearchAccountItem {
 function isSearchAccountItem(obj: unknown): obj is SearchAccountItem {
     return isStringRecord(obj) 
         && typeof obj.id === 'string'
+        && isOptionalString(obj.uri)
         ;
 }
