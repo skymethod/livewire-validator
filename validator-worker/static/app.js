@@ -2572,6 +2572,12 @@ function isStringRecord(obj) {
 function isString(obj) {
     return typeof obj === 'string';
 }
+function isOptionalString(obj) {
+    return typeof obj === 'string' || obj === undefined;
+}
+function isOptionalNumber(obj) {
+    return typeof obj === 'number' || obj === undefined;
+}
 function isReadonlyArray(arg) {
     return Array.isArray(arg);
 }
@@ -5542,7 +5548,7 @@ function findEpisodeTitle(socialInteract) {
     return undefined;
 }
 function isOauthObtainTokenResponse(obj) {
-    return isStringRecord(obj) && typeof obj.access_token === 'string' && typeof obj.token_type === 'string' && typeof obj.scope === 'string' && typeof obj.created_at === 'number';
+    return isStringRecord(obj) && typeof obj.access_token === 'string' && typeof obj.token_type === 'string' && isOptionalString(obj.scope) && isOptionalNumber(obj.created_at) && isOptionalNumber(obj.expires_in) && isOptionalString(obj.refresh_token);
 }
 async function fetchJson(req, bodyVerifier, { allow202, fetcher = fetch } = {}) {
     const res = await fetcher(req);
@@ -5651,7 +5657,7 @@ class ValidatorAppVM {
     }
 }
 function computeExpired(tokenResponse) {
-    return typeof tokenResponse.expires_in === 'number' && (tokenResponse.created_at + tokenResponse.expires_in) * 1000 <= Date.now();
+    return typeof tokenResponse.created_at === 'number' && typeof tokenResponse.expires_in === 'number' && (tokenResponse.created_at + tokenResponse.expires_in) * 1000 <= Date.now();
 }
 function computeLoginInfoLocalStorageKey(origin) {
     return `login:${origin}`;

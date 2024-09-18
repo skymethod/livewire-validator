@@ -81,7 +81,7 @@ export class ValidatorAppVM {
 //
 
 function computeExpired(tokenResponse: OauthObtainTokenResponse): boolean {
-    return typeof tokenResponse.expires_in === 'number' && (tokenResponse.created_at + tokenResponse.expires_in) * 1000 <= Date.now();
+    return typeof tokenResponse.created_at === 'number' && typeof tokenResponse.expires_in === 'number' && (tokenResponse.created_at + tokenResponse.expires_in) * 1000 <= Date.now();
 }
 
 function computeLoginInfoLocalStorageKey(origin: string): string {
