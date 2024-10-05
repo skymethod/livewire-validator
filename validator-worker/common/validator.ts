@@ -707,6 +707,17 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     // podcast:remoteItem
     checkPodcastRemoteItem('item', item, callbacks);
 
+    // PHASE 7
+
+    // podcast:funding
+    for (const funding of findChildElements(item, ...Qnames.PodcastIndex.funding)) {
+        ElementValidation.forElement(itemTagName, funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding'))
+            .checkValue(isNotEmpty)
+            .checkValue(isAtMostCharacters(128))
+            .checkRequiredAttribute('url', isUrl)
+            .checkRemainingAttributes();
+    }
+
     // PROPOSALS
 
     // (none at the moment)

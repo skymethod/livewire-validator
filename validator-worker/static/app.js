@@ -3144,6 +3144,9 @@ function validateItem(item, callbacks, itemTagName) {
     checkPodcastTxt('item', item, callbacks);
     checkPodcastChat('item', item, callbacks);
     checkPodcastRemoteItem('item', item, callbacks);
+    for (const funding of findChildElements(item, ...Qnames.PodcastIndex.funding)){
+        ElementValidation.forElement(itemTagName, funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding')).checkValue(isNotEmpty).checkValue(isAtMostCharacters(128)).checkRequiredAttribute('url', isUrl).checkRemainingAttributes();
+    }
     checkPodcastTagUsage(item, callbacks);
 }
 class ElementValidation {
