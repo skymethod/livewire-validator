@@ -3370,18 +3370,20 @@ class Bytes {
         size = size / 1024;
         if (size < 1024) return `${sign}${roundToOneDecimal(size)}kb`;
         size = size / 1024;
-        return `${sign}${roundToOneDecimal(size)}mb`;
+        if (size < 1024) return `${sign}${roundToOneDecimal(size)}mb`;
+        size = size / 1024;
+        return `${sign}${roundToOneDecimal(size)}gb`;
     }
 }
 function roundToOneDecimal(value) {
     return Math.round(value * 10) / 10;
 }
 function base64Encode(buf) {
-    let string = '';
-    buf.forEach((__byte)=>{
-        string += String.fromCharCode(__byte);
-    });
-    return btoa(string);
+    const pieces = new Array(buf.length);
+    for(let i = 0; i < buf.length; i++){
+        pieces.push(String.fromCharCode(buf[i]));
+    }
+    return btoa(pieces.join(''));
 }
 function base64Decode(str, urlSafe) {
     if (urlSafe) str = str.replace(/_/g, '/').replace(/-/g, '+');
