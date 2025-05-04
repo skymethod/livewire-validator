@@ -33,7 +33,7 @@ export async function computeFetch(request: Request, { twitterCredentials, actor
         }
         return rt;
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 400 });
+        return new Response(JSON.stringify({ error: (e as Error).message }), { status: 400 });
     }
 }
 

@@ -24,7 +24,7 @@ export async function search(input: string, opts: { headers: Record<string, stri
                 u.searchParams.set('id', input);
                 piIdResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
             } catch (e) {
-                piIdResult = e.message;
+                piIdResult = (e as Error).message;
             }
         } else if ((m = /^id(\d+)$/.exec(input))) {
             try {
@@ -32,7 +32,7 @@ export async function search(input: string, opts: { headers: Record<string, stri
                 u.searchParams.set('id', m[1]);
                 piIdResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
             } catch (e) {
-                piIdResult = e.message;
+                piIdResult = (e as Error).message;
             }
         } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
             try {
@@ -40,7 +40,7 @@ export async function search(input: string, opts: { headers: Record<string, stri
                 u.searchParams.set('guid', input);
                 piGuidResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
             } catch (e) {
-                piGuidResult = e.message;
+                piGuidResult = (e as Error).message;
             }
         } else {
             try {
@@ -48,7 +48,7 @@ export async function search(input: string, opts: { headers: Record<string, stri
                 u.searchParams.set('q', input);
                 piSearchResult = await fetchPodcastIndexJson(u.toString(), headers, podcastIndexCredentials);
             } catch (e) {
-                piSearchResult = e.message;
+                piSearchResult = (e as Error).message;
             }
         }
     }

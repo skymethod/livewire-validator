@@ -1,8 +1,8 @@
 import { Bytes, computeSystemActorResponse, computeWebfingerResponse, computeWebfingerSubject, DurableObjectNamespace, importText, IncomingRequestCf } from './deps_worker.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
-import { AppManifest } from './app_manifest.d.ts';
-import { ValidatorWorkerEnv } from './validator_worker_env.d.ts';
+import type { AppManifest } from './app_manifest.d.ts';
+import type { ValidatorWorkerEnv } from './validator_worker_env.d.ts';
 import { Theme } from './common/theme.ts';
 import { PodcastIndexCredentials, search } from './search.ts';
 import { computeLogin } from './login.ts';
@@ -131,7 +131,7 @@ async function computeSearch(request: Request, podcastIndexCredentials: PodcastI
         const result = await search(input, { headers, podcastIndexCredentials });
         return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json; charset=utf-8' }});
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 400 });
+        return new Response(JSON.stringify({ error: (e as Error).message }), { status: 400 });
     }
 }
 

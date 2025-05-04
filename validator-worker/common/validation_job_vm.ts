@@ -217,9 +217,9 @@ export class ValidationJobVM {
                         console.log(xml);
                     } catch (e) {
                         console.error(e);
-                        const message = typeof e.message === 'string' ? e.message: '';
+                        const message = typeof (e as Error).message === 'string' ? (e as Error).message: '';
                         const knownInvalid = message === `Cannot read properties of undefined (reading 'parent')`; // thrown by getTraversalObj
-                        addMessage('error', `Xml parse failed: ${knownInvalid ? 'Invalid xml' : e.message}`);
+                        addMessage('error', `Xml parse failed: ${knownInvalid ? 'Invalid xml' : (e as Error).message}`);
                     } finally {
                         job.times.parseTime = Date.now() - start;
                     }
@@ -560,7 +560,7 @@ export class ValidationJobVM {
             }
         } catch (e) {
             console.error(e);
-            addMessage('error', e.message);
+            addMessage('error', (e as Error).message);
         } finally {
             addMessage('info', `${job.search ? 'Search took' : 'Took'} ${formatTime(Date.now() - jobStart)}${computeJobTimesStringSuffix(job.times)}`);
             if (continueWithUrl) {
