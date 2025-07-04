@@ -132,66 +132,73 @@ export class ValidationJobVM {
                  }
             }
 
-            else if (/^(https?|file|nostr):\/\/.+/i.test(input)) {
+            else if (/^(https?|file|nostr|at):\/\/.+/i.test(input)) {
                 // we have an url, validate it
-
-                const inputUrl = tryParseUrl(input);
-                if (!inputUrl) throw new Error(`Bad url: ${input}`);
-                checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file|nostr):$/);
 
                 let contentType: string | undefined;
                 let response: Response | undefined;
-                if (inputUrl.protocol === 'nostr:') {
-                    nostr = { url: input, subject: 'input url' };
-                } else {
-                    // https://feed.podbean.com/<slug>/feed.xml => 405 method not allowed for any query param
-                    if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
-                        inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
-                    }
-
-                    // https://reason.fm/feeds/<slug>/rss.xml
-                    // https://podvine.com/feeds/<slug>>/rss.xml
-                    if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
-                        delete headers['User-Agent']; // otherwise always sends html, regardless of Accept
-                    }
-                    const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
-                    job.times.fetchTime = fetchTime;
-
-                    if (side === 'local') {
-                        if (inputUrl.protocol === 'file:') {
-                            addMessage('good', `Local file contents loaded`);
-                        } else {
-                            addMessage('good', `Local fetch succeeded (CORS enabled)`, { url: input });
-                        }
-                    }
-                    checkEqual(`${inputUrl.host} response status`, r.status, 200);
-                    contentType = r.headers.get('Content-Type') ?? undefined;
-                    response = r;
-                }
-
                 let validateFeed = true;
-                if (response && contentType && contentType.includes('/html')) {
-                    if (inputUrl.hostname.endsWith('twitter.com')) {
-                        addMessage('info', 'Found html, will try again as Twitter');
-                        validateFeed = false;
-                        twitter = { url: input, subject: 'input url' };
-                    } else if (inputUrl.hostname.endsWith('bsky.app')) {
-                        addMessage('info', 'Found html, will try again as Bluesky');
-                        validateFeed = false;
+                if (/^at:\/\/.+/i.test(input)) { // these are not parsable by web-platform URL
+                    bluesky = { url: input, subject: 'input url' };
+                } else {
+                    const inputUrl = tryParseUrl(input);
+                    if (!inputUrl) throw new Error(`Bad url: ${input}`);
+                    checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file|nostr):$/);
+
+                    if (inputUrl.protocol === 'nostr:') {
+                        nostr = { url: input, subject: 'input url' };
+                    } else if (inputUrl.protocol === 'at:') {
                         bluesky = { url: input, subject: 'input url' };
                     } else {
-                        addMessage('info', 'Found html, will try again as ActivityPub');
-                        validateFeed = false;
-                        let url = input;
-                        if (inputUrl.hostname.endsWith('threads.net')) {
-                            const html = await response.text();
-                            const apUrl = /<link rel="alternate" href="(https:\/\/(www\.)?threads\.net\/ap\/[^"]+)" type="application\/activity\+json" \/>/.exec(html)?.at(1);
-                            addMessage('info', `apUrl: ${apUrl}`);
-                            url = apUrl ?? url;
+                        // https://feed.podbean.com/<slug>/feed.xml => 405 method not allowed for any query param
+                        if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
+                            inputUrl.searchParams.set('_t', Date.now().toString()); // cache bust
                         }
-                        activityPubs.push({ url, subject: 'input url' });
+
+                        // https://reason.fm/feeds/<slug>/rss.xml
+                        // https://podvine.com/feeds/<slug>>/rss.xml
+                        if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
+                            delete headers['User-Agent']; // otherwise always sends html, regardless of Accept
+                        }
+                        const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
+                        job.times.fetchTime = fetchTime;
+
+                        if (side === 'local') {
+                            if (inputUrl.protocol === 'file:') {
+                                addMessage('good', `Local file contents loaded`);
+                            } else {
+                                addMessage('good', `Local fetch succeeded (CORS enabled)`, { url: input });
+                            }
+                        }
+                        checkEqual(`${inputUrl.host} response status`, r.status, 200);
+                        contentType = r.headers.get('Content-Type') ?? undefined;
+                        response = r;
+                    }
+
+                    if (response && contentType && contentType.includes('/html')) {
+                        if (inputUrl.hostname.endsWith('twitter.com')) {
+                            addMessage('info', 'Found html, will try again as Twitter');
+                            validateFeed = false;
+                            twitter = { url: input, subject: 'input url' };
+                        } else if (inputUrl.hostname.endsWith('bsky.app')) {
+                            addMessage('info', 'Found html, will try again as Bluesky');
+                            validateFeed = false;
+                            bluesky = { url: input, subject: 'input url' };
+                        } else {
+                            addMessage('info', 'Found html, will try again as ActivityPub');
+                            validateFeed = false;
+                            let url = input;
+                            if (inputUrl.hostname.endsWith('threads.net')) {
+                                const html = await response.text();
+                                const apUrl = /<link rel="alternate" href="(https:\/\/(www\.)?threads\.net\/ap\/[^"]+)" type="application\/activity\+json" \/>/.exec(html)?.at(1);
+                                addMessage('info', `apUrl: ${apUrl}`);
+                                url = apUrl ?? url;
+                            }
+                            activityPubs.push({ url, subject: 'input url' });
+                        }
                     }
                 }
+
                 if (response && contentType && contentType.startsWith('application/activity+json')) {
                     addMessage('info', 'Found ActivityPub json');
                     const obj = await response.json();
@@ -232,15 +239,17 @@ export class ValidationJobVM {
                                 const attributes = computeAttributeMap(node.attrsMap);
                                 const uri = attributes.get('uri') || node.val;
                                 if (uri) {
-                                    if (attributes.get('platform')?.toLowerCase() === 'activitypub' || attributes.get('protocol')?.toLowerCase() === 'activitypub') {
+                                    const platformLower = attributes.get('platform')?.toLowerCase();
+                                    const protocolLower = attributes.get('protocol')?.toLowerCase();
+                                    if (platformLower === 'activitypub' || protocolLower === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         activityPubs.push({ url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' });
                                     }
-                                    if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
+                                    if (protocolLower === 'twitter') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         twitter = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
-                                    if (attributes.get('protocol')?.toLowerCase() === 'bluesky') {
+                                    if (protocolLower === 'bluesky' || protocolLower === 'atproto') {
                                         const episodeTitle = findEpisodeTitle(node)
                                         bluesky = { url: uri, subject: episodeTitle ? `“${episodeTitle}”` : 'episode' };
                                     }
@@ -454,7 +463,7 @@ export class ValidationJobVM {
                         const callbacks: Callbacks = {
                             onEvent: event => {
                                 if (event.kind === 'warning') {
-                                    const { message, url} = event;
+                                    const { message, url } = event;
                                     addMessage('warning', message, { url });
                                 } else if (event.kind === 'node-processed') {
                                     job.commentsResults = [...results, { threadcap, subject: bluesky!.subject }];
@@ -485,7 +494,7 @@ export class ValidationJobVM {
 
                     if (nostr) {
                         const { subject } = nostr;
-                        console.log({ inputUrl: inputUrl.toString() });
+                        console.log({ inputUrl: new URL(input).toString() });
                         setStatus(`Validating Nostr comments for ${subject}`, { url: nostr.url });
                         addMessage('info', 'Fetching Nostr comments', { url: nostr.url });
                         const keepGoing = () => !job.done;

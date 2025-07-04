@@ -3939,6 +3939,8 @@ async function getThread(url, opts, depth) {
     const commenters = {};
     const processThread = (thread)=>{
         const { uri, author, replyCount } = thread.post;
+        const uriParts = tryDestructureRecordUri(uri);
+        const url = uriParts ? `https://bsky.app/profile/${author.handle}/post/${uriParts.rkey}` : undefined;
         let replies;
         let repliesAsof;
         if (replyCount === undefined) {
@@ -3961,7 +3963,9 @@ async function getThread(url, opts, depth) {
                 content: {
                     und: thread.post.record.text
                 },
-                attributedTo: author.did
+                attributedTo: author.did,
+                url,
+                published: thread.post.record.createdAt
             },
             commentAsof: updateTime
         };
@@ -3982,7 +3986,18 @@ function computeCommenter1(author, updateTime) {
         fqUsername: author.handle,
         icon: author.avatar ? {
             url: author.avatar
-        } : undefined
+        } : undefined,
+        url: `https://bsky.app/profile/${author.handle}`
+    };
+}
+function tryDestructureRecordUri(atUri) {
+    const m = /^at:\/\/([^/]+)(\/([^/]+)(\/([^/]+))?)?$/.exec(typeof atUri === 'string' ? atUri : '');
+    if (!m) return undefined;
+    const [_, actor, _1, collection, _2, rkey] = m;
+    return {
+        actor,
+        collection,
+        rkey
     };
 }
 const NostrProtocolImplementation = {
@@ -4810,73 +4825,85 @@ class ValidationJobVM {
                         input = normalizeInput(input);
                     }
                 }
-            } else if (/^(https?|file|nostr):\/\/.+/i.test(input)) {
-                const inputUrl = tryParseUrl1(input);
-                if (!inputUrl) throw new Error(`Bad url: ${input}`);
-                checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file|nostr):$/);
+            } else if (/^(https?|file|nostr|at):\/\/.+/i.test(input)) {
                 let contentType;
                 let response;
-                if (inputUrl.protocol === 'nostr:') {
-                    nostr = {
+                let validateFeed = true;
+                if (/^at:\/\/.+/i.test(input)) {
+                    bluesky = {
                         url: input,
                         subject: 'input url'
                     };
                 } else {
-                    if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
-                        inputUrl.searchParams.set('_t', Date.now().toString());
-                    }
-                    if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
-                        delete headers['User-Agent'];
-                    }
-                    const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), {
-                        fetchers,
-                        headers
-                    });
-                    if (job.done) return;
-                    job.times.fetchTime = fetchTime;
-                    if (side === 'local') {
-                        if (inputUrl.protocol === 'file:') {
-                            addMessage('good', `Local file contents loaded`);
-                        } else {
-                            addMessage('good', `Local fetch succeeded (CORS enabled)`, {
-                                url: input
-                            });
-                        }
-                    }
-                    checkEqual1(`${inputUrl.host} response status`, r.status, 200);
-                    contentType = r.headers.get('Content-Type') ?? undefined;
-                    response = r;
-                }
-                let validateFeed = true;
-                if (response && contentType && contentType.includes('/html')) {
-                    if (inputUrl.hostname.endsWith('twitter.com')) {
-                        addMessage('info', 'Found html, will try again as Twitter');
-                        validateFeed = false;
-                        twitter = {
+                    const inputUrl = tryParseUrl1(input);
+                    if (!inputUrl) throw new Error(`Bad url: ${input}`);
+                    checkMatches('inputUrl.protocol', inputUrl.protocol, /^(https?|file|nostr):$/);
+                    if (inputUrl.protocol === 'nostr:') {
+                        nostr = {
                             url: input,
                             subject: 'input url'
                         };
-                    } else if (inputUrl.hostname.endsWith('bsky.app')) {
-                        addMessage('info', 'Found html, will try again as Bluesky');
-                        validateFeed = false;
+                    } else if (inputUrl.protocol === 'at:') {
                         bluesky = {
                             url: input,
                             subject: 'input url'
                         };
                     } else {
-                        addMessage('info', 'Found html, will try again as ActivityPub');
-                        validateFeed = false;
-                        let url = input;
-                        if (inputUrl.hostname.endsWith('threads.net')) {
-                            const html = await response.text();
-                            const apUrl = /<link rel="alternate" href="(https:\/\/(www\.)?threads\.net\/ap\/[^"]+)" type="application\/activity\+json" \/>/.exec(html)?.at(1);
-                            addMessage('info', `apUrl: ${apUrl}`);
-                            url = apUrl ?? url;
+                        if (inputUrl.protocol !== 'file:' && inputUrl.hostname !== 'feed.podbean.com') {
+                            inputUrl.searchParams.set('_t', Date.now().toString());
                         }
-                        activityPubs.push({
-                            url,
-                            subject: 'input url'
+                        if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
+                            delete headers['User-Agent'];
+                        }
+                        const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), {
+                            fetchers,
+                            headers
                         });
+                        if (job.done) return;
+                        job.times.fetchTime = fetchTime;
+                        if (side === 'local') {
+                            if (inputUrl.protocol === 'file:') {
+                                addMessage('good', `Local file contents loaded`);
+                            } else {
+                                addMessage('good', `Local fetch succeeded (CORS enabled)`, {
+                                    url: input
+                                });
+                            }
+                        }
+                        checkEqual1(`${inputUrl.host} response status`, r.status, 200);
+                        contentType = r.headers.get('Content-Type') ?? undefined;
+                        response = r;
+                    }
+                    if (response && contentType && contentType.includes('/html')) {
+                        if (inputUrl.hostname.endsWith('twitter.com')) {
+                            addMessage('info', 'Found html, will try again as Twitter');
+                            validateFeed = false;
+                            twitter = {
+                                url: input,
+                                subject: 'input url'
+                            };
+                        } else if (inputUrl.hostname.endsWith('bsky.app')) {
+                            addMessage('info', 'Found html, will try again as Bluesky');
+                            validateFeed = false;
+                            bluesky = {
+                                url: input,
+                                subject: 'input url'
+                            };
+                        } else {
+                            addMessage('info', 'Found html, will try again as ActivityPub');
+                            validateFeed = false;
+                            let url = input;
+                            if (inputUrl.hostname.endsWith('threads.net')) {
+                                const html = await response.text();
+                                const apUrl = /<link rel="alternate" href="(https:\/\/(www\.)?threads\.net\/ap\/[^"]+)" type="application\/activity\+json" \/>/.exec(html)?.at(1);
+                                addMessage('info', `apUrl: ${apUrl}`);
+                                url = apUrl ?? url;
+                            }
+                            activityPubs.push({
+                                url,
+                                subject: 'input url'
+                            });
+                        }
                     }
                 }
                 if (response && contentType && contentType.startsWith('application/activity+json')) {
@@ -4920,21 +4947,23 @@ class ValidationJobVM {
                                 const attributes = computeAttributeMap(node.attrsMap);
                                 const uri = attributes.get('uri') || node.val;
                                 if (uri) {
-                                    if (attributes.get('platform')?.toLowerCase() === 'activitypub' || attributes.get('protocol')?.toLowerCase() === 'activitypub') {
+                                    const platformLower = attributes.get('platform')?.toLowerCase();
+                                    const protocolLower = attributes.get('protocol')?.toLowerCase();
+                                    if (platformLower === 'activitypub' || protocolLower === 'activitypub') {
                                         const episodeTitle = findEpisodeTitle(node);
                                         activityPubs.push({
                                             url: uri,
                                             subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
                                         });
                                     }
-                                    if (attributes.get('protocol')?.toLowerCase() === 'twitter') {
+                                    if (protocolLower === 'twitter') {
                                         const episodeTitle = findEpisodeTitle(node);
                                         twitter = {
                                             url: uri,
                                             subject: episodeTitle ? `“${episodeTitle}”` : 'episode'
                                         };
                                     }
-                                    if (attributes.get('protocol')?.toLowerCase() === 'bluesky') {
+                                    if (protocolLower === 'bluesky' || protocolLower === 'atproto') {
                                         const episodeTitle = findEpisodeTitle(node);
                                         bluesky = {
                                             url: uri,
@@ -5301,7 +5330,7 @@ class ValidationJobVM {
                     if (nostr) {
                         const { subject } = nostr;
                         console.log({
-                            inputUrl: inputUrl.toString()
+                            inputUrl: new URL(input).toString()
                         });
                         setStatus(`Validating Nostr comments for ${subject}`, {
                             url: nostr.url
