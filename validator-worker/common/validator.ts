@@ -1,5 +1,5 @@
 import { checkTrue, isString } from './check.ts';
-import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration, hasApplePodcastsSupportedFileExtension, isItunesType, isIso8601, isRfc5545RecurrenceRule, isIntegerBetween, isFullyQualifiedDomainName } from './validation_functions.ts';
+import { isAtMostCharacters, isBoolean, isDecimal, isEmailAddress, isGeoLatLon, isPodcastImagesSrcSet, isMimeType, isNonNegativeInteger, isNotEmpty, isOpenStreetMapIdentifier, isPodcastMedium, isPodcastValueTypeSlug, isRfc2822, isSeconds, isUri, isUrl, isUuid, isPodcastSocialInteractProtocol, isYesNo, isPodcastServiceSlug, isPodcastLiveItemStatus, isIso8601AllowTimezone, isPositiveInteger, isRssLanguage, isEmailAddressWithOptionalName, isItunesDuration, hasApplePodcastsSupportedFileExtension, isItunesType, isIso8601, isRfc5545RecurrenceRule, isIntegerBetween, isFullyQualifiedDomainName, isAspectRatio } from './validation_functions.ts';
 import { Qnames } from './qnames.ts';
 import { ExtendedXmlNode, findChildElements, findElementRecursive, Qname } from './deps_xml.ts';
 
@@ -161,7 +161,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
         .checkRemainingAttributes();
 
     // podcast:guid
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#guid'), ...Qnames.PodcastIndex.guid)
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/guid.md'), ...Qnames.PodcastIndex.guid)
         .checkValue(isUuid, guidText => {
             const version = guidText.charAt(14);
             if (version !== '5') {
@@ -171,14 +171,14 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
         .checkRemainingAttributes();
 
     // podcast:locked
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#locked'), ...Qnames.PodcastIndex.locked)
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/locked.md'), ...Qnames.PodcastIndex.locked)
         .checkValue(v => /^(yes|no)$/.test(v))
         .checkOptionalAttribute('owner', isEmailAddress)
         .checkRemainingAttributes();
 
     // podcast:funding
     for (const funding of findChildElements(channel, ...Qnames.PodcastIndex.funding)) {
-        ElementValidation.forElement('channel', funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding'))
+        ElementValidation.forElement('channel', funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/funding.md'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkRequiredAttribute('url', isUrl)
@@ -193,7 +193,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 
     // podcast:trailer
     for (const trailer of findChildElements(channel, ...Qnames.PodcastIndex.trailer)) {
-        ElementValidation.forElement('channel', trailer, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#trailer'))
+        ElementValidation.forElement('channel', trailer, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/trailer.md'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkRequiredAttribute('url', isUrl)
@@ -211,7 +211,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkPodcastValue('channel', channel, callbacks);
 
     // podcast:medium
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium'), ...Qnames.PodcastIndex.medium)
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/medium.md'), ...Qnames.PodcastIndex.medium)
         .checkValue(isPodcastMedium)
         .checkRemainingAttributes();
 
@@ -219,14 +219,14 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkPodcastImages('channel', channel, callbacks);
 
     // podcast:liveItem
-    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#live-item
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/live-item.md
     const liveItems = findChildElements(channel, ...Qnames.PodcastIndex.liveItem);
     let liveItemsValidated = 0;
     for (const liveItem of liveItems) {
         if (liveItemsValidated < 1) { // just validate the first item for now
             validateItem(liveItem as ExtendedXmlNode, callbacks, 'liveItem');
 
-            ElementValidation.forElement('channel', liveItem, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#live-item'))
+            ElementValidation.forElement('channel', liveItem, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/live-item.md'))
                 .checkRequiredAttribute('status', isPodcastLiveItemStatus)
                 .checkRequiredAttribute('start', isIso8601AllowTimezone)
                 .checkRequiredAttribute('end', isIso8601AllowTimezone)
@@ -241,7 +241,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 
     // podcast:block
     const blocks = findChildElements(channel, ...Qnames.PodcastIndex.block);
-    const blockReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#block');
+    const blockReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/block.md');
     for (const block of blocks) {
         ElementValidation.forElement('channel', block, callbacks, blockReference)
             .checkOptionalAttribute('id', isPodcastServiceSlug)
@@ -250,7 +250,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     }
 
     // podcast:complete
-    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace#podcastcomplete---discuss'), ...Qnames.PodcastIndex.complete)
+    ElementValidation.forSingleChild('channel', channel, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/discussions/492'), ...Qnames.PodcastIndex.complete)
         .checkOptionalAttribute('archive', isUrl)
         .checkValue(isYesNo)
         .checkRemainingAttributes();
@@ -264,7 +264,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkPodcastRemoteItem('channel', channel, callbacks);
 
     // podcast:podroll
-    const podrollReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podroll');
+    const podrollReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/podroll.md');
     const podroll = ElementValidation.forSingleChild('channel', channel, callbacks, podrollReference, ...Qnames.PodcastIndex.podroll)
         .checkRemainingAttributes().node;
     if (podroll) {
@@ -275,7 +275,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     }
 
     // podcast:updateFrequency
-    const updateFrequencyReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#update-frequency');
+    const updateFrequencyReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/update-frequency.md');
     ElementValidation.forSingleChild('channel', channel, callbacks, updateFrequencyReference, ...Qnames.PodcastIndex.updateFrequency)
         .checkValue(isAtMostCharacters(128))
         .checkOptionalAttribute('complete', isBoolean)
@@ -286,13 +286,13 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 
 
     // podcast:podping
-    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#podping');
+    const podpingReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/podping.md');
     ElementValidation.forSingleChild('channel', channel, callbacks, podpingReference, ...Qnames.PodcastIndex.podping)
         .checkOptionalAttribute('usesPodping', isBoolean)
         .checkRemainingAttributes();
 
 
-    // PRE-PHASE 7
+    // PHASE 7
 
     // podcast:chat
     checkPodcastChat('channel', channel, callbacks);
@@ -301,12 +301,17 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
     checkPodcastSocialInteract('channel', channel, callbacks);
 
     // podcast:publisher
-    const publisherReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#publisher');
+    const publisherReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/publisher.md');
     const value = ElementValidation.forSingleChild('channel', channel, callbacks, publisherReference, ...Qnames.PodcastIndex.publisher)
         .checkRemainingAttributes().node;
     if (value) {
         checkPodcastRemoteItem('podcast:publisher', value, callbacks, publisherReference);
     }
+
+    // PHASE 8
+
+    // podcast:image
+    checkPodcastImage('channel', channel, callbacks);
 
     // PROPOSALS
 
@@ -355,7 +360,7 @@ function validateChannel(channel: ExtendedXmlNode, callbacks: ValidationCallback
 }
 
 function checkPodcastChat(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    const chatReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#chat');
+    const chatReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/chat.md');
     ElementValidation.forSingleChild(level, node, callbacks, chatReference, ...Qnames.PodcastIndex.chat)
         .checkRequiredAttribute('server', isFullyQualifiedDomainName)
         .checkRequiredAttribute('protocol', v => /^irc|xmpp|nostr|matrix$/.test(v))
@@ -366,7 +371,7 @@ function checkPodcastChat(level: Level, node: ExtendedXmlNode, callbacks: Valida
 
 function checkPodcastPerson(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     for (const person of findChildElements(node, ...Qnames.PodcastIndex.person)) {
-        ElementValidation.forElement(level, person, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#person'))
+        ElementValidation.forElement(level, person, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/person.md'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkOptionalAttribute('role', isNotEmpty)
@@ -378,16 +383,34 @@ function checkPodcastPerson(level: Level, node: ExtendedXmlNode, callbacks: Vali
 }
 
 function checkPodcastLocation(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#location'), ...Qnames.PodcastIndex.location)
-        .checkOptionalAttribute('geo', isGeoLatLon)
-        .checkOptionalAttribute('osm', isOpenStreetMapIdentifier)
-        .checkValue(isNotEmpty)
-        .checkValue(isAtMostCharacters(128))
-        .checkRemainingAttributes();
+    for (const location of findChildElements(node, ...Qnames.PodcastIndex.location)) {
+        ElementValidation.forElement(level, location, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/location.md'))
+            .checkOptionalAttribute('rel', v => /^subject|creator$/.test(v))
+            .checkOptionalAttribute('geo', isGeoLatLon)
+            .checkOptionalAttribute('osm', isOpenStreetMapIdentifier)
+            .checkOptionalAttribute('country', v => /^[A-Z]{2}$/i.test(v))
+            .checkValue(isNotEmpty)
+            .checkValue(isAtMostCharacters(128))
+            .checkRemainingAttributes();
+    }
+}
+
+function checkPodcastImage(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
+    for (const image of findChildElements(node, ...Qnames.PodcastIndex.image)) {
+        ElementValidation.forElement(level, image, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/image.md'))
+            .checkRequiredAttribute('href', isUrl)
+            .checkOptionalAttribute('alt', isNotEmpty)
+            .checkOptionalAttribute('aspect-ratio', isAspectRatio)
+            .checkOptionalAttribute('width', isNonNegativeInteger)
+            .checkOptionalAttribute('height', isNonNegativeInteger)
+            .checkOptionalAttribute('type', isMimeType)
+            .checkOptionalAttribute('purpose', isAtMostCharacters(128))
+            .checkRemainingAttributes();
+    }
 }
 
 function checkPodcastLicense(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#license'), ...Qnames.PodcastIndex.license)
+    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/license.md'), ...Qnames.PodcastIndex.license)
         .checkOptionalAttribute('url', isUrl)
         .checkValue(isNotEmpty)
         .checkValue(isAtMostCharacters(128))
@@ -396,7 +419,7 @@ function checkPodcastLicense(level: Level, node: ExtendedXmlNode, callbacks: Val
 
 function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     for (const valueElement of findChildElements(node, ...Qnames.PodcastIndex.value)) {
-        const value = ElementValidation.forElement(level, valueElement, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value'))
+        const value = ElementValidation.forElement(level, valueElement, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/value.md'))
             .checkRequiredAttribute('type', isPodcastValueTypeSlug)
             .checkRequiredAttribute('method', isNotEmpty)
             .checkOptionalAttribute('suggested', isDecimal)
@@ -408,7 +431,7 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
                 checkPodcastValueRecipient('value', valueRecipient, callbacks);
             }
 
-            const valueTimeSplitReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-time-split');
+            const valueTimeSplitReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/value-time-split.md');
             for (const valueTimeSplit of findChildElements(value, ...Qnames.PodcastIndex.valueTimeSplit)) {
                 ElementValidation.forElement('value', valueTimeSplit, callbacks, valueTimeSplitReference)
                     .checkRequiredAttribute('startTime', isDecimal)
@@ -432,14 +455,14 @@ function checkPodcastValue(level: Level, node: ExtendedXmlNode, callbacks: Valid
 }
 
 function checkPodcastImages(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#images'), ...Qnames.PodcastIndex.images)
+    ElementValidation.forSingleChild(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/images-(deprecated).md'), ...Qnames.PodcastIndex.images)
         .checkRequiredAttribute('srcset', isPodcastImagesSrcSet)
         .checkRemainingAttributes();
 }
 
 function checkPodcastTxt(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     const txts = findChildElements(node, ...Qnames.PodcastIndex.txt);
-    const txtReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#txt');
+    const txtReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/txt.md');
     for (const txt of txts) {
         ElementValidation.forElement(level, txt, callbacks, txtReference)
             .checkOptionalAttribute('purpose', isAtMostCharacters(128))
@@ -450,7 +473,7 @@ function checkPodcastTxt(level: Level, node: ExtendedXmlNode, callbacks: Validat
 
 function checkPodcastRemoteItem(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks, publisherReference?: RuleReference): readonly ExtendedXmlNode[] {
     const remoteItems = findChildElements(node, ...Qnames.PodcastIndex.remoteItem);
-    const remoteItemReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#remote-item');
+    const remoteItemReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/remote-item.md');
     if (publisherReference && remoteItems.length > 1) {
         callbacks.onWarning(node, `Expected a single podcast:remoteItem`, { reference: publisherReference });
         return [];
@@ -473,7 +496,7 @@ function checkPodcastRemoteItem(level: Level, node: ExtendedXmlNode, callbacks: 
 }
 
 function checkPodcastValueRecipient(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
-    ElementValidation.forElement(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#value-recipient'))
+    ElementValidation.forElement(level, node, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/value-recipient.md'))
         .checkOptionalAttribute('name', isNotEmpty)
         .checkOptionalAttribute('customKey', isNotEmpty)
         .checkOptionalAttribute('customValue', isNotEmpty)
@@ -486,7 +509,7 @@ function checkPodcastValueRecipient(level: Level, node: ExtendedXmlNode, callbac
 
 function checkPodcastSocialInteract(level: Level, node: ExtendedXmlNode, callbacks: ValidationCallbacks) {
     const socialInteracts = findChildElements(node, ...Qnames.PodcastIndex.socialInteract);
-    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#social-interact');
+    const socialInteractReference = podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/social-interact.md');
     for (const socialInteract of socialInteracts) {
         ElementValidation.forElement(level, socialInteract, callbacks, socialInteractReference)
             .checkRequiredAttribute('uri', isUri, socialInteract.atts.get('protocol') !== 'disabled')
@@ -600,7 +623,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     // podcast:transcript
     const transcripts = findChildElements(item, ...Qnames.PodcastIndex.transcript);
     for (const transcript of transcripts) {
-        ElementValidation.forElement(itemTagName, transcript, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#transcript'))
+        ElementValidation.forElement(itemTagName, transcript, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/transcript.md'))
             .checkRequiredAttribute('url', isUrl)
             .checkRequiredAttribute('type', isMimeType)
             .checkOptionalAttribute('language', isNotEmpty)
@@ -609,7 +632,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     }
 
     // podcast:chapters
-    ElementValidation.forSingleChild(itemTagName, item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#chapters'), ...Qnames.PodcastIndex.chapters)
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/chapters.md'), ...Qnames.PodcastIndex.chapters)
         .checkRequiredAttribute('url', isUrl)
         .checkRequiredAttribute('type', isMimeType)
         .checkRemainingAttributes();
@@ -617,7 +640,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     // podcast:soundbite
     const soundbites = findChildElements(item, ...Qnames.PodcastIndex.soundbite);
     for (const soundbite of soundbites) {
-        ElementValidation.forElement('item', soundbite, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#soundbite'))
+        ElementValidation.forElement('item', soundbite, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/soundbite.md'))
             .checkRequiredAttribute('startTime', isSeconds)
             .checkRequiredAttribute('duration', isSeconds)
             .checkValue(isAtMostCharacters(128))
@@ -631,13 +654,13 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     checkPodcastLocation(itemTagName, item, callbacks);
 
     // podcast:season
-    ElementValidation.forSingleChild(itemTagName, item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#season'), ...Qnames.PodcastIndex.season)
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/season.md'), ...Qnames.PodcastIndex.season)
         .checkOptionalAttribute('name', v => isNotEmpty(v) && isAtMostCharacters(128)(v))
         .checkValue(isNonNegativeInteger)
         .checkRemainingAttributes();
 
     // podcast:episode
-    ElementValidation.forSingleChild(itemTagName, item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#episode'), ...Qnames.PodcastIndex.episode)
+    ElementValidation.forSingleChild(itemTagName, item, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/episode.md'), ...Qnames.PodcastIndex.episode)
         .checkOptionalAttribute('display', v => isNotEmpty(v) && isAtMostCharacters(32)(v))
         .checkValue(isDecimal)
         .checkRemainingAttributes();
@@ -648,7 +671,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     // podcast:alternateEnclosure
     const alternateEnclosures = findChildElements(item, ...Qnames.PodcastIndex.alternateEnclosure);
     for (const alternateEnclosure of alternateEnclosures) {
-        ElementValidation.forElement(itemTagName, alternateEnclosure, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#alternate-enclosure'))
+        ElementValidation.forElement(itemTagName, alternateEnclosure, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/alternate-enclosure.md'))
             .checkRequiredAttribute('type', isMimeType)
             .checkRequiredAttribute('length', isNonNegativeInteger)
             .checkOptionalAttribute('bitrate', isDecimal)
@@ -660,14 +683,14 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
             .checkOptionalAttribute('default', isBoolean)
             .checkRemainingAttributes();
         
-        ElementValidation.forSingleChild('alternateEnclosure', alternateEnclosure, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#integrity'), ...Qnames.PodcastIndex.integrity)
+        ElementValidation.forSingleChild('alternateEnclosure', alternateEnclosure, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/integrity.md'), ...Qnames.PodcastIndex.integrity)
             .checkRequiredAttribute('type', v => /^(sri|pgp-signature)$/.test(v))
             .checkRequiredAttribute('value', isNotEmpty)
             .checkRemainingAttributes();
 
         const sources = findChildElements(alternateEnclosure, ...Qnames.PodcastIndex.source);
         for (const source of sources) {
-            ElementValidation.forElement('alternateEnclosure', source, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#alternate-enclosure'))
+            ElementValidation.forElement('alternateEnclosure', source, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/alternate-enclosure.md'))
                 .checkRequiredAttribute('uri', isUri)
                 .checkOptionalAttribute('contentType', isMimeType)
                 .checkRemainingAttributes();
@@ -683,7 +706,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     // podcast:contentLink
     const contentLinks = findChildElements(item, ...Qnames.PodcastIndex.contentLink);
     for (const contentLink of contentLinks) {
-        ElementValidation.forElement(itemTagName, contentLink, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#content-link'))
+        ElementValidation.forElement(itemTagName, contentLink, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/content-link.md'))
             .checkRequiredAttribute('href', isUrl)
             .checkValue(isNotEmpty)
             .checkRemainingAttributes();
@@ -699,7 +722,7 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
     // podcast:txt
     checkPodcastTxt('item', item, callbacks);
 
-    // PRE-PHASE 7
+    // PHASE 7
 
     // podcast:chat
     checkPodcastChat('item', item, callbacks);
@@ -711,12 +734,17 @@ function validateItem(item: ExtendedXmlNode, callbacks: ValidationCallbacks, ite
 
     // podcast:funding
     for (const funding of findChildElements(item, ...Qnames.PodcastIndex.funding)) {
-        ElementValidation.forElement(itemTagName, funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#funding'))
+        ElementValidation.forElement(itemTagName, funding, callbacks, podcastIndexReference('https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/funding.md'))
             .checkValue(isNotEmpty)
             .checkValue(isAtMostCharacters(128))
             .checkRequiredAttribute('url', isUrl)
             .checkRemainingAttributes();
     }
+
+    // PHASE 8
+
+    // podcast:image
+    checkPodcastImage(itemTagName, item, callbacks);
 
     // PROPOSALS
 

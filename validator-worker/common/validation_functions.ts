@@ -44,7 +44,7 @@ export function isHttpOrFileUrl(trimmedText: string): boolean {
 }
 
 export function isUri(trimmedText: string): boolean {
-    return tryParseUrl(trimmedText) !== undefined;
+    return typeof trimmedText === 'string' && (tryParseUrl(trimmedText) !== undefined || /^at:\/\/([^/]+)(\/([^/]+)(\/([^/]+))?)?$/.test(trimmedText));
 }
 
 export function isMimeType(trimmedText: string): boolean {
@@ -77,7 +77,7 @@ export function isGeoLatLon(trimmedText: string): boolean {
 }
 
 export function isOpenStreetMapIdentifier(trimmedText: string): boolean {
-    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/location/location.md#osm-recommended
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/examples/location/location.md#osm-recommended
     return /^[NWR]\d+(#\d+)?$/.test(trimmedText);
 }
 
@@ -139,13 +139,13 @@ export function isPodcastValueTypeSlug(trimmedText: string): boolean {
 }
 
 export function isPodcastMedium(trimmedText: string): boolean {
-    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md#medium
+    // https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/medium.md
     return /^[a-z]+L?$/.test(trimmedText);
 }
 
 export function isPodcastSocialInteractProtocol(trimmedText: string): boolean {
     // https://github.com/Podcastindex-org/podcast-namespace/blob/main/socialprotocols.txt
-    return /^(disabled|activitypub|twitter)$/.test(trimmedText);
+    return /^(disabled|activitypub|twitter|lightning|atproto|hive|matrix|nostr)$/.test(trimmedText);
 }
 
 export function isPodcastServiceSlug(trimmedText: string): boolean {
@@ -189,6 +189,11 @@ export function isRfc5545RecurrenceRule(trimmedText: string): boolean {
 export function isFullyQualifiedDomainName(value: string): boolean {
     const u = tryParseUrl(`http://${value}`);
     return !!u && u.hostname === value;
+}
+
+export function isAspectRatio(trimmedText: string): boolean {
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio
+    return /^\d+(\.\d+)?\s*(\/\s*\d+(\.\d+)?)?$/.test(trimmedText);
 }
 
 //
