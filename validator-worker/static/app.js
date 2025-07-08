@@ -6645,8 +6645,27 @@ function renderNode1(node, containerElement, level, context, itemNumber, xmlSumm
             renderNode1(fakeNode, details, level - 1, context, undefined);
         }
     }
+    const videoUrl = node.qname.namespaceUri && qnamesInclude(Qnames.PodcastIndex.source, node.qname) && atts.get('uri')?.includes('.m3u8') && atts.get('uri');
+    if (videoUrl) {
+        const video = document.createElement('video');
+        video.style.width = '100%';
+        video.style.height = 'auto';
+        video.controls = true;
+        video.preload = 'none';
+        const { Hls } = globalThis;
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = videoUrl;
+        } else if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.capLevelToPlayerSize = true;
+            hls.loadSource(videoUrl);
+            hls.attachMedia(video);
+        }
+        details.appendChild(video);
+        childCount++;
+    }
     const audioUrl = node.tagname === 'enclosure' && atts.get('url') || node.qname.namespaceUri && qnamesInclude(Qnames.PodcastIndex.source, node.qname) && atts.get('uri') || qnameEq(node.qname, Qnames.MediaRss.content) && (atts.get('type') || '').startsWith('audio') && atts.get('url');
-    if (audioUrl) {
+    if (audioUrl && !videoUrl) {
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.preload = 'none';

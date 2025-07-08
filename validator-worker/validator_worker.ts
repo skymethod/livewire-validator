@@ -284,7 +284,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 
 <link rel="modulepreload" href="${appJsPath}" as="script" />
 <script id="app-module-script" type="module" src="${appJsPath}" onload="if (!this.dataset.state) { document.documentElement.classList.remove('js'); }"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <meta name="description" content="${encodeHtml(description)}">
 <meta property="og:title" content="${encodeHtml(name)}">
 <meta property="og:description" content="${encodeHtml(description)}">
