@@ -6586,30 +6586,37 @@ function renderXml(xml, xmlOutput, xmlSummaryText) {
 }
 function renderNode1(node, containerElement, level, context, itemNumber, xmlSummaryText) {
     const { atts } = node;
+    const extraAtts = new Map();
     const details = document.createElement('details');
     const text = node.val || '';
     details.open = !context.has('found-item') || text.length > 0;
     if (level > 0) details.classList.add('indent');
     const summary = document.createElement('summary');
-    if (level === 0) {
-        renderTextPieces(summary, xmlSummaryText || 'Xml');
-        summary.classList.add('root');
-    } else {
-        const spanClass = Qnames.PodcastIndex.NAMESPACES.includes(node.qname.namespaceUri || '') ? 'podcast' : undefined;
-        renderTextPieces(summary, '<', {
-            text: node.tagname,
-            spanClass
-        }, ...[
-            ...atts.entries()
-        ].flatMap((v)=>[
-                ` ${v[0]}="`,
-                {
-                    text: v[1],
-                    spanClass: 'content'
-                },
-                '"'
-            ]), '>', itemNumber ? ` #${itemNumber}` : '');
-    }
+    const renderSummary = ()=>{
+        while(summary.firstChild)summary.removeChild(summary.firstChild);
+        summary.className = '';
+        if (level === 0) {
+            renderTextPieces(summary, xmlSummaryText || 'Xml');
+            summary.classList.add('root');
+        } else {
+            const spanClass = Qnames.PodcastIndex.NAMESPACES.includes(node.qname.namespaceUri || '') ? 'podcast' : undefined;
+            renderTextPieces(summary, '<', {
+                text: node.tagname,
+                spanClass
+            }, ...[
+                ...atts.entries(),
+                ...extraAtts.entries()
+            ].flatMap((v)=>[
+                    ` ${v[0]}="`,
+                    {
+                        text: v[1],
+                        spanClass: 'content'
+                    },
+                    '"'
+                ]), '>', itemNumber ? ` #${itemNumber}` : '');
+        }
+    };
+    renderSummary();
     details.appendChild(summary);
     let childCount = 0;
     if (text.length > 0) {
@@ -6645,27 +6652,40 @@ function renderNode1(node, containerElement, level, context, itemNumber, xmlSumm
             renderNode1(fakeNode, details, level - 1, context, undefined);
         }
     }
-    const videoUrl = node.qname.namespaceUri && qnamesInclude(Qnames.PodcastIndex.source, node.qname) && atts.get('uri')?.includes('.m3u8') && atts.get('uri');
-    if (videoUrl) {
+    const hlsUrl = node.tagname === 'enclosure' && (atts.get('url')?.includes('.m3u8') || atts.get('type') === 'application/x-mpegURL') && atts.get('url') || node.qname.namespaceUri && qnamesInclude(Qnames.PodcastIndex.source, node.qname) && (atts.get('uri')?.includes('.m3u8') || atts.get('contentType') === 'application/x-mpegURL' || node.parent && qnamesInclude(Qnames.PodcastIndex.alternateEnclosure, node.parent.qname) && node.parent.atts.get('type') === 'application/x-mpegURL') && atts.get('uri');
+    if (hlsUrl) {
         const video = document.createElement('video');
-        video.style.width = '100%';
-        video.style.height = 'auto';
         video.controls = true;
         video.preload = 'none';
         const { Hls } = globalThis;
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = videoUrl;
+            console.log('native hls');
+            video.src = hlsUrl;
         } else if (Hls.isSupported()) {
+            console.log('hls.js');
             const hls = new Hls();
             hls.capLevelToPlayerSize = true;
-            hls.loadSource(videoUrl);
+            hls.loadSource(hlsUrl);
             hls.attachMedia(video);
+            const byteValueNumberFormatter = Intl.NumberFormat('en', {
+                notation: 'compact',
+                style: 'unit',
+                unit: 'bit',
+                unitDisplay: 'narrow'
+            });
+            hls.on(Hls.Events.LEVEL_SWITCHED, function() {
+                const level = hls.levels[hls.currentLevel];
+                if (level.details?.type) extraAtts.set('hls.type', level.details.type);
+                extraAtts.set('hls.level', `${level.width}x${level.height}`);
+                extraAtts.set('hls.avgBitrate', byteValueNumberFormatter.format(level.averageBitrate).toLowerCase());
+                renderSummary();
+            });
         }
         details.appendChild(video);
         childCount++;
     }
     const audioUrl = node.tagname === 'enclosure' && atts.get('url') || node.qname.namespaceUri && qnamesInclude(Qnames.PodcastIndex.source, node.qname) && atts.get('uri') || qnameEq(node.qname, Qnames.MediaRss.content) && (atts.get('type') || '').startsWith('audio') && atts.get('url');
-    if (audioUrl && !videoUrl) {
+    if (audioUrl && !hlsUrl) {
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.preload = 'none';

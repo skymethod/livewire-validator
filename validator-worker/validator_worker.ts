@@ -318,6 +318,23 @@ ${COMMON_STYLES}
     display: none;
 }
 
+video {
+    width: 100%;
+    height: auto;
+    outline: 4px solid rgba(255, 255, 255, 0.60);
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+@media only screen and (min-width: 1280px) {
+    video {
+        display: block;
+        width: 1280px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
 </style>
 </head>
 <body>
