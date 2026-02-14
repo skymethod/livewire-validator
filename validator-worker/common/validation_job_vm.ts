@@ -1,6 +1,6 @@
 import { checkMatches, checkEqual, isStringRecord } from './check.ts';
 import { Qnames } from './qnames.ts';
-import { isReadonlyArray } from './util.ts';
+import { isReadonlyArray, isRedirectStatus, UrlStatus } from './util.ts';
 import { RuleReference, MessageOptions, ValidationCallbacks, validateFeedXml, podcastIndexReference } from './validator.ts';
 import { computeAttributeMap, ExtendedXmlNode, parseXml, validateXml } from './deps_xml.ts';
 import { setIntersect } from './sets.ts';
@@ -160,8 +160,22 @@ export class ValidationJobVM {
                         if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
                             delete headers['User-Agent']; // otherwise always sends html, regardless of Accept
                         }
-                        const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers }); if (job.done) return;
+                        const urlStatuses: UrlStatus[] = [];
+                        const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), { fetchers, headers, urlStatuses }); if (job.done) return;
                         job.times.fetchTime = fetchTime;
+
+                        for (let i = 0; i < urlStatuses.length; i++) {
+                            const [ urlStatus, nextUrlStatus] = [ 0, 1 ].map(v => urlStatuses.at(i + v));
+                            if (urlStatus && nextUrlStatus && isRedirectStatus(urlStatus.status)) {
+                                let url = nextUrlStatus.url;
+                                const u = tryParseUrl(url);
+                                if (u && u.searchParams.has('_t')) {
+                                    u.searchParams.delete('_t');
+                                    url = u.toString();
+                                }
+                                addMessage('warning', `${urlStatus.status} ${(urlStatus.status === 301 || urlStatus.status === 308) ? 'permanent' : 'temporary'} redirect to ${url}`);
+                            }
+                        }
 
                         if (side === 'local') {
                             if (inputUrl.protocol === 'file:') {
@@ -622,7 +636,7 @@ export interface PIFeedInfo {
     readonly artwork?: string;
 }
 
-export type Fetcher = (url: string, headers?: Record<string, string>) => Promise<Response>;
+export type Fetcher = (url: string, headers?: Record<string, string>, urlStatuses?: UrlStatus[]) => Promise<Response>;
 export type PISearchFetcher = (input: string, headers: Record<string, string>) => Promise<Response>;
 
 export interface ValidationJobTimes {
@@ -717,13 +731,13 @@ async function localOrRemoteFetchJson(url: string, fetchers: Fetchers, useSide: 
     return { response, side };
 }
 
-async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, headers?: Record<string, string>, useSide?: FetchSide }): Promise<FetchResult> {
-    const { fetchers, headers, useSide } = opts;
+async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, headers?: Record<string, string>, useSide?: FetchSide, urlStatuses?: UrlStatus[] }): Promise<FetchResult> {
+    const { fetchers, headers, useSide, urlStatuses } = opts;
     if (useSide !== 'remote') {
         try {
             console.log(`local fetch: ${url}`);
             const start = Date.now();
-            const response = await fetchers.localFetcher(url, headers);
+            const response = await fetchers.localFetcher(url, headers, urlStatuses);
             if (response.status === 429) throw new Error(`429: ${await response.text()}`); // retry "too many requests" on the server side
             return { fetchTime: Date.now() - start, side: 'local', response };
         } catch (e) {
@@ -733,7 +747,7 @@ async function localOrRemoteFetch(url: string, opts: { fetchers: Fetchers, heade
     }
     console.log(`remote fetch: ${url} ${headers}`);
     const start = Date.now();
-    const response = await fetchers.remoteFetcher(url, headers);
+    const response = await fetchers.remoteFetcher(url, headers, urlStatuses);
     return { fetchTime: Date.now() - start, side: 'remote', response };
 }
 

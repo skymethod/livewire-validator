@@ -2,6 +2,7 @@ import { isHttpOrFileUrl } from './common/validation_functions.ts';
 import { Fetcher, MessageType, PISearchFetcher, ValidationJobVM } from './common/validation_job_vm.ts';
 import { Theme } from './common/theme.ts';
 import { fileExists, toFileUrl } from './deps_cli.ts';
+import { fetchWithUrlStatuses, isRedirectStatus, UrlStatus } from './common/util.ts';
 
 export async function validate(args: (string | number)[], options: Record<string, unknown>) {
     const feedArg = args[0];
@@ -11,13 +12,13 @@ export async function validate(args: (string | number)[], options: Record<string
 
     const validateComments = !!options.comments;
 
-    const localFetcher: Fetcher = (url, headers) => {
+    const localFetcher: Fetcher = (url, headers, urlStatuses) => {
         if (new URL(feedUrl).protocol === 'file:') {
             return fetch(url, { headers });
         }
-        return fetchWithCorsConstraints(url, headers);
+        return fetchWithCorsConstraints(url, headers, urlStatuses);
     };
-    const remoteFetcher: Fetcher = (url, headers) => fetch(url, { headers });
+    const remoteFetcher: Fetcher = (url, headers, urlStatuses) => fetchWithUrlStatuses(url, headers, urlStatuses);
     const piSearchFetcher: PISearchFetcher = () => { return Promise.resolve(new Response('{}')) };
     const threadcapUserAgent = 'validator cli';
     const vm = new ValidationJobVM({ localFetcher, remoteFetcher, piSearchFetcher, threadcapUserAgent });
@@ -48,10 +49,12 @@ function computeMessageColor(type: MessageType): string {
     return Theme.textColorSecondaryHex;
 }
 
-async function fetchWithCorsConstraints(url: string, headers?: Record<string, string>): Promise<Response> {
-    const res = await fetch(url, { headers });
-    const accessControlAllowOrigin = res.headers.get('access-control-allow-origin');
-    if (!accessControlAllowOrigin) throw new Error(`No 'Access-Control-Allow-Origin' header found in the response`);
-    if (accessControlAllowOrigin !== '*') throw new Error(`Bad 'Access-Control-Allow-Origin' header value '${accessControlAllowOrigin}', must be '*' to allow access from any origin`);
-    return res;
+async function fetchWithCorsConstraints(url: string, headers?: Record<string, string>, urlStatuses?: UrlStatus[]): Promise<Response> {
+    return await fetchWithUrlStatuses(url, headers, urlStatuses, res => {
+        if (!isRedirectStatus(res.status)) { // seemingly n/a for redirects
+            const accessControlAllowOrigin = res.headers.get('access-control-allow-origin');
+            if (!accessControlAllowOrigin) throw new Error(`No 'Access-Control-Allow-Origin' header found in the response`);
+            if (accessControlAllowOrigin !== '*') throw new Error(`Bad 'Access-Control-Allow-Origin' header value '${accessControlAllowOrigin}', must be '*' to allow access from any origin`);
+        }
+    });
 }

@@ -1,4 +1,4 @@
-import { css, html, LitElement, unsafeCSS, Theme, Fetcher, PISearchFetcher } from './deps_app.ts';
+import { css, html, LitElement, unsafeCSS, Theme, Fetcher, PISearchFetcher, fetchWithUrlStatuses } from './deps_app.ts';
 import { StaticData } from './static_data.ts';
 import { ValidatorAppVM } from './validator_app_vm.ts';
 import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
@@ -92,13 +92,30 @@ function parseStaticData(): StaticData {
 const staticData = parseStaticData();
 
 const droppedFiles = new Map<string, string>(); // file: url -> text contents
-const localFetcher: Fetcher = (url, headers) => {
+const localFetcher: Fetcher = (url, headers, urlStatuses) => {
     const droppedFileText = droppedFiles.get(url);
     if (droppedFileText) return Promise.resolve(new Response(droppedFileText));
     if (new URL(url).protocol === 'file:') throw new Error('Unknown dropped file, try dropping it again');
-    return fetch(url, { headers });
+    return fetchWithUrlStatuses(url, headers, urlStatuses);
 };
-const remoteFetcher: Fetcher = (url, headers) => fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers }) });
+const remoteFetcher: Fetcher = async (url, headers, urlStatuses) => {
+    const rt = await fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, { method: 'POST', body: JSON.stringify({ url, headers, urlStatuses }) });
+    if (urlStatuses) {
+        const value = rt.headers.get('x-url-statuses');
+        try {
+            if (typeof value === 'string') {
+                const arr = JSON.parse(value); if (!Array.isArray(arr)) throw new Error();
+                for (const obj of arr) { if (typeof obj !== 'object') throw new Error();
+                    const { url, status } = obj; if (typeof url !== 'string' || typeof status !== 'number') throw new Error();
+                    urlStatuses.push({ url, status });
+                }
+            }
+        } catch (e) {
+            console.warn(`Error parsing x-url-statuses: ${value}`, e);
+        }
+    }
+    return rt;
+}
 const piSearchFetcher: PISearchFetcher = (input, headers) => fetch(`/s`, { method: 'POST', body: JSON.stringify({ input, headers }) });
 const threadcapUserAgent = navigator.userAgent;
 

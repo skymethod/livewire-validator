@@ -1,9 +1,10 @@
+import { fetchWithUrlStatuses } from './common/util.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem } from './deps_worker.ts';
 
 export async function computeFetch(request: Request, { twitterCredentials, actorKeyId, actorPrivatePemText }: { twitterCredentials: string | undefined, actorKeyId: string | undefined, actorPrivatePemText: string | undefined }): Promise<Response> {
     try {
         if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
-        const { url, headers = {} } = await request.json();
+        const { url, headers = {}, urlStatuses } = await request.json();
         const hostname = new URL(url).hostname;
         if (hostname === 'threads.net' || hostname === 'www.threads.net') {
             headers['User-Agent'] = 'Mozilla/1.0'; // threads doesn't like non-browsers with a browser UA
@@ -12,7 +13,8 @@ export async function computeFetch(request: Request, { twitterCredentials, actor
         if (hostname === 'api.twitter.com' && twitterCredentials) {
             headers.authorization = `Bearer ${twitterCredentials.split(':')[1]}`;
         }
-        let rt = await fetch(new URL(url).toString(), { headers });
+        // let rt = await fetch(new URL(url).toString(), { headers });
+        let rt = await fetchWithUrlStatuses(new URL(url).toString(), headers, urlStatuses);
         if ((rt.status === 401 || rt.status === 404) && typeof headers.Accept === 'string' && headers.Accept.includes('activity+json') && actorKeyId && actorPrivatePemText) {
             // try signing the request
             const privateKey = await getOrLoadPrivateKey(actorPrivatePemText);
@@ -25,6 +27,14 @@ export async function computeFetch(request: Request, { twitterCredentials, actor
             console.log(`${url} -> ${rt.url}`);
             const headers = new Headers(rt.headers);
             headers.set('x-response-url', rt.url);
+            const { status } = rt;
+            rt = new Response(await rt.text(), { status, headers });
+        }
+        if (urlStatuses) {
+            const xUrlStatuses = JSON.stringify(urlStatuses);
+            console.log(`x-url-statuses: ${xUrlStatuses}`);
+            const headers = new Headers(rt.headers);
+            headers.set('x-url-statuses', xUrlStatuses);
             const { status } = rt;
             rt = new Response(await rt.text(), { status, headers });
         }

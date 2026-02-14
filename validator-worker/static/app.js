@@ -2582,6 +2582,36 @@ function isOptionalNumber(obj) {
 function isReadonlyArray(arg) {
     return Array.isArray(arg);
 }
+const isRedirectStatus = (status)=>status === 301 || status === 302 || status === 307 || status === 308;
+async function fetchWithUrlStatuses(url, headers, urlStatuses, onResponse) {
+    const redirect = urlStatuses ? 'manual' : 'follow';
+    while(true){
+        const res = await fetch(url, {
+            headers,
+            redirect
+        });
+        if (onResponse) onResponse(res);
+        const { status } = res;
+        if (urlStatuses && redirect === 'manual') {
+            urlStatuses.push({
+                url,
+                status
+            });
+            if (isRedirectStatus(status)) {
+                const location = res.headers.get('location') ?? '';
+                if (location === '') throw new Error(`Expected 'location' header in ${status} response`);
+                const newUrl = new URL(location, url).toString();
+                if (urlStatuses.some((v)=>v.url === newUrl)) throw new Error(`Redirect loop: ${newUrl}`);
+                if (urlStatuses.length >= 10) throw new Error(`Redirected ${urlStatuses.length} times`);
+                url = newUrl;
+            } else {
+                return res;
+            }
+        } else {
+            return res;
+        }
+    }
+}
 function isPodcastImagesSrcSet(trimmedText) {
     const widths = new Set();
     const densities = new Set();
@@ -4855,12 +4885,29 @@ class ValidationJobVM {
                         if (inputUrl.hostname === 'reason.fm' || inputUrl.hostname === 'podvine.com') {
                             delete headers['User-Agent'];
                         }
+                        const urlStatuses = [];
                         const { response: r, side, fetchTime } = await localOrRemoteFetch(inputUrl.toString(), {
                             fetchers,
-                            headers
+                            headers,
+                            urlStatuses
                         });
                         if (job.done) return;
                         job.times.fetchTime = fetchTime;
+                        for(let i = 0; i < urlStatuses.length; i++){
+                            const [urlStatus, nextUrlStatus] = [
+                                0,
+                                1
+                            ].map((v)=>urlStatuses.at(i + v));
+                            if (urlStatus && nextUrlStatus && isRedirectStatus(urlStatus.status)) {
+                                let url = nextUrlStatus.url;
+                                const u = tryParseUrl1(url);
+                                if (u && u.searchParams.has('_t')) {
+                                    u.searchParams.delete('_t');
+                                    url = u.toString();
+                                }
+                                addMessage('warning', `${urlStatus.status} ${urlStatus.status === 301 || urlStatus.status === 308 ? 'permanent' : 'temporary'} redirect to ${url}`);
+                            }
+                        }
                         if (side === 'local') {
                             if (inputUrl.protocol === 'file:') {
                                 addMessage('good', `Local file contents loaded`);
@@ -5555,12 +5602,12 @@ async function localOrRemoteFetchJson(url, fetchers, useSide, sleepMillisBetween
     };
 }
 async function localOrRemoteFetch(url, opts) {
-    const { fetchers, headers, useSide } = opts;
+    const { fetchers, headers, useSide, urlStatuses } = opts;
     if (useSide !== 'remote') {
         try {
             console.log(`local fetch: ${url}`);
             const start = Date.now();
-            const response = await fetchers.localFetcher(url, headers);
+            const response = await fetchers.localFetcher(url, headers, urlStatuses);
             if (response.status === 429) throw new Error(`429: ${await response.text()}`);
             return {
                 fetchTime: Date.now() - start,
@@ -5574,7 +5621,7 @@ async function localOrRemoteFetch(url, opts) {
     }
     console.log(`remote fetch: ${url} ${headers}`);
     const start = Date.now();
-    const response = await fetchers.remoteFetcher(url, headers);
+    const response = await fetchers.remoteFetcher(url, headers, urlStatuses);
     return {
         fetchTime: Date.now() - start,
         side: 'remote',
@@ -6800,21 +6847,43 @@ function parseStaticData() {
 }
 const staticData = parseStaticData();
 const droppedFiles = new Map();
-const localFetcher = (url, headers)=>{
+const localFetcher = (url, headers, urlStatuses)=>{
     const droppedFileText = droppedFiles.get(url);
     if (droppedFileText) return Promise.resolve(new Response(droppedFileText));
     if (new URL(url).protocol === 'file:') throw new Error('Unknown dropped file, try dropping it again');
-    return fetch(url, {
-        headers
-    });
+    return fetchWithUrlStatuses(url, headers, urlStatuses);
 };
-const remoteFetcher = (url, headers)=>fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, {
+const remoteFetcher = async (url, headers, urlStatuses)=>{
+    const rt = await fetch(`/f/${url.replaceAll(/[^a-zA-Z0-9.]+/g, '_')}`, {
         method: 'POST',
         body: JSON.stringify({
             url,
-            headers
+            headers,
+            urlStatuses
         })
     });
+    if (urlStatuses) {
+        const value = rt.headers.get('x-url-statuses');
+        try {
+            if (typeof value === 'string') {
+                const arr = JSON.parse(value);
+                if (!Array.isArray(arr)) throw new Error();
+                for (const obj of arr){
+                    if (typeof obj !== 'object') throw new Error();
+                    const { url, status } = obj;
+                    if (typeof url !== 'string' || typeof status !== 'number') throw new Error();
+                    urlStatuses.push({
+                        url,
+                        status
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn(`Error parsing x-url-statuses: ${value}`, e);
+        }
+    }
+    return rt;
+};
 const piSearchFetcher = (input, headers)=>fetch(`/s`, {
         method: 'POST',
         body: JSON.stringify({
