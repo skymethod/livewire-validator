@@ -2591,8 +2591,9 @@ async function fetchWithUrlStatuses(url, headers, urlStatuses, onResponse) {
             redirect
         });
         if (onResponse) onResponse(res);
-        const { status } = res;
+        const { status, type } = res;
         if (urlStatuses && redirect === 'manual') {
+            if (status === 0 && type === 'opaqueredirect') throw new Error(`Opaque redirect response for ${url}`);
             urlStatuses.push({
                 url,
                 status
