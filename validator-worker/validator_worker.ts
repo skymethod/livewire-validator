@@ -29,7 +29,7 @@ export default {
         const actorPathname = '/actor';
 
         if (pathname === '/') {
-            const { version, flags, twitter, pushId } = env;
+            const { version, flags, twitter, pushId, origin } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
             return new Response(computeHtml(url, { version, flags, twitter, pushId, cfAnalyticsToken }), { headers });
         } else if (pathname === computeAppJsPath()) {
@@ -55,7 +55,7 @@ export default {
             const { twitterCredentials, actorKeyId, actorPrivatePemText } = env;
             return await computeFetch(request, { twitterCredentials, actorKeyId, actorPrivatePemText });
         } else if (pathname === '/s') {
-            return await computeSearch(request, computePodcastIndexCredentials(env.piCredentials));
+            return await computeSearch(request, computePodcastIndexCredentials(env.piCredentials), origin);
         } else if (pathname === '/login') {
             const { mastodonClientName, mastodonClientUrl, storageNamespace, origin } = env;
             if (mastodonClientName && mastodonClientUrl && storageNamespace && origin) {
@@ -124,10 +124,11 @@ function makeStorage(storageNamespace: DurableObjectNamespace, durableObjectName
     }
 }
 
-async function computeSearch(request: Request, podcastIndexCredentials: PodcastIndexCredentials | undefined): Promise<Response> {
+async function computeSearch(request: Request, podcastIndexCredentials: PodcastIndexCredentials | undefined, origin: string | undefined) : Promise<Response> {
     try {
         if (request.method !== 'POST') throw new Error(`Bad method: ${request.method}`);
         const { input, headers } = await request.json();
+        headers['User-Agent'] = `livewire-validator (+${origin ?? '???'})`;
         const result = await search(input, { headers, podcastIndexCredentials });
         return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json; charset=utf-8' }});
     } catch (e) {

@@ -65,7 +65,7 @@ async function fetchPodcastIndexJson(url: string, headersInit: Record<string, st
     const res = await fetch(url, { headers });
     if (res.status !== 200) {
         const message = `Bad res.status ${res.status}: expected 200`;
-        console.error(message, await res.text());
+        console.error(message, await res.text(), headers);
         throw new Error(message);
     }
     const contentType = res.headers.get('Content-Type');
